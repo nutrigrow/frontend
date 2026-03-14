@@ -1,0 +1,36 @@
+version: '3.9'
+
+services:
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: nutrigrow-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: nutrigrow-backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - ml
+
+  ml:
+    build:
+      context: ../ml
+      dockerfile: Dockerfile
+    container_name: nutrigrow-ml
+    ports:
+      - "8000:8000"
+
+networks:
+  default:
+    name: nutrigrow-network
