@@ -1,0 +1,14 @@
+# Team Lead
+*    @rynadag
+
+# Frontend
+*.jsx    @nazwaanasha @eoxxax
+*.css    @nazwaanasha @eoxxax
+
+# Backend
+/src/routes/     @mexsfo @rhzain
+/src/models/     @mexsfo @rhzain
+
+# Docker
+Dockerfile             @rynadag
+docker-compose.yml     @rynadag
