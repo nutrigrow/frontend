@@ -2,7 +2,7 @@
 *    @rynadag
 
 # Frontend
-*.jsx    @nazwaanasha @eoxxax
+*.tsx    @nazwaanasha @eoxxax
 *.css    @nazwaanasha @eoxxax
 
 # Backend
