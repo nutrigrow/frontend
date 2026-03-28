@@ -1,120 +1,93 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import Header from './components/Header'
 
 function App() {
-  const [count, setCount] = useState(0)
+  // Data simulasi user (kosongkan jika ingin lihat tampilan Sign In)
+  const mockUser = {
+    name: "Mama Nutri",
+    avatarUrl: "https://i.pravatar.cc/150?u=nutri"
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+    <div className='min-h-screen bg-white'>
+      <Header user={mockUser} />
+      
+      <main>
+        {/* HERO SECTION */}
+        <section className="px-5 py-16 md:py-24 lg:py-32 flex flex-col items-center text-center">
+          <div className="max-w-4xl mx-auto">
+            <span 
+              className="inline-block px-4 py-1.5 mb-6 text-sm font-semibold rounded-full"
+              style={{ background: 'var(--color-nutri-green-soft)', color: 'var(--color-nutri-green)' }}
+            >
+              🌱 Solusi Nutrisi Keluarga #1 di Indonesia
+            </span>
+            
+            <h1 
+              className="text-4xl md:text-5xl lg:text-7xl font-bold mb-6 leading-[1.1]"
+              style={{ fontFamily: 'var(--font-heading)', color: '#1e293b' }}
+            >
+              Tumbuh Maksimal dengan <br /> 
+              <span style={{ color: 'var(--color-nutri-green)' }}>Nutrisi yang Tepat</span>
+            </h1>
+            
+            <p 
+              className="text-base md:text-lg lg:text-xl mb-10 max-w-2xl mx-auto leading-relaxed"
+              style={{ color: 'var(--color-nutri-slate)', fontFamily: 'var(--font-main)' }}
+            >
+              Pantau tumbuh kembang si kecil, konsultasi dengan ahli gizi, dan temukan 
+              produk nutrisi terbaik hanya dalam satu dashboard yang mudah digunakan.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button 
+                className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-white transition-transform hover:scale-105"
+                style={{ background: 'var(--color-nutri-green)', fontSize: '16px' }}
+              >
+                Mulai Gratis Sekarang
+              </button>
+              <button 
+                className="w-full sm:w-auto px-8 py-4 rounded-full font-bold border-2 transition-colors hover:bg-gray-50"
+                style={{ 
+                  borderColor: 'var(--color-nutri-border)', 
+                  color: 'var(--color-nutri-slate)',
+                  fontSize: '16px'
+                }}
+              >
+                Lihat Katalog Produk
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* STATS SECTION (Sederhana) */}
+        <section 
+          className="py-12 border-y"
+          style={{ borderColor: 'var(--color-nutri-border)', background: '#fcfcfc' }}
         >
-          Count is {count}
-        </button>
-      </section>
+          <div className="max-w-6xl mx-auto px-5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+              {[
+                { label: "Pengguna Aktif", val: "10K+" },
+                { label: "Nutrisi Terverifikasi", val: "500+" },
+                { label: "Ahli Gizi", val: "50+" },
+                { label: "Kota Terjangkau", val: "120+" }
+              ].map((stat, i) => (
+                <div key={i}>
+                  <p className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--color-nutri-green)' }}>{stat.val}</p>
+                  <p className="text-xs md:text-sm font-medium uppercase tracking-wider mt-1" style={{ color: 'var(--color-nutri-slate-light)' }}>{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <footer className="py-10 text-center border-t" style={{ borderColor: 'var(--color-nutri-border)' }}>
+        <p className="text-sm" style={{ color: 'var(--color-nutri-slate-light)' }}>
+          &copy; 2026 NutriGrow Indonesia. Hak Cipta Dilindungi.
+        </p>
+      </footer>
+    </div>
   )
 }
 
