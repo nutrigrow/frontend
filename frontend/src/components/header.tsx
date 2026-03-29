@@ -4,6 +4,7 @@ import DropdownIcon     from '../assets/icons/icon-dropdown.svg'
 import NotificationIcon from '../assets/icons/icon-notification.svg'
 import SettingIcon       from '../assets/icons/icon-settings.svg'
 
+// ─── Interfaces ───────────────────────────────────────────────────────────────
 interface User {
   name: string
   avatarUrl?: string
@@ -15,6 +16,7 @@ interface HeaderProps {
   onLogOut?: () => void
 }
 
+// ─── Main Header ──────────────────────────────────────────────────────────────
 const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
   const [featuresOpen,       setFeaturesOpen]       = useState(false)
   const [profileOpen,        setProfileOpen]        = useState(false)
@@ -23,32 +25,36 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
   const [scrolled,           setScrolled]           = useState(false)
 
   const featuresRef = useRef<HTMLDivElement>(null)
-  const profileRef = useRef<HTMLDivElement>(null) 
+  const profileRef  = useRef<HTMLDivElement>(null)
 
+  // Tutup dropdown saat klik di luar
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (featuresRef.current && !featuresRef.current.contains(e.target as Node)) {
         setFeaturesOpen(false)
       }
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setProfileOpen(false) 
+        setProfileOpen(false)
       }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  // Shadow header saat scroll
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 4)
     window.addEventListener('scroll', fn, { passive: true })
     return () => window.removeEventListener('scroll', fn)
   }, [])
 
+  // Kunci scroll body saat mobile menu terbuka
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [mobileOpen])
 
+  // Tutup mobile menu saat resize ke desktop
   useEffect(() => {
     const fn = () => {
       if (window.innerWidth >= 1024) {
@@ -60,19 +66,21 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
     return () => window.removeEventListener('resize', fn)
   }, [])
 
+  // ─── Nav data ──────────────────────────────────────────────────────────────
   const navItems = [
-    { label: 'About Us',          href: '#about-us', active: false },
-    { label: 'NutriShop',         href: '#nutrishop', active: false },
-    { label: 'Tele-Nutritionist', href: '#tele-nutritionist', active: false },
-    { label: 'Article',           href: '#article', active: false },
+    { label: 'About Us',          href: '#about-us',           active: false },
+    { label: 'NutriShop',         href: '#nutrishop',          active: false },
+    { label: 'Tele-Nutritionist', href: '#tele-nutritionist',  active: false },
+    { label: 'Article',           href: '#article',            active: false },
   ]
   const dropdownItems = [
-    { label: "Mom's Health Log",  href: '#mom-health-log' },
+    { label: "Mom's Health Log",  href: '#mom-health-log'  },
     { label: "Teen's Health Log", href: '#teen-health-log' },
   ]
 
   return (
     <>
+      {/* ── Header bar ── */}
       <header
         className="w-full sticky top-0 z-50 transition-shadow duration-200"
         style={{
@@ -93,15 +101,18 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
             paddingInline: 'clamp(16px, 4vw, 40px)',
           }}
         >
+          {/* Logo */}
           <a href="#" className="flex-shrink-0" aria-label="NutriGrow — Dashboard">
             <img src={NutriGrowLogo} alt="NutriGrow" style={{ height: '34px', width: 'auto' }} />
           </a>
 
+          {/* ── Desktop nav ── */}
           <nav className="hidden lg:flex items-center h-full" style={{ gap: '30px' }}>
             <DesktopNavLink href={navItems[0].href} active={navItems[0].active}>
               {navItems[0].label}
             </DesktopNavLink>
 
+            {/* Features dropdown */}
             <div ref={featuresRef} className="relative h-full flex items-center">
               <DesktopFeaturesBtn open={featuresOpen} onClick={() => setFeaturesOpen(p => !p)} />
               {featuresOpen && (
@@ -131,14 +142,15 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
             ))}
           </nav>
 
+          {/* ── Desktop action icons + auth ── */}
           <div className="hidden lg:flex items-center" style={{ gap: '16px' }}>
             <IconBtn ariaLabel="Notifikasi"><img src={NotificationIcon} alt="" width={16} height={20} /></IconBtn>
             <IconBtn ariaLabel="Pengaturan"><img src={SettingIcon} alt="" width={21} height={20} /></IconBtn>
-            
-            {/* Bagian Profile Dropdown Desktop */}
+
+            {/* Profile dropdown / Sign In */}
             {user ? (
               <div ref={profileRef} className="relative">
-                <button 
+                <button
                   onClick={() => setProfileOpen(!profileOpen)}
                   style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                 >
@@ -155,7 +167,7 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
                   >
                     <DropdownItem href="#" onClick={() => setProfileOpen(false)}>My Profile</DropdownItem>
                     <div style={{ height: '1px', background: 'var(--color-nutri-border)' }} />
-                    <DropdownItem href="#" onClick={() => { onLogOut?.(); setProfileOpen(false); }}>
+                    <DropdownItem href="#" onClick={() => { onLogOut?.(); setProfileOpen(false) }}>
                       <span style={{ color: '#ef4444' }}>Log Out</span>
                     </DropdownItem>
                   </div>
@@ -166,6 +178,7 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
             )}
           </div>
 
+          {/* ── Hamburger (mobile only) ── */}
           <button
             className="lg:hidden flex items-center justify-center rounded-lg flex-shrink-0 transition-colors duration-150"
             style={{ width: '40px', height: '40px', background: 'var(--color-nutri-icon-bg)' }}
@@ -178,7 +191,7 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
         </div>
       </header>
 
-      {/* Mobile Menu Content Tetap Sama */}
+      {/* ── Mobile overlay backdrop ── */}
       <div
         className="lg:hidden fixed inset-0 z-40 bg-black/30 transition-opacity duration-200"
         style={{
@@ -189,6 +202,7 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
         onClick={() => setMobileOpen(false)}
       />
 
+      {/* ── Mobile menu panel ── */}
       <div
         className="lg:hidden fixed top-[72px] left-0 right-0 z-50 bg-white overflow-y-auto"
         style={{
@@ -202,6 +216,8 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
         }}
       >
         <div className="px-5 pt-3 pb-6">
+
+          {/* User info (jika sudah login) */}
           {user && (
             <div className="flex items-center gap-3 py-3 mb-2" style={{ borderBottom: '1px solid var(--color-nutri-border)' }}>
               <Avatar user={user} size={40} />
@@ -212,6 +228,7 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
             </div>
           )}
 
+          {/* Nav links mobile */}
           <div className="pt-1">
             <MobileNavLink href={navItems[0].href} active={navItems[0].active} onClick={() => setMobileOpen(false)}>
               {navItems[0].label}
@@ -231,6 +248,7 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
 
           <div style={{ height: '1px', background: 'var(--color-nutri-border)', margin: '12px 0' }} />
 
+          {/* Icon actions mobile */}
           <div className="flex items-center gap-3 py-1 mb-3">
             <IconBtn ariaLabel="Notifikasi"><img src={NotificationIcon} alt="" width={16} height={20} /></IconBtn>
             <span className="text-sm md:text-base font-[family-name:var(--font-heading)] text-[color:var(--color-nutri-slate)]">Notifikasi</span>
@@ -240,18 +258,20 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
             <span className="text-sm md:text-base font-[family-name:var(--font-heading)] text-[color:var(--color-nutri-slate)]">Pengaturan</span>
           </div>
 
+          {/* Auth button mobile */}
           {user ? (
             <AuthBtn variant="logout" fullWidth onClick={() => { onLogOut?.(); setMobileOpen(false) }}>Log Out</AuthBtn>
           ) : (
             <AuthBtn variant="signin" fullWidth onClick={() => { onSignIn?.(); setMobileOpen(false) }}>Sign In</AuthBtn>
           )}
+
         </div>
       </div>
     </>
   )
 }
 
-// Komponen Pembantu Tetap Sama
+// ─── DesktopNavLink ───────────────────────────────────────────────────────────
 const DesktopNavLink = ({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) => {
   const [hovered, setHovered] = useState(false)
   const highlighted = active || hovered
@@ -277,6 +297,7 @@ const DesktopNavLink = ({ href, active, children }: { href: string; active: bool
   )
 }
 
+// ─── DesktopFeaturesBtn ───────────────────────────────────────────────────────
 const DesktopFeaturesBtn = ({ open, onClick }: { open: boolean; onClick: () => void }) => {
   const [hovered, setHovered] = useState(false)
   const highlighted = open || hovered
@@ -289,7 +310,7 @@ const DesktopFeaturesBtn = ({ open, onClick }: { open: boolean; onClick: () => v
       style={{
         fontFamily: 'var(--font-heading)', background: 'none', border: 'none',
         fontWeight: highlighted ? 600 : 500, color: highlighted ? 'var(--color-nutri-green)' : 'var(--color-nutri-slate)',
-        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '100%', position: 'relative'
+        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '100%', position: 'relative',
       }}
     >
       Features
@@ -299,6 +320,7 @@ const DesktopFeaturesBtn = ({ open, onClick }: { open: boolean; onClick: () => v
   )
 }
 
+// ─── DropdownItem ─────────────────────────────────────────────────────────────
 const DropdownItem = ({ href, children, onClick }: { href: string; children: React.ReactNode; onClick: () => void }) => {
   const [hovered, setHovered] = useState(false)
   return (
@@ -319,6 +341,7 @@ const DropdownItem = ({ href, children, onClick }: { href: string; children: Rea
   )
 }
 
+// ─── MobileNavLink ────────────────────────────────────────────────────────────
 const MobileNavLink = ({ href, active, children, onClick }: { href: string; active: boolean; children: React.ReactNode; onClick: () => void }) => {
   const [hovered, setHovered] = useState(false)
   const highlighted = active || hovered
@@ -342,6 +365,7 @@ const MobileNavLink = ({ href, active, children, onClick }: { href: string; acti
   )
 }
 
+// ─── MobileFeaturesAccordion ──────────────────────────────────────────────────
 const MobileFeaturesAccordion = ({ open, onToggle, items, onItemClick }: any) => {
   const [hovered, setHovered] = useState(false)
   const highlighted = open || hovered
@@ -373,6 +397,7 @@ const MobileFeaturesAccordion = ({ open, onToggle, items, onItemClick }: any) =>
   )
 }
 
+// ─── IconBtn ──────────────────────────────────────────────────────────────────
 const IconBtn = ({ children, ariaLabel }: { children: React.ReactNode; ariaLabel: string }) => (
   <button
     aria-label={ariaLabel}
@@ -387,6 +412,7 @@ const IconBtn = ({ children, ariaLabel }: { children: React.ReactNode; ariaLabel
   </button>
 )
 
+// ─── Avatar ───────────────────────────────────────────────────────────────────
 const Avatar = ({ user, size = 36 }: { user: User; size?: number }) => (
   <div style={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
     {user.avatarUrl ? (
@@ -399,6 +425,7 @@ const Avatar = ({ user, size = 36 }: { user: User; size?: number }) => (
   </div>
 )
 
+// ─── AuthBtn ──────────────────────────────────────────────────────────────────
 const AuthBtn = ({ variant, children, onClick, fullWidth = false }: any) => {
   const isSignIn = variant === 'signin'
   return (
@@ -420,6 +447,7 @@ const AuthBtn = ({ variant, children, onClick, fullWidth = false }: any) => {
   )
 }
 
+// ─── HamburgerIcon ────────────────────────────────────────────────────────────
 const HamburgerIcon = ({ open }: { open: boolean }) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
     {open ? (

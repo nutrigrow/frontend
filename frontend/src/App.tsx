@@ -1,4 +1,5 @@
-import Header from './components/Header'
+import Header from './components/header'
+import Footer from './components/footer'
 
 function App() {
   // Data simulasi user (kosongkan jika ingin lihat tampilan Sign In)
@@ -81,12 +82,8 @@ function App() {
           </div>
         </section>
       </main>
-
-      <footer className="py-10 text-center border-t" style={{ borderColor: 'var(--color-nutri-border)' }}>
-        <p className="text-sm" style={{ color: 'var(--color-nutri-slate-light)' }}>
-          &copy; 2026 NutriGrow Indonesia. Hak Cipta Dilindungi.
-        </p>
-      </footer>
+      
+      <Footer />
     </div>
   )
 }
