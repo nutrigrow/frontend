@@ -393,7 +393,7 @@ const Footer = () => {
 
       {/* Container 1: NutriGrow */}
       <div style={{
-        paddingInline: '28px',
+        paddingInline: '24px',
         paddingTop:    '20px',
         paddingBottom: '20px',
         position:      'relative',
@@ -446,7 +446,7 @@ const Footer = () => {
 
       {/* Container 2: Contact Us + Logo + Ellipse */}
       <div style={{
-        paddingInline: '28px',
+        paddingInline: '24px',
         paddingTop:    '24px',
         paddingBottom: '0',
         position:      'relative',

@@ -74,8 +74,8 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
     { label: 'Article',           href: '#article',            active: false },
   ]
   const dropdownItems = [
-    { label: "Mom's Health Log",  href: '#mom-health-log'  },
-    { label: "Teen's Health Log", href: '#teen-health-log' },
+    { label: "Growth Tracker",  href: '#growth-tracker' },
+    { label: "Health Log", href: '#health-log' },
   ]
 
   return (
