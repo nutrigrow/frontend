@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Header from './components/header'
 import Footer from './components/footer'
+import GrowthTracker from './pages/growth-tracker'
 
 // Mock user untuk Header
 const mockUser = {
@@ -99,6 +100,7 @@ function App() {
         <div className="flex-grow">
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/growth-tracker" element={<GrowthTracker />} />
           </Routes>
         </div>
 
