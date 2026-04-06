@@ -2,8 +2,6 @@ import { useState } from "react";
 import img1 from "../assets/images/img-article-1.png";
 import img2 from "../assets/images/img-article-2.png";
 import img3 from "../assets/images/img-article-3.png";
-import Header from "../components/header";
-import Footer from "../components/footer";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface HealthItem {
@@ -90,8 +88,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#f7f9f4] font-sans">
-
-      <Header />
 
       {/* ── PAGE CONTENT ────────────────────────────────────── */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
@@ -245,7 +241,6 @@ export default function Dashboard() {
         </div>
 
       </main>
-      <Footer />
     </div>
   );
 }
