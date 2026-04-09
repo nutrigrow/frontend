@@ -34,7 +34,7 @@ const getPaddingInline = (bp: 'mobile' | 'tablet' | 'desktop'): string => {
 
 // ─── Auth helper (sesuaikan dengan auth system Anda) ─────────────────────────
 const isLoggedIn = (): boolean => {
-  return !!localStorage.getItem('token') // sesuaikan dengan kondisi auth Anda
+  return !!localStorage.getItem('token') 
 }
 
 // ─── Avatar Bubbles ───────────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ const SectionOurRoots = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
             style={{
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 900,
-              fontSize: bp === 'mobile' ? 28 : bp === 'tablet' ? 4 : 48,
+              fontSize: bp === 'mobile' ? 28 : bp === 'tablet' ? 40 : 48,
               lineHeight: isMobile ? '36px' : '56px',
               color: '#FFF',
               margin: 0,
@@ -1161,7 +1161,10 @@ const SectionReady = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
         {/* Start Tracker */}
         <button
-          onClick={handleStartTracker}
+          onClick={() => {
+            window.scrollTo(0, 0);
+            handleStartTracker();
+          }}
           style={{
             display: 'flex',
             padding: isMobileorTablet ? '14px 28px' : '18px 40px',
@@ -1196,7 +1199,10 @@ const SectionReady = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
 
         {/* Explore Articles */}
         <button
-          onClick={handleExploreArticles}
+          onClick={() => {
+            window.scrollTo(0, 0);
+            handleExploreArticles();
+          }}
           style={{
             display: 'flex',
             padding: isMobileorTablet ? '14px 28px' : '18px 40px',
