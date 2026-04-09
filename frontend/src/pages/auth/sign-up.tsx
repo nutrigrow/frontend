@@ -173,14 +173,54 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const [name, setName]                       = useState('')
   const [password, setPassword]               = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+
+  const [errors, setErrors] = useState({
+    email: '',
+    name: '',
+    password: '',
+    confirmPassword: '',
+  })
+
   const [showPassword, setShowPassword]       = useState(false)
   const [showConfirm, setShowConfirm]         = useState(false)
   const [keepSigned, setKeepSigned]           = useState(false)
+  const [emailFocused,   setEmailFocused]     = useState(false)
+  const [nameFocused,    setNameFocused]      = useState(false)
+  const [passFocused,    setPassFocused]      = useState(false)
+  const [confirmFocused, setConfirmFocused]   = useState(false)
 
-  const [emailFocused,   setEmailFocused]   = useState(false)
-  const [nameFocused,    setNameFocused]    = useState(false)
-  const [passFocused,    setPassFocused]    = useState(false)
-  const [confirmFocused, setConfirmFocused] = useState(false)
+  const validate = () => {
+    const newErrors = { email: '', name: '', password: '', confirmPassword: '' }
+    
+    // Email regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (email && !emailRegex.test(email)) {
+        newErrors.email = 'Please enter a valid email address';
+    }
+    // Name check
+    if (name && name.length < 3) {
+        newErrors.name = 'Name must be at least 3 characters long';
+    }
+    // Password strength
+    if (password && password.length < 8) {
+        newErrors.password = 'Password must be at least 8 characters long';
+    }
+    // Confirm password match
+    if (confirmPassword && confirmPassword !== password) {
+        newErrors.confirmPassword = 'Passwords do not match';
+    }
+    setErrors(newErrors)
+  }
+
+  useEffect(() => {
+    validate()
+  }, [email, name, password, confirmPassword])
+
+  const getBorderColor = (field: keyof typeof errors, isFocused: boolean) => {
+    if (errors[field]) return '#EF4444' 
+    if (isFocused) return '#628141'    
+    return '#E2E8F0'                
+  }
 
   return (
     <div
@@ -271,7 +311,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           <div
             style={{
               display: 'flex', alignItems: 'center', padding: '14px 12px',
-              borderRadius: 8, border: `1px solid ${emailFocused ? '#628141' : '#E2E8F0'}`,
+              borderRadius: 8, border: `1px solid ${getBorderColor('email', emailFocused)}`,
               background: '#FFF', gap: 10, transition: 'border-color 150ms ease',
             }}
           >
@@ -285,6 +325,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, fontFamily: 'Inter, sans-serif', fontSize: isMobile ? '13px' : '14px', color: '#0F172A', lineHeight: '20px' }}
             />
           </div>
+          {errors.email && <span style={{ color: '#DC2626', fontSize: '12px', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>{errors.email}</span>}
         </div>
 
         {/* Enter Your Name */}
@@ -295,7 +336,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           <div
             style={{
               display: 'flex', alignItems: 'center', padding: '14px 12px',
-              borderRadius: 8, border: `1px solid ${nameFocused ? '#628141' : '#E2E8F0'}`,
+              borderRadius: 8, border: `1px solid ${getBorderColor('name', nameFocused)}`,
               background: '#FFF', gap: 10, transition: 'border-color 150ms ease',
             }}
           >
@@ -309,6 +350,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, fontFamily: 'Inter, sans-serif', fontSize: isMobile ? '13px' : '14px', color: '#0F172A', lineHeight: '20px' }}
             />
           </div>
+          {errors.name && <span style={{ color: '#DC2626', fontSize: '12px', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>{errors.name}</span>}
         </div>
 
         {/* Create Your Password */}
@@ -319,7 +361,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           <div
             style={{
               display: 'flex', alignItems: 'center', padding: '14px 12px',
-              borderRadius: 8, border: `1px solid ${passFocused ? '#628141' : '#E2E8F0'}`,
+              borderRadius: 8, border: `1px solid ${getBorderColor('password', passFocused)}`,
               background: '#FFF', gap: 10, transition: 'border-color 150ms ease',
             }}
           >
@@ -338,6 +380,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               </svg>
             </button>
           </div>
+          {errors.password && <span style={{ color: '#DC2626', fontSize: '12px', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>{errors.password}</span>}
         </div>
 
         {/* Confirm Your Password */}
@@ -348,7 +391,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           <div
             style={{
               display: 'flex', alignItems: 'center', padding: '14px 12px',
-              borderRadius: 8, border: `1px solid ${confirmFocused ? '#628141' : '#E2E8F0'}`,
+              borderRadius: 8, border: `1px solid ${getBorderColor('confirmPassword', confirmFocused)}`,
               background: '#FFF', gap: 10, transition: 'border-color 150ms ease',
             }}
           >
@@ -367,6 +410,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               </svg>
             </button>
           </div>
+          {errors.confirmPassword && <span style={{ color: '#DC2626', fontSize: '12px', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>{errors.confirmPassword}</span>}
         </div>
 
         {/* Keep me signed in */}

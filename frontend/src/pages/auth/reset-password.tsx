@@ -171,6 +171,8 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
 
   const [email, setEmail]               = useState('')
   const [emailFocused, setEmailFocused] = useState(false)
+  const [emailTouched, setEmailTouched] = useState(false)
+  const isEmailValid = /^\S+@\S+\.\S+$/.test(email)
 
   return (
     <div
@@ -242,7 +244,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           <div
             style={{
               display: 'flex', alignItems: 'center', padding: '14px 12px',
-              borderRadius: 8, border: `1px solid ${emailFocused ? '#628141' : '#E2E8F0'}`,
+              borderRadius: 8, border: `1px solid ${emailTouched && !isEmailValid ? '#DC2626' : (emailFocused ? '#628141' : '#E2E8F0')}`,
               background: '#FFF', gap: 10, transition: 'border-color 150ms ease',
             }}
           >
@@ -251,11 +253,16 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
             </svg>
             <input
               type="email" placeholder="you@example.com" value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={e => { setEmail(e.target.value); setEmailTouched(true); }}
               onFocus={() => setEmailFocused(true)} onBlur={() => setEmailFocused(false)}
               style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, fontFamily: 'Inter, sans-serif', fontSize: isMobile ? '13px' : '14px', color: '#0F172A', lineHeight: '20px' }}
             />
           </div>
+          {emailTouched && !isEmailValid && (
+            <span style={{ color: '#DC2626', fontSize: '12px', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>
+              Please enter a valid email address
+            </span>
+          )}
         </div>
 
         {/* Send Reset Link button */}
