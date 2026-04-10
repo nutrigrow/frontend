@@ -1,7 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Header from './components/header'
 import Footer from './components/footer'
-import AboutUs from './pages/about-us'
+import NutriShop from './pages/nutrishop'
+import ProductDetail from './pages/product-detail'
 
 // Mock user untuk Header
 const mockUser = {
@@ -16,32 +17,32 @@ const LandingPage = () => {
       {/* HERO SECTION */}
       <section className="px-5 py-16 md:py-24 lg:py-32 flex flex-col items-center text-center">
         <div className="max-w-4xl mx-auto">
-          <span 
+          <span
             className="inline-block px-4 py-1.5 mb-6 text-sm font-semibold rounded-full"
             style={{ background: 'var(--color-nutri-green-soft)', color: 'var(--color-nutri-green)' }}
           >
             🌱 Solusi Nutrisi Keluarga #1 di Indonesia
           </span>
-          
-          <h1 
+
+          <h1
             className="text-4xl md:text-5xl lg:text-7xl font-bold mb-6 leading-[1.1]"
             style={{ fontFamily: 'var(--font-heading)', color: '#1e293b' }}
           >
-            Tumbuh Maksimal dengan <br /> 
+            Tumbuh Maksimal dengan <br />
             <span style={{ color: 'var(--color-nutri-green)' }}>Nutrisi yang Tepat</span>
           </h1>
-          
-          <p 
+
+          <p
             className="text-base md:text-lg lg:text-xl mb-10 max-w-2xl mx-auto leading-relaxed"
             style={{ color: 'var(--color-nutri-slate)', fontFamily: 'var(--font-main)' }}
           >
-            Pantau tumbuh kembang si kecil, konsultasi dengan ahli gizi, dan temukan 
+            Pantau tumbuh kembang si kecil, konsultasi dengan ahli gizi, dan temukan
             produk nutrisi terbaik hanya dalam satu dashboard yang mudah digunakan.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link to="/sign-in" className="w-full sm:w-auto">
-              <button 
+              <button
                 className="w-full px-8 py-4 rounded-full font-bold text-white transition-transform hover:scale-105"
                 style={{ background: 'var(--color-nutri-green)', fontSize: '16px' }}
               >
@@ -49,10 +50,10 @@ const LandingPage = () => {
               </button>
             </Link>
 
-            <button 
+            <button
               className="w-full sm:w-auto px-8 py-4 rounded-full font-bold border-2 transition-colors hover:bg-gray-50"
-              style={{ 
-                borderColor: 'var(--color-nutri-border)', 
+              style={{
+                borderColor: 'var(--color-nutri-border)',
                 color: 'var(--color-nutri-slate)',
                 fontSize: '16px'
               }}
@@ -64,7 +65,7 @@ const LandingPage = () => {
       </section>
 
       {/* STATS SECTION */}
-      <section 
+      <section
         className="py-12 border-y"
         style={{ borderColor: 'var(--color-nutri-border)', background: '#fcfcfc' }}
       >
@@ -95,12 +96,13 @@ function App() {
       <div className='min-h-screen bg-white flex flex-col'>
         {/* Header */}
         <Header user={mockUser} />
-        
+
         {/* Content Area */}
         <div className="flex-grow">
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/about-us" element={<AboutUs />} />
+            <Route path="/nutrishop" element={<NutriShop />} />
+            <Route path="/nutrishop/:id" element={<ProductDetail />} />
           </Routes>
         </div>
 
