@@ -134,7 +134,7 @@ const BmiTooltip = ({ active, payload, label }: any) => {
   return (
     <div className="bg-slate-900 text-white rounded-lg px-3 py-2 shadow-xl border border-slate-700 text-xs font-[Montserrat,sans-serif]">
       <p className="font-bold text-slate-300 mb-0.5 text-[11px]">{label}</p>
-      <p className="font-bold text-[#86efac] text-[11px]">Leo's BMI: <span className="text-white">{leo.value}</span></p>
+      <p className="font-bold text-[#86efac] text-[11px]">Your Child: <span className="text-white">{leo.value}</span></p>
     </div>
   )
 }
@@ -254,9 +254,9 @@ const DateInputField = ({ label, value, onChange }: { label: string; value: stri
   )
 }
 
-// ─── Section 1: Log Leo's New Growth ─────────────────────────────────────────
+// ─── Section 1: Log New Growth ─────────────────────────────────────────
 const LogNewGrowthSection = ({
-  bp, heightVal, setHeightVal, weightVal, setWeightVal, dateVal, setDateVal, saveStatus, onSave,
+  bp, heightVal, setHeightVal, weightVal, setWeightVal, dateVal, setDateVal, onSave,
 }: {
   bp: 'mobile' | 'tablet' | 'desktop'
   heightVal: string; setHeightVal: (v: string) => void
@@ -266,8 +266,76 @@ const LogNewGrowthSection = ({
 }) => {
   const isMobile = bp === 'mobile'
   const isTablet = bp === 'tablet'
-  const saveMsg = saveStatus === 'success' ? 'SUCCESSFULLY SAVED!' : saveStatus === 'error' ? 'FAILED TO SAVE, TRY AGAIN.' : saveStatus === 'empty' ? 'HEIGHT CANNOT BE EMPTY' : null
-  const saveMsgColor = saveStatus === 'success' ? 'text-green-600' : saveStatus === 'error' ? 'text-red-600' : 'text-amber-600'
+
+  const [childOpen, setChildOpen] = useState(false)
+  const [selectedChild, setSelectedChild] = useState('Leo')
+  const childRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (childRef.current && !childRef.current.contains(event.target as Node)) {
+        setChildOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const ChildSelectDropdown = () => (
+    <div className="flex flex-col gap-1 w-full relative" ref={childRef}>
+      <label className="pl-1 text-slate-500 font-bold text-[11px] uppercase tracking-[0.6px] leading-4 font-[Montserrat,sans-serif]">
+        Select Child
+      </label>
+      <div className="relative w-full">
+        <button
+          type="button"
+          onClick={() => setChildOpen(!childOpen)}
+          className="h-[54px] px-4 flex items-center justify-between w-full font-bold text-lg text-slate-700 outline-none transition-all cursor-pointer font-[Montserrat,sans-serif]"
+          style={{ 
+            borderRadius: '8px', 
+            border: '1px solid #E2E8F0', 
+            background: 'rgba(63, 98, 18, 0.10)' 
+          }}
+        >
+          <span>{selectedChild}</span>
+          <svg 
+            width="20" height="20" viewBox="0 0 24 24" fill="none" 
+            stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            className={`transition-transform duration-200 ${childOpen ? 'rotate-180' : ''}`}
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+
+        {/* Floating Menu */}
+        {childOpen && (
+          <div
+            className="absolute top-full left-0 w-full bg-white rounded-xl overflow-hidden z-[100]"
+            style={{
+              marginTop: '6px',
+              border: '1px solid #E2E8F0',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)',
+            }}
+          >
+            {['Leo', 'Sarah', 'Mike'].map((name) => (
+              <div
+                key={name}
+                onClick={() => {
+                  setSelectedChild(name)
+                  setChildOpen(false)
+                }}
+                className={`px-4 py-3.5 font-bold text-base cursor-pointer transition-colors font-[Montserrat,sans-serif]
+                  ${selectedChild === name ? 'text-[#3f6212] bg-slate-50' : 'text-slate-600 hover:bg-slate-50'}
+                `}
+              >
+                {name}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 
   if (isMobile) {
     return (
@@ -275,11 +343,14 @@ const LogNewGrowthSection = ({
         <div className="flex flex-col p-5 gap-4 w-full">
           <div className="flex items-center gap-2">
             <IconAddCircle />
-            <span className="font-[Montserrat,sans-serif] font-black text-[17px] text-slate-900 leading-7">Log Leo's New Growth</span>
+            <span className="font-[Montserrat,sans-serif] font-black text-[17px] text-slate-900 leading-7">Log New Growth</span>
           </div>
           <p className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-600 leading-[22px] m-0">
-            Last measurement was taken 2 days ago. Regular tracking helps in accurate development monitoring.
+            Pemantauan rutin membantu mencegah stunting secara dini.
           </p>
+
+          <ChildSelectDropdown />
+
           <div className="grid grid-cols-2 gap-3">
             <InputField label="Height (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" />
             <InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" />
@@ -288,7 +359,6 @@ const LogNewGrowthSection = ({
           <button onClick={onSave} className="flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[50px] w-full font-[Montserrat,sans-serif] font-black text-lg text-white cursor-pointer">
             Save
           </button>
-          {saveMsg && <p className={`font-[Montserrat,sans-serif] font-bold text-xs uppercase tracking-[0.5px] m-0 text-center ${saveMsgColor}`}>{saveMsg}</p>}
         </div>
       </div>
     )
@@ -302,12 +372,14 @@ const LogNewGrowthSection = ({
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <IconAddCircle />
-                <span className="font-[Montserrat,sans-serif] font-black text-[18px] text-slate-900 leading-7">Log Leo's New Growth</span>
+                <span className="font-[Montserrat,sans-serif] font-black text-[18px] text-slate-900 leading-7">Log New Growth</span>
               </div>
               <p className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-600 leading-[22px] m-0 max-w-lg">
-                Last measurement was taken 2 days ago. Regular tracking helps in accurate development monitoring.
+                Pemantauan rutin membantu mencegah stunting secara dini.
               </p>
+              <ChildSelectDropdown />
             </div>
+            
             <div className="flex flex-row items-end gap-3 w-full">
               <div className="flex-1 min-w-0">
                 <InputField label="Height (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" />
@@ -318,37 +390,38 @@ const LogNewGrowthSection = ({
               <div className="flex-[1.4] min-w-0">
                 <DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} />
               </div>
-              <div className="flex flex-col gap-2 flex-shrink-0">
-                <button onClick={onSave} className="flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[54px] w-[140px] font-[Montserrat,sans-serif] font-black text-base text-white cursor-pointer">
+            </div>
+            <div className="flex w-full">
+                <button onClick={onSave} className="flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[54px] w-full font-[Montserrat,sans-serif] font-black text-base text-white cursor-pointer">
                   Save
                 </button>
-                {saveMsg && <p className={`font-[Montserrat,sans-serif] font-bold text-[10px] uppercase tracking-[0.5px] m-0 ${saveMsgColor}`}>{saveMsg}</p>}
-              </div>
             </div>
           </>
         ) : (
           <>
-            <div className="flex flex-col gap-2 flex-shrink-0 w-[240px]">
+            <div className="flex flex-col gap-2 flex-shrink-0 w-[250px]">
               <div className="flex items-center gap-2">
                 <IconAddCircle />
-                <span className="font-[Montserrat,sans-serif] font-black text-xl text-slate-900 leading-7">Log Leo's New Growth</span>
+                <span className="font-[Montserrat,sans-serif] font-black text-xl text-slate-900 leading-7">Log New Growth</span>
               </div>
               <p className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-600 leading-[22px] m-0">
-                Last measurement was taken 2 days ago. Regular tracking helps in accurate development monitoring.
+                Pemantauan rutin membantu mencegah stunting secara dini.
               </p>
+              <div className="mt-3">
+                <ChildSelectDropdown />
+              </div>
             </div>
-            <div className="flex flex-col gap-3 flex-1 min-w-0">
+            
+            <div className="flex flex-col gap-3 flex-1 min-w-0 mt-5">
               <div className="grid grid-cols-3 gap-4 w-full">
                 <InputField label="Height (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" />
                 <InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" />
                 <DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} />
               </div>
-              <div className="flex items-center gap-4">
-                <button onClick={onSave} className="flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[50px] w-full max-w-[307px] font-[Montserrat,sans-serif] font-black text-lg text-white cursor-pointer">
-                  Save
-                </button>
-                {saveMsg && <p className={`font-[Montserrat,sans-serif] font-bold text-xs uppercase tracking-[0.5px] m-0 ${saveMsgColor}`}>{saveMsg}</p>}
-              </div>
+              
+              <button onClick={onSave} className="flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[50px] w-full font-[Montserrat,sans-serif] font-black text-lg text-white cursor-pointer">
+                Save
+              </button>
             </div>
           </>
         )}
@@ -358,34 +431,37 @@ const LogNewGrowthSection = ({
 }
 
 // ─── Section 2: Key Stats Cards ───────────────────────────────────────────────
-const StatCard = ({ icon, label, value, unit, delta, deltaUp, sub }: { icon: React.ReactNode; label: string; value: string; unit: string; delta?: string; deltaUp?: boolean; sub: string }) => (
+const StatCard = ({ icon, label, value, unit, delta, deltaUp, sub, bp }: { icon: React.ReactNode; label: string; value: string; unit: string; delta?: string; deltaUp?: boolean; sub: string; bp?: 'mobile' | 'tablet' | 'desktop' }) => {
+  const isTablet = bp === 'tablet'
+  return (
   <div className="bg-white relative rounded-lg flex-1 min-w-0 border border-slate-100 shadow-sm">
     <div className="flex flex-col gap-3 items-start p-[25px] w-full box-border">
       <div className="flex items-center gap-2 w-full">
         <div className="flex-shrink-0">{icon}</div>
-        <span className="font-[Montserrat,sans-serif] font-semibold text-sm tracking-[0.7px] uppercase text-slate-600 leading-5">{label}</span>
+        <span className={`font-[Montserrat,sans-serif] font-semibold uppercase text-slate-600 leading-5 ${isTablet ? 'text-[10px] tracking-[0.5px]' : 'text-sm tracking-[0.7px]'}`}>{label}</span>
       </div>
       <div className="relative w-full h-9">
-        <span className="font-[Montserrat,sans-serif] font-black text-[30px] text-slate-900 leading-9 absolute left-0 top-1/2 -translate-y-1/2">
-          {value} <span className="text-2xl">{unit}</span>
+        <span className={`font-[Montserrat,sans-serif] font-black text-slate-900 leading-9 absolute left-0 top-1/2 -translate-y-1/2 ${isTablet ? 'text-[24px]' : 'text-[30px]'}`}>
+          {value} <span className={isTablet ? 'text-lg' : 'text-2xl'}>{unit}</span>
         </span>
         {delta && (
           <span className="absolute flex items-center gap-[3px] right-0 top-1/2 -translate-y-1/2">
             {deltaUp ? <IconTrendUp /> : <IconTrendDown />}
-            <span className={`font-[Montserrat,sans-serif] font-bold text-sm leading-5 ${deltaUp ? 'text-emerald-600' : 'text-red-500'}`}>{delta}</span>
+            <span className={`font-[Montserrat,sans-serif] font-bold leading-5 ${deltaUp ? 'text-emerald-600' : 'text-red-500'} ${isTablet ? 'text-xs' : 'text-sm'}`}>{delta}</span>
           </span>
         )}
       </div>
       <span className="font-[Montserrat,sans-serif] font-normal text-xs text-slate-400 leading-4">{sub}</span>
     </div>
   </div>
-)
+  )
+}
 
 const KeyStatsSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => (
   <div className={`w-full mb-8 grid gap-6 ${bp === 'mobile' ? 'grid-cols-1' : 'grid-cols-3'}`}>
-    <StatCard icon={<IconHeightSvg />} label="Current Height" value="95.5" unit="cm" delta="+1.2%" deltaUp={true} sub="Last updated 2 days ago" />
-    <StatCard icon={<IconWeightSvg />} label="Current Weight" value="14.2" unit="kg" delta="-0.8%" deltaUp={false} sub="Last updated 2 days ago" />
-    <StatCard icon={<IconStuntingSvg />} label="Stunting Status" value="17" unit="%" sub="Low risk of stunting" />
+    <StatCard icon={<IconHeightSvg />} label="Current Height" value="95.5" unit="cm" delta="+1.2%" deltaUp={true} sub="Last updated 2 days ago" bp={bp} />
+    <StatCard icon={<IconWeightSvg />} label="Current Weight" value="14.2" unit="kg" delta="-0.8%" deltaUp={false} sub="Last updated 2 days ago" bp={bp} />
+    <StatCard icon={<IconStuntingSvg />} label="Stunting Status" value="17" unit="%" sub="Low risk of stunting" bp={bp} />
   </div>
 )
 
@@ -464,21 +540,21 @@ const ChartModal = ({ open, onClose, title, subtitle, children, legendItems }: C
   )
 }
 
-// ─── Section 3: BMI Chart + Insights ─────────────────────────────────────────
+// ─── Section 3: BMI Chart ────────────────────────────────────────────────────
 const BmiChart = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const [modalOpen, setModalOpen] = useState(false)
   const dotFn = makeLineDot(bmiChartData, '15.7')
   const isMobile = bp === 'mobile'
-
+ 
   const legendItems = [
     { color: '#3f6212', label: "Leo's BMI" },
     { color: '#cbd5e1', dash: true, label: 'WHO Median' },
     { color: 'rgba(98,129,65,0.2)', isArea: true, label: 'WHO Normal Range' },
   ]
-
+ 
   const chartContent = (_height: number) => (
     <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={bmiChartData} margin={{ top: 24, right: 32, left: 0, bottom: 10 }}>
+      <ComposedChart data={bmiChartData} margin={{ top: 24, right: 42, left: 0, bottom: 10 }}>
         <CartesianGrid vertical={false} stroke="#f1f5f9" strokeWidth={1} />
         <XAxis dataKey="age" tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
         <YAxis tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} domain={[11, 20]} />
@@ -490,31 +566,33 @@ const BmiChart = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
       </ComposedChart>
     </ResponsiveContainer>
   )
-
+ 
   return (
     <>
-      <div className="bg-white relative rounded-lg border border-slate-100 shadow-sm p-[25px]">
+      <div className="bg-white relative rounded-lg border border-slate-100 shadow-sm p-[25px] pb-[20px]">
         <div className={`flex items-start w-full mb-4 ${isMobile ? 'flex-col gap-3' : 'flex-row justify-between'}`}>
           <div className="flex flex-col gap-0.5">
             <span className="font-[Montserrat,sans-serif] font-bold text-lg text-slate-900 leading-7">Growth Tracker (BMI)</span>
             <span className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-500 leading-5">World Health Organization Standard Reference</span>
           </div>
           <button
-            className="w-8 h-8 flex items-center justify-center cursor-pointer rounded-lg transition-colors hover:bg-slate-100 bg-transparent border-none flex-shrink-0"
+            className={`w-8 h-8 flex items-center justify-center cursor-pointer rounded-lg transition-colors hover:bg-slate-100 bg-transparent border-none flex-shrink-0 ${isMobile ? 'self-end' : ''}`}
             onClick={() => setModalOpen(true)}
             title="Expand chart"
           >
             <IconExpand />
           </button>
         </div>
-
-        <div className={`w-full ${isMobile ? 'h-[220px]' : 'h-[300px]'}`}>
-          {chartContent(isMobile ? 220 : 300)}
+ 
+        <div className="w-full" style={{ marginLeft: '-25px', marginRight: '-25px', width: 'calc(100% + 50px)' }}>
+          <div className={`w-full ${isMobile ? 'h-[180px]' : 'h-[300px]'}`}>
+            {chartContent(isMobile ? 180 : 300)}
+          </div>
         </div>
-
+ 
         <ChartLegend items={legendItems} />
       </div>
-
+ 
       <ChartModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -528,59 +606,9 @@ const BmiChart = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   )
 }
 
-// ─── Growth Insights Panel ────────────────────────────────────────────────────
-const GrowthInsightsPanel = () => (
-  <div className="flex flex-col gap-4">
-    <span className="font-[Montserrat,sans-serif] font-bold text-lg text-slate-900 leading-7">Growth Insights</span>
-
-    <div className="rounded-lg p-4 flex flex-col gap-2 border border-[#D1FAE5] bg-[#ECFDF5]">
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-[#10B981] flex items-center justify-center flex-shrink-0">
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-            <path d="M6.45 10.95L11.7375 5.6625L10.6875 4.6125L6.45 8.85L4.3125 6.7125L3.2625 7.7625L6.45 10.95ZM7.5 15C6.4625 15 5.4875 14.8031 4.575 14.4094C3.6625 14.0156 2.86875 13.4812 2.19375 12.8062C1.51875 12.1312 0.984375 11.3375 0.590625 10.425C0.196875 9.5125 0 8.5375 0 7.5C0 6.4625 0.196875 5.4875 0.590625 4.575C0.984375 3.6625 1.51875 2.86875 2.19375 2.19375C2.86875 1.51875 3.6625 0.984375 4.575 0.590625C5.4875 0.196875 6.4625 0 7.5 0C8.5375 0 9.5125 0.196875 10.425 0.590625C11.3375 0.984375 12.1312 1.51875 12.8062 2.19375C13.4812 2.86875 14.0156 3.6625 14.4094 4.575C14.8031 5.4875 15 6.4625 15 7.5C15 8.5375 14.8031 9.5125 14.4094 10.425C14.0156 11.3375 13.4812 12.1312 12.8062 12.8062C12.1312 13.4812 11.3375 14.0156 10.425 14.4094C9.5125 14.8031 8.5375 15 7.5 15ZM7.5 13.5C9.175 13.5 10.5938 12.9188 11.7563 11.7563C12.9188 10.5938 13.5 9.175 13.5 7.5C13.5 5.825 12.9188 4.40625 11.7563 3.24375C10.5938 2.08125 9.175 1.5 7.5 1.5C5.825 1.5 4.40625 2.08125 3.24375 3.24375C2.08125 4.40625 1.5 5.825 1.5 7.5C1.5 9.175 2.08125 10.5938 3.24375 11.7563C4.40625 12.9188 5.825 13.5 7.5 13.5Z" fill="white"/>
-          </svg>
-        </div>
-        <span className="font-[Montserrat,sans-serif] font-bold text-base text-[#064E3B] leading-6">Consistent Curve</span>
-      </div>
-      <p className="font-[Montserrat,sans-serif] font-normal text-[13px] text-[#065f46] leading-5 m-0">
-        Leo is tracking beautifully along the 75th percentile curve. His growth velocity is stable and healthy.
-      </p>
-    </div>
-
-    <div className="rounded-lg p-4 flex flex-col gap-2 bg-[#628141]">
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-[#3f6212] flex items-center justify-center flex-shrink-0">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="15" viewBox="0 0 12 15" fill="none">
-            <path d="M2.25 15V8.1375C1.6125 7.9625 1.07812 7.6125 0.646875 7.0875C0.215625 6.5625 0 5.95 0 5.25V0H1.5V5.25H2.25V0H3.75V5.25H4.5V0H6V5.25C6 5.95 5.78438 6.5625 5.35313 7.0875C4.92188 7.6125 4.3875 7.9625 3.75 8.1375V15H2.25ZM9.75 15V9H7.5V3.75C7.5 2.7125 7.86563 1.82812 8.59688 1.09687C9.32812 0.365625 10.2125 0 11.25 0V15H9.75Z" fill="white"/>
-          </svg>
-        </div>
-        <span className="font-[Montserrat,sans-serif] font-bold text-base text-white leading-6">Nutrition Tip</span>
-      </div>
-      <p className="font-[Montserrat,sans-serif] font-normal text-[13px] text-white/90 leading-5 m-0">
-        To support this steady growth phase, ensure adequate Vitamin D intake. Consider adding more spinach and lean proteins to the lunch menu.
-      </p>
-    </div>
-
-    <div className="rounded-lg p-4 flex flex-col gap-2 bg-[#FFFBEB] border border-[#FEF3C7]">
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-[#F59E0B] flex items-center justify-center flex-shrink-0">
-          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 15 15" fill="none">
-            <path d="M6.75 11.25H8.25V6.75H6.75V11.25ZM7.5 5.25C7.7125 5.25 7.89062 5.17813 8.03438 5.03438C8.17813 4.89062 8.25 4.7125 8.25 4.5C8.25 4.2875 8.17813 4.10938 8.03438 3.96563C7.89062 3.82188 7.7125 3.75 7.5 3.75C7.2875 3.75 7.10938 3.82188 6.96562 3.96563C6.82187 4.10938 6.75 4.2875 6.75 4.5C6.75 4.7125 6.82187 4.89062 6.96562 5.03438C7.10938 5.17813 7.2875 5.25 7.5 5.25ZM7.5 15C6.4625 15 5.4875 14.8031 4.575 14.4094C3.6625 14.0156 2.86875 13.4812 2.19375 12.8062C1.51875 12.1312 0.984375 11.3375 0.590625 10.425C0.196875 9.5125 0 8.5375 0 7.5C0 6.4625 0.196875 5.4875 0.590625 4.575C0.984375 3.6625 1.51875 2.86875 2.19375 2.19375C2.86875 1.51875 3.6625 0.984375 4.575 0.590625C5.4875 0.196875 6.4625 0 7.5 0C8.5375 0 9.5125 0.196875 10.425 0.590625C11.3375 0.984375 12.1312 1.51875 12.8062 2.19375C13.4812 2.86875 14.0156 3.6625 14.4094 4.575C14.8031 5.4875 15 6.4625 15 7.5C15 8.5375 14.8031 9.5125 14.4094 10.425C14.0156 11.3375 13.4812 12.1312 12.8062 12.8062C12.1312 13.4812 11.3375 14.0156 10.425 14.4094C9.5125 14.8031 8.5375 15 7.5 15ZM7.5 13.5C9.175 13.5 10.5938 12.9188 11.7563 11.7563C12.9188 10.5938 13.5 9.175 13.5 7.5C13.5 5.825 12.9188 4.40625 11.7563 3.24375C10.5938 2.08125 9.175 1.5 7.5 1.5C5.825 1.5 4.40625 2.08125 3.24375 3.24375C2.08125 4.40625 1.5 5.825 1.5 7.5C1.5 9.175 2.08125 10.5938 3.24375 11.7563C4.40625 12.9188 5.825 13.5 7.5 13.5Z" fill="white"/>
-          </svg>
-        </div>
-        <span className="font-[Montserrat,sans-serif] font-bold text-base text-[#B45309] leading-6">Upcoming Milestone</span>
-      </div>
-      <p className="font-[Montserrat,sans-serif] font-normal text-[13px] text-[#92400e] leading-5 m-0">
-        Next measurement recommended in 3 weeks (at 26 months).
-      </p>
-    </div>
-  </div>
-)
-
-const GrowthChartAndInsightsSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => (
-  <div className={`w-full mb-8 grid gap-6 items-start ${bp === 'mobile' ? 'grid-cols-1' : 'grid-cols-[3fr_2fr]'}`}>
+const GrowthChartSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => (
+  <div className="w-full mb-8">
     <BmiChart bp={bp} />
-    <GrowthInsightsPanel />
   </div>
 )
 
@@ -598,7 +626,7 @@ const SmallChart = ({ title, data, lastLabel, bp, unit }: { title: string; data:
 
   const chartContent = () => (
     <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ top: 22, right: 32, left: 0, bottom: 8 }}>
+      <ComposedChart data={data} margin={{ top: 22, right: 42, left: 0, bottom: 8 }}>
         <CartesianGrid vertical={false} stroke="#f1f5f9" strokeWidth={1} />
         <XAxis dataKey="age" tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
         <YAxis tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
@@ -765,17 +793,31 @@ const RecentMeasurementsSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop'
   )
 }
 
-// ─── Success Banner ───────────────────────────────────────────────────────────
-const SuccessBanner = ({ visible }: { visible: boolean }) => {
-  if (!visible) return null
+// ─── Save Notification Banner ─────────────────────────────────────────────────
+const SaveNotification = ({ saveStatus }: { saveStatus: SaveStatus }) => {
+  if (saveStatus !== 'success' && saveStatus !== 'error') return null
+  const isSuccess = saveStatus === 'success'
   return (
-    <div className="flex items-center gap-2.5 px-5 py-3 rounded-lg border border-[#628141] bg-white shadow-md flex-shrink-0">
-      <div className="w-[22px] h-[22px] flex items-center justify-center rounded-full bg-[#628141] flex-shrink-0">
-        <svg width="12" height="9" viewBox="0 0 12 9" fill="none">
-          <path d="M1 4L4.5 7.5L11 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+    <div
+      className="flex items-center gap-2.5 px-5 py-3 rounded-full flex-shrink-0 shadow-md"
+      style={{
+        background: isSuccess ? '#628141' : '#ef4444',
+      }}
+    >
+      <div className="w-[22px] h-[22px] flex items-center justify-center rounded-full bg-white flex-shrink-0">
+        {isSuccess ? (
+          <svg width="12" height="9" viewBox="0 0 12 9" fill="none">
+            <path d="M1 4L4.5 7.5L11 1" stroke="#628141" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2 2L10 10M10 2L2 10" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        )}
       </div>
-      <span className="font-[Montserrat,sans-serif] font-semibold text-[15px] text-[#3f6212] whitespace-nowrap">Data berhasil dimasukkan!</span>
+      <span className="font-[Montserrat,sans-serif] font-semibold text-[15px] text-white whitespace-nowrap">
+        {isSuccess ? 'Data saved!' : 'Failed to save data!'}
+      </span>
     </div>
   )
 }
@@ -790,10 +832,10 @@ const PageTitleSection = ({ bp, saveStatus }: { bp: 'mobile' | 'tablet' | 'deskt
           Growth Tracker
         </h1>
         <p className="font-[Montserrat,sans-serif] font-normal text-lg text-slate-500 m-0 leading-7">
-          Tracking Leo's development against WHO standards
+          Pantau tumbuh kembang anak berdasarkan standar WHO.
         </p>
       </div>
-      <SuccessBanner visible={saveStatus === 'success'} />
+      <SaveNotification saveStatus={saveStatus} />
     </div>
   )
 }
@@ -839,7 +881,7 @@ const GrowthTracker = () => {
           saveStatus={saveStatus} onSave={handleSave}
         />
         <KeyStatsSection bp={bp} />
-        <GrowthChartAndInsightsSection bp={bp} />
+        <GrowthChartSection bp={bp} />
         <SubChartsSection bp={bp} />
         <RecentMeasurementsSection bp={bp} />
       </div>
