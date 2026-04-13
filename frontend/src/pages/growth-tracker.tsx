@@ -25,7 +25,7 @@ const useBreakpoint = () => {
   return bp
 }
 
-type SaveStatus = 'idle' | 'success' | 'error' | 'empty'
+type SaveStatus = 'idle' | 'success' | 'error'
 
 // ─── Chart Data ───────────────────────────────────────────────────────────────
 const bmiChartData = [
@@ -55,7 +55,11 @@ const weightForAgeData = [
   { age: '30m',   child: 14.2, median: 13.3, low: 11.7, band: 3.8 },
 ]
 
-const recentMeasurements = [
+type Measurement = {
+  date: string; age: string; height: string; weight: string; heightPct: string; weightPct: string
+}
+
+const INITIAL_MEASUREMENTS: Measurement[] = [
   { date: 'Oct 12, 2023', age: '24 months', height: '95.5 cm', weight: '14.2 kg', heightPct: '75th', weightPct: '15.4' },
   { date: 'Aug 15, 2023', age: '22 months', height: '93.8 cm', weight: '13.8 kg', heightPct: '74th', weightPct: '14.8' },
   { date: 'Jun 10, 2023', age: '20 months', height: '92.1 cm', weight: '13.4 kg', heightPct: '74th', weightPct: '14.2' },
@@ -115,18 +119,32 @@ const IconClose = () => (
   </svg>
 )
 
-// ─── Custom Chart Dot — NO rect/label, just circles ──────────────────────────
+const IconDelete = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/>
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+    <path d="M10 11v6M14 11v6"/>
+    <path d="M9 6V4h6v2"/>
+  </svg>
+)
+
+const IconEdit = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+  </svg>
+)
+
+// ─── Custom Chart Dot ─────────────────────────────────────────────────────────
 const makeLineDot = (data: any[], _label: string) => (props: any) => {
   const { cx, cy, index } = props
   if (index !== data.length - 1) {
     return <circle key={`dot-sm-${index}`} cx={cx} cy={cy} r={3.5} fill="#3f6212" stroke="white" strokeWidth={1.5} />
   }
-  return (
-    <circle key={`dot-end-${index}`} cx={cx} cy={cy} r={5.5} fill="#3f6212" stroke="white" strokeWidth={2} />
-  )
+  return <circle key={`dot-end-${index}`} cx={cx} cy={cy} r={5.5} fill="#3f6212" stroke="white" strokeWidth={2} />
 }
 
-// ─── Custom Tooltip for BMI chart ─────────────────────────────────────────────
+// ─── Custom Tooltips ──────────────────────────────────────────────────────────
 const BmiTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload || !payload.length) return null
   const leo = payload.find((p: any) => p.dataKey === 'leo')
@@ -139,7 +157,6 @@ const BmiTooltip = ({ active, payload, label }: any) => {
   )
 }
 
-// ─── Custom Tooltip for small charts ─────────────────────────────────────────
 const ChildTooltip = ({ active, payload, label, unit }: any) => {
   if (!active || !payload || !payload.length) return null
   const child = payload.find((p: any) => p.dataKey === 'child')
@@ -217,18 +234,28 @@ const CalendarPicker = ({ value, onChange, onClose }: { value: string; onChange:
 }
 
 // ─── Input Field ──────────────────────────────────────────────────────────────
-const InputField = ({ label, value, onChange, placeholder, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) => (
+const InputField = ({
+  label, value, onChange, placeholder, type = 'text', error,
+}: {
+  label: string; value: string; onChange: (v: string) => void
+  placeholder?: string; type?: string; error?: string
+}) => (
   <div className="flex flex-col gap-1 min-w-0 w-full">
     <label className="pl-1 text-slate-500 font-bold text-[11px] uppercase tracking-[0.6px] leading-4 font-[Montserrat,sans-serif]">{label}</label>
     <input
       type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-      className="h-[54px] border border-slate-200 rounded-lg px-3 font-bold text-lg text-gray-500 bg-white outline-none w-full box-border transition-colors duration-150 focus:border-[#628141] font-[Montserrat,sans-serif]"
+      className={`h-[54px] border rounded-lg px-3 font-bold text-lg text-gray-500 bg-white outline-none w-full box-border transition-colors duration-150 focus:border-[#628141] font-[Montserrat,sans-serif] ${error ? 'border-red-400 focus:border-red-400' : 'border-slate-200'}`}
     />
+    {error && <span className="pl-1 text-red-500 font-[Montserrat,sans-serif] text-[11px] font-semibold leading-4">{error}</span>}
   </div>
 )
 
 // ─── Date Input with Calendar ─────────────────────────────────────────────────
-const DateInputField = ({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) => {
+const DateInputField = ({
+  label, value, onChange, error,
+}: {
+  label: string; value: string; onChange: (v: string) => void; error?: string
+}) => {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -241,7 +268,7 @@ const DateInputField = ({ label, value, onChange }: { label: string; value: stri
       <label className="pl-1 text-slate-500 font-bold text-[11px] uppercase tracking-[0.6px] leading-4 font-[Montserrat,sans-serif]">{label}</label>
       <button
         type="button" onClick={() => setOpen(o => !o)}
-        className="h-[54px] border border-slate-200 rounded-lg px-3 font-bold text-lg text-gray-500 bg-white w-full box-border transition-colors duration-150 text-left flex items-center gap-2 hover:border-[#628141] focus:border-[#628141] focus:outline-none font-[Montserrat,sans-serif]"
+        className={`h-[54px] border rounded-lg px-3 font-bold text-lg text-gray-500 bg-white w-full box-border transition-colors duration-150 text-left flex items-center gap-2 hover:border-[#628141] focus:border-[#628141] focus:outline-none font-[Montserrat,sans-serif] ${error ? 'border-red-400' : 'border-slate-200'}`}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="flex-shrink-0">
           <rect x="3" y="4" width="18" height="18" rx="2" stroke="#94a3b8" strokeWidth="2"/>
@@ -249,20 +276,47 @@ const DateInputField = ({ label, value, onChange }: { label: string; value: stri
         </svg>
         <span>{value || 'DD/MM/YYYY'}</span>
       </button>
+      {error && <span className="pl-1 text-red-500 font-[Montserrat,sans-serif] text-[11px] font-semibold leading-4">{error}</span>}
       {open && <CalendarPicker value={value} onChange={v => { onChange(v); setOpen(false) }} onClose={() => setOpen(false)} />}
     </div>
   )
 }
 
-// ─── Section 1: Log New Growth ─────────────────────────────────────────
+// ─── Validation helper ────────────────────────────────────────────────────────
+const validateInputs = (height: string, weight: string, date: string) => {
+  const errors: { height?: string; weight?: string; date?: string } = {}
+  const h = parseFloat(height)
+  if (!height.trim()) errors.height = 'Height is required.'
+  else if (isNaN(h) || h <= 0) errors.height = 'Please enter a valid height (e.g. 75.5).'
+  else if (h < 30 || h > 250) errors.height = 'Height must be between 30 and 250 cm.'
+
+  const w = parseFloat(weight)
+  if (!weight.trim()) errors.weight = 'Weight is required.'
+  else if (isNaN(w) || w <= 0) errors.weight = 'Please enter a valid weight (e.g. 10.5).'
+  else if (w < 0.5 || w > 300) errors.weight = 'Weight must be between 0.5 and 300 kg.'
+
+  if (!date.trim()) errors.date = 'Date is required.'
+  else {
+    const parts = date.split('/')
+    if (parts.length !== 3 || parts.some(p => p === '') || isNaN(new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime())) {
+      errors.date = 'Please enter a valid date (DD/MM/YYYY).'
+    }
+  }
+  return errors
+}
+
+// ─── Section 1: Log New Growth ────────────────────────────────────────────────
 const LogNewGrowthSection = ({
-  bp, heightVal, setHeightVal, weightVal, setWeightVal, dateVal, setDateVal, onSave,
+  bp, heightVal, setHeightVal, weightVal, setWeightVal, dateVal, setDateVal,
+  onSave, heightError, weightError, dateError, editIndex, onCancelEdit,
 }: {
   bp: 'mobile' | 'tablet' | 'desktop'
   heightVal: string; setHeightVal: (v: string) => void
   weightVal: string; setWeightVal: (v: string) => void
   dateVal: string;   setDateVal: (v: string) => void
-  saveStatus: SaveStatus; onSave: () => void
+  onSave: () => void
+  heightError?: string; weightError?: string; dateError?: string
+  editIndex: number | null; onCancelEdit: () => void
 }) => {
   const isMobile = bp === 'mobile'
   const isTablet = bp === 'tablet'
@@ -273,61 +327,36 @@ const LogNewGrowthSection = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (childRef.current && !childRef.current.contains(event.target as Node)) {
-        setChildOpen(false)
-      }
+      if (childRef.current && !childRef.current.contains(event.target as Node)) setChildOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const isEditing = editIndex !== null
+
   const ChildSelectDropdown = () => (
     <div className="flex flex-col gap-1 w-full relative" ref={childRef}>
-      <label className="pl-1 text-slate-500 font-bold text-[11px] uppercase tracking-[0.6px] leading-4 font-[Montserrat,sans-serif]">
-        Select Child
-      </label>
+      <label className="pl-1 text-slate-500 font-bold text-[11px] uppercase tracking-[0.6px] leading-4 font-[Montserrat,sans-serif]">Select Child</label>
       <div className="relative w-full">
         <button
           type="button"
           onClick={() => setChildOpen(!childOpen)}
           className="h-[54px] px-4 flex items-center justify-between w-full font-bold text-lg text-slate-700 outline-none transition-all cursor-pointer font-[Montserrat,sans-serif]"
-          style={{ 
-            borderRadius: '8px', 
-            border: '1px solid #E2E8F0', 
-            background: 'rgba(63, 98, 18, 0.10)' 
-          }}
+          style={{ borderRadius: '8px', border: '1px solid #E2E8F0', background: 'rgba(63, 98, 18, 0.10)' }}
         >
           <span>{selectedChild}</span>
-          <svg 
-            width="20" height="20" viewBox="0 0 24 24" fill="none" 
-            stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-            className={`transition-transform duration-200 ${childOpen ? 'rotate-180' : ''}`}
-          >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            className={`transition-transform duration-200 ${childOpen ? 'rotate-180' : ''}`}>
             <path d="M6 9l6 6 6-6" />
           </svg>
         </button>
-
-        {/* Floating Menu */}
         {childOpen && (
-          <div
-            className="absolute top-full left-0 w-full bg-white rounded-xl overflow-hidden z-[100]"
-            style={{
-              marginTop: '6px',
-              border: '1px solid #E2E8F0',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)',
-            }}
-          >
+          <div className="absolute top-full left-0 w-full bg-white rounded-xl overflow-hidden z-[100]"
+            style={{ marginTop: '6px', border: '1px solid #E2E8F0', boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}>
             {['Leo', 'Sarah', 'Mike'].map((name) => (
-              <div
-                key={name}
-                onClick={() => {
-                  setSelectedChild(name)
-                  setChildOpen(false)
-                }}
-                className={`px-4 py-3.5 font-bold text-base cursor-pointer transition-colors font-[Montserrat,sans-serif]
-                  ${selectedChild === name ? 'text-[#3f6212] bg-slate-50' : 'text-slate-600 hover:bg-slate-50'}
-                `}
-              >
+              <div key={name} onClick={() => { setSelectedChild(name); setChildOpen(false) }}
+                className={`px-4 py-3.5 font-bold text-base cursor-pointer transition-colors font-[Montserrat,sans-serif] ${selectedChild === name ? 'text-[#3f6212] bg-slate-50' : 'text-slate-600 hover:bg-slate-50'}`}>
                 {name}
               </div>
             ))}
@@ -337,27 +366,35 @@ const LogNewGrowthSection = ({
     </div>
   )
 
+  const titleLabel = isEditing ? 'Update Measurement' : 'Log New Growth'
+  const saveLabel  = isEditing ? 'Update' : 'Save'
+
   if (isMobile) {
     return (
-      <div className="relative w-full rounded-xl mb-8 bg-[rgba(98,129,65,0.05)] border-2 border-[rgba(98,129,65,0.2)] shadow-sm">
+      <div className={`relative w-full rounded-xl mb-8 shadow-sm border-2 ${isEditing ? 'bg-[rgba(98,129,65,0.08)] border-[#628141]' : 'bg-[rgba(98,129,65,0.05)] border-[rgba(98,129,65,0.2)]'}`}>
         <div className="flex flex-col p-5 gap-4 w-full">
-          <div className="flex items-center gap-2">
-            <IconAddCircle />
-            <span className="font-[Montserrat,sans-serif] font-black text-[17px] text-slate-900 leading-7">Log New Growth</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <IconAddCircle />
+              <span className="font-[Montserrat,sans-serif] font-black text-[17px] text-slate-900 leading-7">{titleLabel}</span>
+            </div>
+            {isEditing && (
+              <button onClick={onCancelEdit} className="text-xs font-semibold text-slate-500 bg-white hover:bg-slate-100 rounded-full px-3 py-1 border border-slate-200 cursor-pointer font-[Montserrat,sans-serif] transition-colors">
+                Cancel
+              </button>
+            )}
           </div>
           <p className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-600 leading-[22px] m-0">
             Pemantauan rutin membantu mencegah stunting secara dini.
           </p>
-
           <ChildSelectDropdown />
-
           <div className="grid grid-cols-2 gap-3">
-            <InputField label="Height (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" />
-            <InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" />
+            <InputField label="Height (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" error={heightError} />
+            <InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" error={weightError} />
           </div>
-          <DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} />
+          <DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} error={dateError} />
           <button onClick={onSave} className="flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[50px] w-full font-[Montserrat,sans-serif] font-black text-lg text-white cursor-pointer">
-            Save
+            {saveLabel}
           </button>
         </div>
       </div>
@@ -365,62 +402,61 @@ const LogNewGrowthSection = ({
   }
 
   return (
-    <div className="relative w-full rounded-xl mb-8 bg-[rgba(98,129,65,0.05)] border-2 border-[rgba(98,129,65,0.2)] shadow-sm">
+    <div className={`relative w-full rounded-xl mb-8 shadow-sm border-2 ${isEditing ? 'bg-[rgba(98,129,65,0.08)] border-[#628141]' : 'bg-[rgba(98,129,65,0.05)] border-[rgba(98,129,65,0.2)]'}`}>
       <div className={`flex w-full box-border gap-5 ${isTablet ? 'flex-col p-6' : 'flex-row items-start p-[34px]'}`}>
         {isTablet ? (
           <>
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <IconAddCircle />
-                <span className="font-[Montserrat,sans-serif] font-black text-[18px] text-slate-900 leading-7">Log New Growth</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <IconAddCircle />
+                  <span className="font-[Montserrat,sans-serif] font-black text-[18px] text-slate-900 leading-7">{titleLabel}</span>
+                </div>
+                {isEditing && (
+                  <button onClick={onCancelEdit} className="text-xs font-semibold text-slate-500 bg-white hover:bg-slate-100 rounded-full px-3 py-1 border border-slate-200 cursor-pointer font-[Montserrat,sans-serif] transition-colors">
+                    Cancel
+                  </button>
+                )}
               </div>
               <p className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-600 leading-[22px] m-0 max-w-lg">
                 Pemantauan rutin membantu mencegah stunting secara dini.
               </p>
               <ChildSelectDropdown />
             </div>
-            
-            <div className="flex flex-row items-end gap-3 w-full">
-              <div className="flex-1 min-w-0">
-                <InputField label="Height (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" />
-              </div>
-              <div className="flex-[1.4] min-w-0">
-                <DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} />
-              </div>
+            <div className="flex flex-row items-start gap-3 w-full">
+              <div className="flex-1 min-w-0"><InputField label="Height (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" error={heightError} /></div>
+              <div className="flex-1 min-w-0"><InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" error={weightError} /></div>
+              <div className="flex-[1.4] min-w-0"><DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} error={dateError} /></div>
             </div>
-            <div className="flex w-full">
-                <button onClick={onSave} className="flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[54px] w-full font-[Montserrat,sans-serif] font-black text-base text-white cursor-pointer">
-                  Save
-                </button>
-            </div>
+            <button onClick={onSave} className="flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[54px] w-full font-[Montserrat,sans-serif] font-black text-base text-white cursor-pointer">
+              {saveLabel}
+            </button>
           </>
         ) : (
           <>
             <div className="flex flex-col gap-2 flex-shrink-0 w-[250px]">
               <div className="flex items-center gap-2">
                 <IconAddCircle />
-                <span className="font-[Montserrat,sans-serif] font-black text-xl text-slate-900 leading-7">Log New Growth</span>
+                <span className="font-[Montserrat,sans-serif] font-black text-xl text-slate-900 leading-7">{titleLabel}</span>
               </div>
+              {isEditing && (
+                <button onClick={onCancelEdit} className="text-xs font-semibold text-slate-500 bg-white hover:bg-slate-100 rounded-full px-3 py-1 border border-slate-200 cursor-pointer font-[Montserrat,sans-serif] transition-colors self-start">
+                  Cancel Edit
+                </button>
+              )}
               <p className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-600 leading-[22px] m-0">
                 Pemantauan rutin membantu mencegah stunting secara dini.
               </p>
-              <div className="mt-3">
-                <ChildSelectDropdown />
-              </div>
+              <div className="mt-3"><ChildSelectDropdown /></div>
             </div>
-            
             <div className="flex flex-col gap-3 flex-1 min-w-0 mt-5">
               <div className="grid grid-cols-3 gap-4 w-full">
-                <InputField label="Height (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" />
-                <InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" />
-                <DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} />
+                <InputField label="Height (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" error={heightError} />
+                <InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" error={weightError} />
+                <DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} error={dateError} />
               </div>
-              
               <button onClick={onSave} className="flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[50px] w-full font-[Montserrat,sans-serif] font-black text-lg text-white cursor-pointer">
-                Save
+                {saveLabel}
               </button>
             </div>
           </>
@@ -431,29 +467,32 @@ const LogNewGrowthSection = ({
 }
 
 // ─── Section 2: Key Stats Cards ───────────────────────────────────────────────
-const StatCard = ({ icon, label, value, unit, delta, deltaUp, sub, bp }: { icon: React.ReactNode; label: string; value: string; unit: string; delta?: string; deltaUp?: boolean; sub: string; bp?: 'mobile' | 'tablet' | 'desktop' }) => {
+const StatCard = ({ icon, label, value, unit, delta, deltaUp, sub, bp }: {
+  icon: React.ReactNode; label: string; value: string; unit: string
+  delta?: string; deltaUp?: boolean; sub: string; bp?: 'mobile' | 'tablet' | 'desktop'
+}) => {
   const isTablet = bp === 'tablet'
   return (
-  <div className="bg-white relative rounded-lg flex-1 min-w-0 border border-slate-100 shadow-sm">
-    <div className="flex flex-col gap-3 items-start p-[25px] w-full box-border">
-      <div className="flex items-center gap-2 w-full">
-        <div className="flex-shrink-0">{icon}</div>
-        <span className={`font-[Montserrat,sans-serif] font-semibold uppercase text-slate-600 leading-5 ${isTablet ? 'text-[10px] tracking-[0.5px]' : 'text-sm tracking-[0.7px]'}`}>{label}</span>
-      </div>
-      <div className="relative w-full h-9">
-        <span className={`font-[Montserrat,sans-serif] font-black text-slate-900 leading-9 absolute left-0 top-1/2 -translate-y-1/2 ${isTablet ? 'text-[24px]' : 'text-[30px]'}`}>
-          {value} <span className={isTablet ? 'text-lg' : 'text-2xl'}>{unit}</span>
-        </span>
-        {delta && (
-          <span className="absolute flex items-center gap-[3px] right-0 top-1/2 -translate-y-1/2">
-            {deltaUp ? <IconTrendUp /> : <IconTrendDown />}
-            <span className={`font-[Montserrat,sans-serif] font-bold leading-5 ${deltaUp ? 'text-emerald-600' : 'text-red-500'} ${isTablet ? 'text-xs' : 'text-sm'}`}>{delta}</span>
+    <div className="bg-white relative rounded-lg flex-1 min-w-0 border border-slate-100 shadow-sm">
+      <div className="flex flex-col gap-3 items-start p-[25px] w-full box-border">
+        <div className="flex items-center gap-2 w-full">
+          <div className="flex-shrink-0">{icon}</div>
+          <span className={`font-[Montserrat,sans-serif] font-semibold uppercase text-slate-600 leading-5 ${isTablet ? 'text-[10px] tracking-[0.5px]' : 'text-sm tracking-[0.7px]'}`}>{label}</span>
+        </div>
+        <div className="relative w-full h-9">
+          <span className={`font-[Montserrat,sans-serif] font-black text-slate-900 leading-9 absolute left-0 top-1/2 -translate-y-1/2 ${isTablet ? 'text-[24px]' : 'text-[30px]'}`}>
+            {value} <span className={isTablet ? 'text-lg' : 'text-2xl'}>{unit}</span>
           </span>
-        )}
+          {delta && (
+            <span className="absolute flex items-center gap-[3px] right-0 top-1/2 -translate-y-1/2">
+              {deltaUp ? <IconTrendUp /> : <IconTrendDown />}
+              <span className={`font-[Montserrat,sans-serif] font-bold leading-5 ${deltaUp ? 'text-emerald-600' : 'text-red-500'} ${isTablet ? 'text-xs' : 'text-sm'}`}>{delta}</span>
+            </span>
+          )}
+        </div>
+        <span className="font-[Montserrat,sans-serif] font-normal text-xs text-slate-400 leading-4">{sub}</span>
       </div>
-      <span className="font-[Montserrat,sans-serif] font-normal text-xs text-slate-400 leading-4">{sub}</span>
     </div>
-  </div>
   )
 }
 
@@ -465,7 +504,7 @@ const KeyStatsSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => (
   </div>
 )
 
-// ─── Chart Legend (shared) ────────────────────────────────────────────────────
+// ─── Chart Legend ─────────────────────────────────────────────────────────────
 const ChartLegend = ({ items }: { items: { color: string; dash?: boolean; isArea?: boolean; label: string }[] }) => (
   <div className="flex items-center justify-center gap-4 mt-3 flex-wrap">
     {items.map(item => (
@@ -483,56 +522,30 @@ const ChartLegend = ({ items }: { items: { color: string; dash?: boolean; isArea
   </div>
 )
 
-// ─── Chart Modal (Expand Popup) ───────────────────────────────────────────────
+// ─── Chart Modal ──────────────────────────────────────────────────────────────
 type ChartModalProps = {
-  open: boolean
-  onClose: () => void
-  title: string
-  subtitle?: string
-  children: React.ReactNode
-  legendItems: { color: string; dash?: boolean; isArea?: boolean; label: string }[]
+  open: boolean; onClose: () => void; title: string; subtitle?: string
+  children: React.ReactNode; legendItems: { color: string; dash?: boolean; isArea?: boolean; label: string }[]
 }
 
 const ChartModal = ({ open, onClose, title, subtitle, children, legendItems }: ChartModalProps) => {
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
+    document.body.style.overflow = open ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [open])
-
   if (!open) return null
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Modal Header */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-slate-100 flex-shrink-0">
           <div className="flex flex-col gap-0.5">
             <span className="font-[Montserrat,sans-serif] font-bold text-xl text-slate-900">{title}</span>
             {subtitle && <span className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-500">{subtitle}</span>}
           </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors border-none bg-transparent cursor-pointer flex-shrink-0 ml-4"
-          >
-            <IconClose />
-          </button>
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors border-none bg-transparent cursor-pointer flex-shrink-0 ml-4"><IconClose /></button>
         </div>
-
-        {/* Modal Chart */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          <div className="h-[360px] sm:h-[420px] w-full">
-            {children}
-          </div>
+          <div className="h-[360px] sm:h-[420px] w-full">{children}</div>
           <ChartLegend items={legendItems} />
         </div>
       </div>
@@ -540,18 +553,16 @@ const ChartModal = ({ open, onClose, title, subtitle, children, legendItems }: C
   )
 }
 
-// ─── Section 3: BMI Chart ────────────────────────────────────────────────────
+// ─── Section 3: BMI Chart ─────────────────────────────────────────────────────
 const BmiChart = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const [modalOpen, setModalOpen] = useState(false)
   const dotFn = makeLineDot(bmiChartData, '15.7')
   const isMobile = bp === 'mobile'
- 
   const legendItems = [
     { color: '#3f6212', label: "Leo's BMI" },
     { color: '#cbd5e1', dash: true, label: 'WHO Median' },
     { color: 'rgba(98,129,65,0.2)', isArea: true, label: 'WHO Normal Range' },
   ]
- 
   const chartContent = (_height: number) => (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart data={bmiChartData} margin={{ top: 24, right: 42, left: 0, bottom: 10 }}>
@@ -566,7 +577,6 @@ const BmiChart = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
       </ComposedChart>
     </ResponsiveContainer>
   )
- 
   return (
     <>
       <div className="bg-white relative rounded-lg border border-slate-100 shadow-sm p-[25px] pb-[20px]">
@@ -575,31 +585,14 @@ const BmiChart = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
             <span className="font-[Montserrat,sans-serif] font-bold text-lg text-slate-900 leading-7">Growth Tracker (BMI)</span>
             <span className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-500 leading-5">World Health Organization Standard Reference</span>
           </div>
-          <button
-            className={`w-8 h-8 flex items-center justify-center cursor-pointer rounded-lg transition-colors hover:bg-slate-100 bg-transparent border-none flex-shrink-0 ${isMobile ? 'self-end' : ''}`}
-            onClick={() => setModalOpen(true)}
-            title="Expand chart"
-          >
-            <IconExpand />
-          </button>
+          <button className={`w-8 h-8 flex items-center justify-center cursor-pointer rounded-lg transition-colors hover:bg-slate-100 bg-transparent border-none flex-shrink-0 ${isMobile ? 'self-end' : ''}`} onClick={() => setModalOpen(true)} title="Expand chart"><IconExpand /></button>
         </div>
- 
         <div className="w-full" style={{ marginLeft: '-25px', marginRight: '-25px', width: 'calc(100% + 50px)' }}>
-          <div className={`w-full ${isMobile ? 'h-[180px]' : 'h-[300px]'}`}>
-            {chartContent(isMobile ? 180 : 300)}
-          </div>
+          <div className={`w-full ${isMobile ? 'h-[180px]' : 'h-[300px]'}`}>{chartContent(isMobile ? 180 : 300)}</div>
         </div>
- 
         <ChartLegend items={legendItems} />
       </div>
- 
-      <ChartModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Growth Tracker (BMI)"
-        subtitle="World Health Organization Standard Reference"
-        legendItems={legendItems}
-      >
+      <ChartModal open={modalOpen} onClose={() => setModalOpen(false)} title="Growth Tracker (BMI)" subtitle="World Health Organization Standard Reference" legendItems={legendItems}>
         {chartContent(420)}
       </ChartModal>
     </>
@@ -607,9 +600,7 @@ const BmiChart = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
 }
 
 const GrowthChartSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => (
-  <div className="w-full mb-8">
-    <BmiChart bp={bp} />
-  </div>
+  <div className="w-full mb-8"><BmiChart bp={bp} /></div>
 )
 
 // ─── Section 4: Sub-charts ────────────────────────────────────────────────────
@@ -617,13 +608,11 @@ const SmallChart = ({ title, data, lastLabel, bp, unit }: { title: string; data:
   const [modalOpen, setModalOpen] = useState(false)
   const dotFn = makeLineDot(data, lastLabel)
   const isMobile = bp === 'mobile'
-
   const legendItems = [
     { color: '#3f6212', label: 'Your Child' },
     { color: '#cbd5e1', dash: true, label: 'WHO Median' },
     { color: 'rgba(98,129,65,0.2)', isArea: true, label: 'WHO Normal Range' },
   ]
-
   const chartContent = () => (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart data={data} margin={{ top: 22, right: 42, left: 0, bottom: 8 }}>
@@ -638,33 +627,17 @@ const SmallChart = ({ title, data, lastLabel, bp, unit }: { title: string; data:
       </ComposedChart>
     </ResponsiveContainer>
   )
-
   return (
     <>
       <div className="bg-white relative rounded-lg border border-slate-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-3">
           <span className="font-[Montserrat,sans-serif] font-bold text-base text-slate-900 leading-6">{title}</span>
-          <button
-            className="w-8 h-8 flex items-center justify-center cursor-pointer rounded-lg transition-colors hover:bg-slate-100 bg-transparent border-none"
-            onClick={() => setModalOpen(true)}
-            title="Expand chart"
-          >
-            <IconExpand />
-          </button>
+          <button className="w-8 h-8 flex items-center justify-center cursor-pointer rounded-lg transition-colors hover:bg-slate-100 bg-transparent border-none" onClick={() => setModalOpen(true)} title="Expand chart"><IconExpand /></button>
         </div>
-        <div className={`w-full ${isMobile ? 'h-[180px]' : 'h-[210px]'}`}>
-          {chartContent()}
-        </div>
+        <div className={`w-full ${isMobile ? 'h-[180px]' : 'h-[210px]'}`}>{chartContent()}</div>
         <ChartLegend items={legendItems} />
       </div>
-
-      <ChartModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={title}
-        subtitle="World Health Organization Standard Reference"
-        legendItems={legendItems}
-      >
+      <ChartModal open={modalOpen} onClose={() => setModalOpen(false)} title={title} subtitle="World Health Organization Standard Reference" legendItems={legendItems}>
         {chartContent()}
       </ChartModal>
     </>
@@ -679,12 +652,19 @@ const SubChartsSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => (
 )
 
 // ─── Measurements Table ───────────────────────────────────────────────────────
-const MeasurementsTable = ({ data, isMobile }: { data: typeof recentMeasurements; isMobile: boolean }) => (
+const MeasurementsTable = ({
+  data, isMobile, onEdit, onDelete,
+}: {
+  data: Measurement[]
+  isMobile: boolean
+  onEdit?: (index: number) => void
+  onDelete?: (index: number) => void
+}) => (
   <div className="overflow-x-auto">
-    <table className="w-full border-collapse" style={{ minWidth: '480px' }}>
+    <table className="w-full border-collapse" style={{ minWidth: onEdit ? '560px' : '480px' }}>
       <thead>
         <tr className="border-b border-slate-100">
-          {['Date', 'Age', 'Height', 'Weight', 'Percentile (H)', 'Percentile (W)'].map(col => (
+          {['Date', 'Age', 'Height', 'Weight', 'Percentile (H)', 'Percentile (W)', ...(onEdit ? ['Actions'] : [])].map(col => (
             <th key={col} className="font-[Montserrat,sans-serif] font-bold text-[10px] uppercase tracking-[0.5px] text-slate-500 pb-3 whitespace-nowrap text-center px-2">
               {col}
             </th>
@@ -704,63 +684,72 @@ const MeasurementsTable = ({ data, isMobile }: { data: typeof recentMeasurements
             <td className="py-3 px-2 text-center">
               <span className="font-[Montserrat,sans-serif] font-bold text-[10px] text-[#3f6212] bg-[#ddecc5] py-[3px] px-[8px] rounded-full whitespace-nowrap">{row.weightPct}</span>
             </td>
+            {onEdit && (
+              <td className="py-3 px-2 text-center">
+                <div className="flex items-center justify-center gap-1">
+                  <button
+                    onClick={() => onEdit(i)}
+                    title="Edit"
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-[#628141] hover:bg-[rgba(98,129,65,0.1)] transition-colors border-none bg-transparent cursor-pointer"
+                  >
+                    <IconEdit />
+                  </button>
+                  <button
+                    onClick={() => onDelete && onDelete(i)}
+                    title="Delete"
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-red-500 hover:bg-red-50 transition-colors border-none bg-transparent cursor-pointer"
+                  >
+                    <IconDelete />
+                  </button>
+                </div>
+              </td>
+            )}
           </tr>
         ))}
+        {data.length === 0 && (
+          <tr>
+            <td colSpan={onEdit ? 7 : 6} className="py-8 text-center font-[Montserrat,sans-serif] text-sm text-slate-400">
+              No measurements recorded yet.
+            </td>
+          </tr>
+        )}
       </tbody>
     </table>
   </div>
 )
 
 // ─── Measurements Full Modal ──────────────────────────────────────────────────
-const MeasurementsModal = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
+const MeasurementsModal = ({
+  open, onClose, measurements, onEdit, onDelete,
+}: {
+  open: boolean; onClose: () => void
+  measurements: Measurement[]
+  onEdit: (index: number) => void
+  onDelete: (index: number) => void
+}) => {
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
+    document.body.style.overflow = open ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [open])
 
   if (!open) return null
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 flex-shrink-0">
           <div className="flex flex-col gap-0.5">
             <span className="font-[Montserrat,sans-serif] font-bold text-xl text-slate-900">All Measurements</span>
             <span className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-500">Complete growth history for Leo</span>
           </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors border-none bg-transparent cursor-pointer flex-shrink-0 ml-4"
-          >
-            <IconClose />
-          </button>
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors border-none bg-transparent cursor-pointer flex-shrink-0 ml-4"><IconClose /></button>
         </div>
-
-        {/* Table */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          <MeasurementsTable data={recentMeasurements} isMobile={false} />
+          <MeasurementsTable data={measurements} isMobile={false} onEdit={(i) => { onEdit(i); onClose() }} onDelete={onDelete} />
         </div>
-
-        {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 flex-shrink-0">
-          <span className="font-[Montserrat,sans-serif] text-sm text-slate-400">{recentMeasurements.length} records total</span>
-          <button
-            onClick={onClose}
-            className="font-[Montserrat,sans-serif] font-bold text-sm text-white bg-[#628141] hover:bg-[#3f6212] transition-colors px-5 py-2 rounded-lg border-none cursor-pointer"
-          >
-            Close
-          </button>
+          <span className="font-[Montserrat,sans-serif] text-sm text-slate-400">{measurements.length} records total</span>
+          <button onClick={onClose} className="font-[Montserrat,sans-serif] font-bold text-sm text-white bg-[#628141] hover:bg-[#3f6212] transition-colors px-5 py-2 rounded-lg border-none cursor-pointer">Close</button>
         </div>
       </div>
     </div>
@@ -768,27 +757,30 @@ const MeasurementsModal = ({ open, onClose }: { open: boolean; onClose: () => vo
 }
 
 // ─── Section 5: Recent Measurements Table ────────────────────────────────────
-const RecentMeasurementsSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
+const RecentMeasurementsSection = ({
+  bp, measurements, onEdit, onDelete,
+}: {
+  bp: 'mobile' | 'tablet' | 'desktop'
+  measurements: Measurement[]
+  onEdit: (index: number) => void
+  onDelete: (index: number) => void
+}) => {
   const [modalOpen, setModalOpen] = useState(false)
   const isMobile = bp === 'mobile'
-  const previewData = recentMeasurements.slice(0, 3)
+  const previewData = measurements.slice(0, 3)
 
   return (
     <>
       <div className={`bg-white relative rounded-lg w-full border border-slate-100 shadow-sm ${isMobile ? 'px-4 py-5' : 'p-[25px]'}`}>
         <div className="flex items-center justify-between mb-5">
           <span className="font-[Montserrat,sans-serif] font-bold text-lg text-slate-900 leading-7">Recent Measurements</span>
-          <button
-            className="font-[Montserrat,sans-serif] font-semibold text-sm text-[#628141] hover:text-[#3f6212] bg-transparent border-none cursor-pointer p-0 transition-colors"
-            onClick={() => setModalOpen(true)}
-          >
+          <button className="font-[Montserrat,sans-serif] font-semibold text-sm text-[#628141] hover:text-[#3f6212] bg-transparent border-none cursor-pointer p-0 transition-colors" onClick={() => setModalOpen(true)}>
             View All
           </button>
         </div>
-        <MeasurementsTable data={previewData} isMobile={isMobile} />
+        <MeasurementsTable data={previewData} isMobile={isMobile} onEdit={onEdit} onDelete={onDelete} />
       </div>
-
-      <MeasurementsModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <MeasurementsModal open={modalOpen} onClose={() => setModalOpen(false)} measurements={measurements} onEdit={onEdit} onDelete={onDelete} />
     </>
   )
 }
@@ -798,21 +790,12 @@ const SaveNotification = ({ saveStatus }: { saveStatus: SaveStatus }) => {
   if (saveStatus !== 'success' && saveStatus !== 'error') return null
   const isSuccess = saveStatus === 'success'
   return (
-    <div
-      className="flex items-center gap-2.5 px-5 py-3 rounded-full flex-shrink-0 shadow-md"
-      style={{
-        background: isSuccess ? '#628141' : '#ef4444',
-      }}
-    >
+    <div className="flex items-center gap-2.5 px-5 py-3 rounded-full flex-shrink-0 shadow-md" style={{ background: isSuccess ? '#628141' : '#ef4444' }}>
       <div className="w-[22px] h-[22px] flex items-center justify-center rounded-full bg-white flex-shrink-0">
         {isSuccess ? (
-          <svg width="12" height="9" viewBox="0 0 12 9" fill="none">
-            <path d="M1 4L4.5 7.5L11 1" stroke="#628141" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4L4.5 7.5L11 1" stroke="#628141" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
         ) : (
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M2 2L10 10M10 2L2 10" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
-          </svg>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" /></svg>
         )}
       </div>
       <span className="font-[Montserrat,sans-serif] font-semibold text-[15px] text-white whitespace-nowrap">
@@ -846,14 +829,83 @@ const GrowthTracker = () => {
   const [heightVal, setHeightVal] = useState('95.5')
   const [weightVal, setWeightVal] = useState('14.2')
   const [dateVal,   setDateVal]   = useState('10/03/2026')
+  const [heightError, setHeightError] = useState<string | undefined>()
+  const [weightError, setWeightError] = useState<string | undefined>()
+  const [dateError,   setDateError]   = useState<string | undefined>()
+  const [measurements, setMeasurements] = useState<Measurement[]>(INITIAL_MEASUREMENTS)
+  const [editIndex, setEditIndex] = useState<number | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
-  const [saveCount,  setSaveCount]  = useState(0)
+  const formRef = useRef<HTMLDivElement>(null)
+
+  const handleEdit = (index: number) => {
+    const row = measurements[index]
+    const h = row.height.replace(' cm', '')
+    const w = row.weight.replace(' kg', '')
+    const d = new Date(row.date)
+    const dd = String(d.getDate()).padStart(2, '0')
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const yyyy = d.getFullYear()
+    setHeightVal(h)
+    setWeightVal(w)
+    setDateVal(`${dd}/${mm}/${yyyy}`)
+    setHeightError(undefined)
+    setWeightError(undefined)
+    setDateError(undefined)
+    setEditIndex(index)
+    setSaveStatus('idle')
+    setTimeout(() => {
+    window.scrollTo({
+      top: 0, 
+      behavior: 'smooth'
+    });
+  }, 50);
+  }
+
+  const handleDelete = (index: number) => {
+    setMeasurements(prev => prev.filter((_, i) => i !== index))
+    if (editIndex === index) handleCancelEdit()
+    else if (editIndex !== null && index < editIndex) setEditIndex(editIndex - 1)
+  }
+
+  const handleCancelEdit = () => {
+    setEditIndex(null)
+    setHeightVal('95.5')
+    setWeightVal('14.2')
+    setDateVal('10/03/2026')
+    setHeightError(undefined)
+    setWeightError(undefined)
+    setDateError(undefined)
+    setSaveStatus('idle')
+  }
 
   const handleSave = () => {
-    if (!heightVal.trim()) { setSaveStatus('empty'); return }
-    const next = saveCount + 1
-    setSaveCount(next)
-    setSaveStatus(next % 2 !== 0 ? 'success' : 'error')
+    const errors = validateInputs(heightVal, weightVal, dateVal)
+    setHeightError(errors.height)
+    setWeightError(errors.weight)
+    setDateError(errors.date)
+    if (Object.keys(errors).length > 0) return
+
+    const parts = dateVal.split('/')
+    const d = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]))
+    const storedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const newEntry: Measurement = {
+      date: storedDate,
+      age: editIndex !== null ? measurements[editIndex].age : '—',
+      height: `${parseFloat(heightVal).toFixed(1)} cm`,
+      weight: `${parseFloat(weightVal).toFixed(1)} kg`,
+      heightPct: editIndex !== null ? measurements[editIndex].heightPct : '—',
+      weightPct: editIndex !== null ? measurements[editIndex].weightPct : String(parseFloat(weightVal).toFixed(1)),
+    }
+
+    if (editIndex !== null) {
+      setMeasurements(prev => prev.map((m, i) => i === editIndex ? newEntry : m))
+      setEditIndex(null)
+    } else {
+      setMeasurements(prev => [newEntry, ...prev])
+    }
+
+    setSaveStatus('success')
+    setTimeout(() => setSaveStatus('idle'), 2500)
   }
 
   const getPaddingInline = () => {
@@ -874,16 +926,24 @@ const GrowthTracker = () => {
         }}
       >
         <PageTitleSection bp={bp} saveStatus={saveStatus} />
-        <LogNewGrowthSection
-          bp={bp} heightVal={heightVal} setHeightVal={setHeightVal}
-          weightVal={weightVal} setWeightVal={setWeightVal}
-          dateVal={dateVal} setDateVal={setDateVal}
-          saveStatus={saveStatus} onSave={handleSave}
-        />
+        <div ref={formRef}>
+          <LogNewGrowthSection
+            bp={bp}
+            heightVal={heightVal} setHeightVal={(v) => { setHeightVal(v); if (heightError) setHeightError(undefined) }}
+            weightVal={weightVal} setWeightVal={(v) => { setWeightVal(v); if (weightError) setWeightError(undefined) }}
+            dateVal={dateVal}     setDateVal={(v) => { setDateVal(v); if (dateError) setDateError(undefined) }}
+            onSave={handleSave}
+            heightError={heightError}
+            weightError={weightError}
+            dateError={dateError}
+            editIndex={editIndex}
+            onCancelEdit={handleCancelEdit}
+          />
+        </div>
         <KeyStatsSection bp={bp} />
         <GrowthChartSection bp={bp} />
         <SubChartsSection bp={bp} />
-        <RecentMeasurementsSection bp={bp} />
+        <RecentMeasurementsSection bp={bp} measurements={measurements} onEdit={handleEdit} onDelete={handleDelete} />
       </div>
     </div>
   )
