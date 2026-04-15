@@ -12,6 +12,8 @@ import HealthLog from './pages/health-log'
 import VerifyEmail from './pages/auth/verify-email'
 import OAuthCallback from './pages/auth/oauth-callback' 
 import Dashboard from './pages/Dashboard'
+import NutriShop from './pages/nutrishop'
+import ProductDetail from './pages/product-detail'
 import { ProtectedRoute, PublicOnlyRoute } from './components/ProtectedRoute'
 
 // ─── Main App Component (Routing + Layout) ──────────────────────────────────
@@ -29,7 +31,9 @@ function App() {
               {/* ── Public: siapa saja bisa akses ── */}
               <Route path="/"             element={<AboutUs />} />
               <Route path="/verify-email" element={<VerifyEmail />} />  
-              <Route path="/auth/callback" element={<OAuthCallback />} /> 
+              <Route path="/auth/callback" element={<OAuthCallback />} />
+              <Route path="/nutrishop"     element={<NutriShop />} />
+              <Route path="/product/:id"   element={<ProductDetail />} />
 
               {/* ── Auth only: redirect ke /dashboard jika sudah login ── */}
               <Route path="/sign-in"        element={<PublicOnlyRoute><SignIn /></PublicOnlyRoute>} />
