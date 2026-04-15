@@ -1,23 +1,37 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import NutriGrowLogo    from '../assets/logo/logo-nutrigrow.svg'
 import DropdownIcon     from '../assets/icons/icon-dropdown.svg'
 import NotificationIcon from '../assets/icons/icon-notification.svg'
 import SettingIcon       from '../assets/icons/icon-settings.svg'
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
-interface User {
+// Tipe lokal untuk Avatar — memetakan 'nama' dari AuthContext ke 'name'
+interface DisplayUser {
   name: string
   avatarUrl?: string
 }
 
-interface HeaderProps {
-  user?: User | null
-  onSignIn?: () => void
-  onLogOut?: () => void
-}
-
 // ─── Main Header ──────────────────────────────────────────────────────────────
-const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
+const Header = () => {
+  const { user: authUser, logout, isLoggedIn } = useAuth()
+  const navigate = useNavigate()
+
+  // Petakan user dari AuthContext ke format yang dipakai komponen ini
+  const user: DisplayUser | null = authUser
+      ? { name: authUser.nama || 'User', avatarUrl: authUser.avatarUrl }
+      : null
+
+  const handleLogOut = async () => {
+    await logout()
+    navigate('/sign-in')
+  }
+
+  const handleSignIn = () => {
+    navigate('/sign-in')
+  }
+
   const [featuresOpen,       setFeaturesOpen]       = useState(false)
   const [profileOpen,        setProfileOpen]        = useState(false)
   const [mobileOpen,         setMobileOpen]         = useState(false)
@@ -68,14 +82,14 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
 
   // ─── Nav data ──────────────────────────────────────────────────────────────
   const navItems = [
-    { label: 'About Us',          href: '#about-us',           active: false },
-    { label: 'NutriShop',         href: '#nutrishop',          active: false },
-    { label: 'Tele-Nutritionist', href: '#tele-nutritionist',  active: false },
-    { label: 'Article',           href: '#article',            active: false },
+    { label: 'About Us',          href: '/',           active: false },
+    { label: 'NutriShop',         href: '/nutrishop',          active: false },
+    { label: 'Tele-Nutritionist', href: '/tele-nutritionist',  active: false },
+    { label: 'Article',           href: '/article',            active: false },
   ]
   const dropdownItems = [
-    { label: "Growth Tracker",  href: '#growth-tracker' },
-    { label: "Health Log", href: '#health-log' },
+    { label: "Growth Tracker",  href: '/growth-tracker'  },
+    { label: "Health Log", href: '/health-log' },
   ]
 
   return (
@@ -102,9 +116,9 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
           }}
         >
           {/* Logo */}
-          <a href="#" className="flex-shrink-0" aria-label="NutriGrow — Dashboard">
+          <Link to="/" className="flex-shrink-0" aria-label="NutriGrow — Dashboard">
             <img src={NutriGrowLogo} alt="NutriGrow" style={{ height: '34px', width: 'auto' }} />
-          </a>
+          </Link>
 
           {/* ── Desktop nav ── */}
           <nav className="hidden lg:flex items-center h-full" style={{ gap: '30px' }}>
@@ -148,7 +162,7 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
             <IconBtn ariaLabel="Pengaturan"><img src={SettingIcon} alt="" width={21} height={20} /></IconBtn>
 
             {/* Profile dropdown / Sign In */}
-            {user ? (
+            {isLoggedIn && user ? (
               <div ref={profileRef} className="relative">
                 <button
                   onClick={() => setProfileOpen(!profileOpen)}
@@ -167,14 +181,14 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
                   >
                     <DropdownItem href="#" onClick={() => setProfileOpen(false)}>My Profile</DropdownItem>
                     <div style={{ height: '1px', background: 'var(--color-nutri-border)' }} />
-                    <DropdownItem href="#" onClick={() => { onLogOut?.(); setProfileOpen(false) }}>
+                    <DropdownItem href="#" onClick={() => { handleLogOut(); setProfileOpen(false) }}>
                       <span style={{ color: '#ef4444' }}>Log Out</span>
                     </DropdownItem>
                   </div>
                 )}
               </div>
             ) : (
-              <AuthBtn variant="signin" onClick={onSignIn}>Sign In</AuthBtn>
+              <AuthBtn variant="signin" onClick={handleSignIn}>Sign In</AuthBtn>
             )}
           </div>
 
@@ -218,7 +232,7 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
         <div className="px-5 pt-3 pb-6">
 
           {/* User info (jika sudah login) */}
-          {user && (
+          {isLoggedIn && user && (
             <div className="flex items-center gap-3 py-3 mb-2" style={{ borderBottom: '1px solid var(--color-nutri-border)' }}>
               <Avatar user={user} size={40} />
               <div>
@@ -259,10 +273,10 @@ const Header = ({ user = null, onSignIn, onLogOut }: HeaderProps) => {
           </div>
 
           {/* Auth button mobile */}
-          {user ? (
-            <AuthBtn variant="logout" fullWidth onClick={() => { onLogOut?.(); setMobileOpen(false) }}>Log Out</AuthBtn>
+          {isLoggedIn ? (
+            <AuthBtn variant="logout" fullWidth onClick={() => { handleLogOut(); setMobileOpen(false) }}>Log Out</AuthBtn>
           ) : (
-            <AuthBtn variant="signin" fullWidth onClick={() => { onSignIn?.(); setMobileOpen(false) }}>Sign In</AuthBtn>
+            <AuthBtn variant="signin" fullWidth onClick={() => { handleSignIn(); setMobileOpen(false) }}>Sign In</AuthBtn>
           )}
 
         </div>
@@ -276,8 +290,8 @@ const DesktopNavLink = ({ href, active, children }: { href: string; active: bool
   const [hovered, setHovered] = useState(false)
   const highlighted = active || hovered
   return (
-    <a
-      href={href}
+    <Link
+      to={href}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="text-sm lg:text-[16px]"
@@ -293,7 +307,7 @@ const DesktopNavLink = ({ href, active, children }: { href: string; active: bool
         background: 'var(--color-nutri-green-light)',
         opacity: highlighted ? 1 : 0, transform: highlighted ? 'scaleX(1)' : 'scaleX(0.5)', transition: 'all 150ms ease',
       }} />
-    </a>
+    </Link>
   )
 }
 
@@ -324,8 +338,8 @@ const DesktopFeaturesBtn = ({ open, onClick }: { open: boolean; onClick: () => v
 const DropdownItem = ({ href, children, onClick }: { href: string; children: React.ReactNode; onClick: () => void }) => {
   const [hovered, setHovered] = useState(false)
   return (
-    <a
-      href={href} onClick={onClick}
+    <Link
+      to={href} onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="text-sm md:text-base"
@@ -337,7 +351,7 @@ const DropdownItem = ({ href, children, onClick }: { href: string; children: Rea
       }}
     >
       {children}
-    </a>
+    </Link>
   )
 }
 
@@ -346,8 +360,8 @@ const MobileNavLink = ({ href, active, children, onClick }: { href: string; acti
   const [hovered, setHovered] = useState(false)
   const highlighted = active || hovered
   return (
-    <a
-      href={href} onClick={onClick}
+    <Link
+      to={href} onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="text-sm md:text-base"
@@ -361,7 +375,7 @@ const MobileNavLink = ({ href, active, children, onClick }: { href: string; acti
       }}
     >
       {children}
-    </a>
+    </Link>
   )
 }
 
@@ -413,7 +427,7 @@ const IconBtn = ({ children, ariaLabel }: { children: React.ReactNode; ariaLabel
 )
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
-const Avatar = ({ user, size = 36 }: { user: User; size?: number }) => (
+const Avatar = ({ user, size = 36 }: { user: DisplayUser; size?: number }) => (
   <div style={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
     {user.avatarUrl ? (
       <img src={user.avatarUrl} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
