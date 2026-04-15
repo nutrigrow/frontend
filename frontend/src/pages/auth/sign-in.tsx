@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BowlImg from '../../assets/images/img-bowl.png'
 import GreenGradientAsset from '../../assets/asset/asset-green-gradient.svg'
+import { useAuth } from '../../context/AuthContext'
+import { authService } from '../../services/api'
 
 // ─── Breakpoint helper ────────────────────────────────────────────────────────
 const useBreakpoint = () => {
@@ -168,6 +170,11 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const isDesktop = bp === 'desktop'
 
   const navigate = useNavigate()
+  const { login, isLoggedIn } = useAuth()
+
+  useEffect(() => {
+    if (isLoggedIn) navigate('/dashboard', { replace: true })  // ← ganti '/' → '/dashboard'
+  }, [isLoggedIn, navigate])
 
   const [email, setEmail]               = useState('')
   const [password, setPassword]         = useState('')
@@ -180,6 +187,28 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const [passTouched, setPassTouched] = useState(false)
   const isEmailValid = /^\S+@\S+\.\S+$/.test(email)
   const isPasswordValid = password.length >= 8
+
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      setError('Email dan password tidak boleh kosong.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      await login(email, password)
+      navigate('/dashboard')
+    } catch (err: any) {
+      setError(err.response?.data?.message ?? 'Login gagal. Periksa kembali email dan password kamu.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div
@@ -282,6 +311,12 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           </button>
         </div>
 
+        {error && (
+          <div style={{ padding: '10px', marginBottom: '16px', borderRadius: '8px', background: '#FEE2E2', color: '#DC2626', fontFamily: 'Inter, sans-serif', fontSize: '13px', fontWeight: 500, textAlign: 'center' }}>
+            {error}
+          </div>
+        )}
+
         {/* Email Address */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
           <label style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#334155' }}>
@@ -377,12 +412,20 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
 
         {/* Sign In button */}
         <button
-          style={{ display: 'flex', padding: '14px 16px', justifyContent: 'center', alignItems: 'center', width: '100%', borderRadius: 8, border: '1px solid rgba(0,0,0,0)', background: '#628141', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)', cursor: 'pointer', marginBottom: 20, transition: 'background 150ms ease' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#4d6633' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#628141' }}
+          onClick={handleSignIn}
+          disabled={loading}
+          style={{
+            display: 'flex', padding: '14px 16px', justifyContent: 'center', alignItems: 'center',
+            width: '100%', borderRadius: 8, border: '1px solid rgba(0,0,0,0)',
+            background: '#628141', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
+            cursor: loading ? 'not-allowed' : 'pointer', marginBottom: 20,
+            transition: 'background 150ms ease', opacity: loading ? 0.7 : 1
+          }}
+          onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.background = '#4d6633' }}
+          onMouseLeave={e => { if (!loading) (e.currentTarget as HTMLElement).style.background = '#628141' }}
         >
           <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#FFF' }}>
-            Sign In to NutriGrow
+            {loading ? 'Signing In...' : 'Sign In to NutriGrow'}
           </span>
         </button>
 
@@ -397,6 +440,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
 
         {/* Google button */}
         <button
+          onClick={authService.loginWithGoogle}
           style={{ display: 'flex', padding: '12px 16px', justifyContent: 'center', alignItems: 'center', width: '100%', borderRadius: 8, border: '1px solid #E2E8F0', background: '#FFF', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)', cursor: 'pointer', gap: 10, marginBottom: 24, transition: 'background 150ms ease' }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f8fafc' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#FFF' }}
