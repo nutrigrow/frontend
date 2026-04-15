@@ -1,35 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@700&family=Montserrat:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
-
-@import 'tailwindcss';
-
-@layer base {
-  :root {
-    /* Colors */
-    --color-nutri-green:        #3F6212;
-    --color-nutri-green-dark:   #2d4a0c;
-    --color-nutri-green-light:  #628141;
-    --color-nutri-green-soft:   #F0F5E8;
-    --color-nutri-green-active: #ddecc5;
-    --color-nutri-border:       #E7E5E4;
-    --color-nutri-border-glow:  rgba(98, 129, 65, 0.15);
-    --color-nutri-slate:        #475569;
-    --color-nutri-slate-light:  #94a3b8;
-    --color-nutri-icon:         #334155;
-    --color-nutri-icon-bg:      #E7E5E4;
-    --color-nutri-icon-bg-hover:  #d6d3d1;
-    --color-nutri-icon-bg-active: #c8c4c0;
-
-    /* Fonts */
-    --font-main:      'Inter', system-ui, -apple-system, sans-serif;
-    --font-heading:   'Montserrat', system-ui, sans-serif;
-    --font-quicksand: 'Quicksand', sans-serif;
-  }
-
-  body {
-    margin:           0;
-    padding:          0;
-    background-color: #ffffff;
-    color:            #374151;
-    font-family:      var(--font-main);
-  }
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
+body {
+  font-family: 'Montserrat', sans-serif;
 }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
