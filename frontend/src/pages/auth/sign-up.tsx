@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BowlImg from '../../assets/images/img-bowl.png'
 import GreenGradientAsset from '../../assets/asset/asset-green-gradient.svg'
+import { authService } from '../../services/api'
 
 // ─── Breakpoint helper ────────────────────────────────────────────────────────
 const useBreakpoint = () => {
@@ -189,6 +190,35 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const [passFocused,    setPassFocused]      = useState(false)
   const [confirmFocused, setConfirmFocused]   = useState(false)
 
+const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+  const [success, setSuccess] = useState('')
+
+  const handleSignUp = async () => {
+    if (!name || !email || !password || !confirmPassword) {
+      setError('Semua form wajib diisi.');
+      return;
+    }
+
+    if (password !== confirmPassword) { 
+      setError('Password tidak cocok.'); 
+      return; 
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await authService.register(name, email, password);
+      setSuccess('Pendaftaran berhasil! Cek email kamu untuk verifikasi akun.');
+    } catch (err: any) {
+      setError(err.response?.data?.message ?? 'Gagal mendaftar. Silakan coba lagi.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const validate = () => {
     const newErrors = { email: '', name: '', password: '', confirmPassword: '' }
     
@@ -302,6 +332,17 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
             Sign Up
           </button>
         </div>
+
+        {error && (
+          <div style={{ padding: '10px', marginBottom: '16px', borderRadius: '8px', background: '#FEE2E2', color: '#DC2626', fontFamily: 'Inter, sans-serif', fontSize: '13px', fontWeight: 500, textAlign: 'center' }}>
+            {error}
+          </div>
+        )}
+        {success && (
+          <div style={{ padding: '10px', marginBottom: '16px', borderRadius: '8px', background: '#DCFCE7', color: '#166534', fontFamily: 'Inter, sans-serif', fontSize: '13px', fontWeight: 500, textAlign: 'center' }}>
+            {success}
+          </div>
+        )}
 
         {/* Email Address */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
@@ -438,12 +479,20 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
 
         {/* Sign Up button */}
         <button
-          style={{ display: 'flex', padding: '14px 16px', justifyContent: 'center', alignItems: 'center', width: '100%', borderRadius: 8, border: '1px solid rgba(0,0,0,0)', background: '#628141', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)', cursor: 'pointer', marginBottom: 20, transition: 'background 150ms ease' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#4d6633' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#628141' }}
+          onClick={handleSignUp}
+          disabled={loading}
+          style={{ 
+            display: 'flex', padding: '14px 16px', justifyContent: 'center', alignItems: 'center', 
+            width: '100%', borderRadius: 8, border: '1px solid rgba(0,0,0,0)', 
+            background: '#628141', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)', 
+            cursor: loading ? 'not-allowed' : 'pointer', marginBottom: 20, 
+            transition: 'background 150ms ease', opacity: loading ? 0.7 : 1 
+          }}
+          onMouseEnter={e => { if(!loading) (e.currentTarget as HTMLElement).style.background = '#4d6633' }}
+          onMouseLeave={e => { if(!loading) (e.currentTarget as HTMLElement).style.background = '#628141' }}
         >
           <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#FFF' }}>
-            Sign Up to NutriGrow
+            {loading ? 'Signing Up...' : 'Sign Up to NutriGrow'}
           </span>
         </button>
 
