@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BowlImg from '../../assets/images/img-bowl.png'
 import GreenGradientAsset from '../../assets/asset/asset-green-gradient.svg'
+import { authService } from '../../services/api'
 
 // ─── Breakpoint helper ────────────────────────────────────────────────────────
 const useBreakpoint = () => {
@@ -174,6 +175,29 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const [emailTouched, setEmailTouched] = useState(false)
   const isEmailValid = /^\S+@\S+\.\S+$/.test(email)
 
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+  const [success, setSuccess] = useState('')
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Masukkan email terlebih dahulu.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await authService.forgotPassword(email);
+      setSuccess('Link reset password sudah dikirim ke email kamu.');
+    } catch (err: any) {
+      setError(err.response?.data?.message ?? 'Gagal memproses reset password.');
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <div
       style={{
@@ -236,6 +260,17 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           Enter the email address linked to your account and we'll send you a password reset link.
         </p>
 
+        {error && (
+          <div style={{ padding: '10px', marginBottom: '16px', borderRadius: '8px', background: '#FEE2E2', color: '#DC2626', fontFamily: 'Inter, sans-serif', fontSize: '13px', fontWeight: 500, textAlign: 'center' }}>
+            {error}
+          </div>
+        )}
+        {success && (
+          <div style={{ padding: '10px', marginBottom: '16px', borderRadius: '8px', background: '#DCFCE7', color: '#166534', fontFamily: 'Inter, sans-serif', fontSize: '13px', fontWeight: 500, textAlign: 'center' }}>
+            {success}
+          </div>
+        )}
+
         {/* Email Address */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
           <label style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#334155' }}>
@@ -267,12 +302,20 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
 
         {/* Send Reset Link button */}
         <button
-          style={{ display: 'flex', padding: '14px 16px', justifyContent: 'center', alignItems: 'center', width: '100%', borderRadius: 8, border: '1px solid rgba(0,0,0,0)', background: '#628141', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)', cursor: 'pointer', marginBottom: 20, transition: 'background 150ms ease' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#4d6633' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#628141' }}
+          onClick={handleForgotPassword}
+          disabled={loading}
+          style={{ 
+            display: 'flex', padding: '14px 16px', justifyContent: 'center', alignItems: 'center', 
+            width: '100%', borderRadius: 8, border: '1px solid rgba(0,0,0,0)', 
+            background: '#628141', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)', 
+            cursor: loading ? 'not-allowed' : 'pointer', marginBottom: 20, 
+            transition: 'background 150ms ease', opacity: loading ? 0.7 : 1 
+          }}
+          onMouseEnter={e => { if(!loading) (e.currentTarget as HTMLElement).style.background = '#4d6633' }}
+          onMouseLeave={e => { if(!loading) (e.currentTarget as HTMLElement).style.background = '#628141' }}
         >
           <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#FFF' }}>
-            Send Reset Link
+            {loading ? 'Sending...' : 'Send Reset Link'}
           </span>
         </button>
 
