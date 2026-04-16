@@ -5,6 +5,244 @@ import { Plus, X } from 'lucide-react'
 type CategoryType = 'teenage' | 'pregnant' | 'breastfeeding'
 type SaveStatus = 'idle' | 'success' | 'error'
 type LogRow = { day: string; date: string; mood: string; sleep: string; fluid: string; supplement: string; specific: string }
+type StatusLevel = 'safe' | 'caution' | 'danger'
+
+// ─── Status Color Config ─────
+const STATUS_COLORS: Record<StatusLevel, {
+  bg: string; border: string; badgeBg: string; badgeText: string; badgeBorder: string
+}> = {
+  safe:    { bg: '#E8F5E9', border: '#C8E6C9', badgeBg: '#F1F8E9', badgeText: '#2E7D32', badgeBorder: '#A5D6A7' },
+  caution: { bg: '#FFFDE7', border: '#FFF176', badgeBg: '#FFFDE7', badgeText: '#F57F17', badgeBorder: '#FFD54F' },
+  danger:  { bg: '#FFEBEE', border: '#FFCDD2', badgeBg: '#FFEBEE', badgeText: '#C62828', badgeBorder: '#EF9A9A' },
+}
+
+// ─── Insight Configs ──────────────────────────────────────────────────────────
+type InsightConfig = {
+  status: StatusLevel
+  title: string
+  subtitle: string
+  sections: { heading: string; items: string[]; dotColor: string }[]
+}
+
+function getSupplementInsight(pct: number): InsightConfig {
+  if (pct >= 80) return {
+    status: 'safe',
+    title: 'Konsumsi Suplemen Baik',
+    subtitle: 'Kepatuhan minum suplemen sangat baik.',
+    sections: [
+      { heading: '✅ Mengapa ini penting?', dotColor: '#2E7D32', items: ['Konsumsi suplemen rutin membantu mencukupi zat besi dan mencegah anemia.', 'Kepatuhan >80% menunjukkan pola disiplin yang mendukung tumbuh kembang optimal.'] },
+      { heading: '🛡️ Langkah Lanjutan', dotColor: '#3b82f6', items: ['Pertahankan jadwal konsumsi tiap hari di waktu yang sama.', 'Minum bersama makanan atau sumber vitamin C untuk penyerapan optimal.'] },
+    ],
+  }
+  if (pct >= 50) return {
+    status: 'caution',
+    title: 'Konsumsi Suplemen Perlu Ditingkatkan',
+    subtitle: 'Kepatuhan di bawah 80% — perlu perhatian.',
+    sections: [
+      { heading: '⚡ Dampak Jika Tidak Dijaga', dotColor: '#F57F17', items: ['Defisiensi zat besi berisiko menyebabkan anemia, kelelahan, dan gangguan konsentrasi.', 'Pada remaja dan ibu hamil, kadar Hb rendah dapat berdampak pada pertumbuhan janin.'] },
+      { heading: '🛡️ Rekomendasi', dotColor: '#3b82f6', items: ['Aktifkan pengingat harian di aplikasi atau alarm ponsel.', 'Tempatkan suplemen di tempat yang mudah terlihat tiap pagi.'] },
+    ],
+  }
+  return {
+    status: 'danger',
+    title: 'Konsumsi Suplemen Sangat Rendah',
+    subtitle: 'Kepatuhan <50% — risiko anemia tinggi.',
+    sections: [
+      { heading: '🔴 Risiko Saat Ini', dotColor: '#C62828', items: ['Risiko anemia defisiensi besi meningkat signifikan bila kepatuhan di bawah 50%.', 'Gejala yang perlu diwaspadai: pusing, pucat, mudah lelah, dan sesak napas ringan.'] },
+      { heading: '🛡️ Tindakan Segera', dotColor: '#3b82f6', items: ['Konsultasikan ke bidan atau dokter untuk cek kadar Hb secepatnya.', 'Mulai kembali konsumsi suplemen hari ini dan catat secara konsisten.'] },
+    ],
+  }
+}
+
+function getFluidInsight(glasses: number, target: number): InsightConfig {
+  const ratio = glasses / target
+  if (ratio >= 1) return {
+    status: 'safe',
+    title: 'Hidrasi Optimal',
+    subtitle: `Target ${target} gelas tercapai!`,
+    sections: [
+      { heading: '✅ Manfaat Hidrasi Baik', dotColor: '#2E7D32', items: ['Tubuh terhidrasi optimal membantu metabolisme, konsentrasi, dan regulasi suhu tubuh.', 'Pada ibu menyusui, cairan cukup mendukung produksi ASI yang stabil.'] },
+      { heading: '🛡️ Pertahankan', dotColor: '#3b82f6', items: ['Lanjutkan kebiasaan minum 250ml per jam aktivitas.', 'Hindari minuman tinggi gula — prioritaskan air putih.'] },
+    ],
+  }
+  if (ratio >= 0.6) return {
+    status: 'caution',
+    title: 'Hidrasi Kurang Optimal',
+    subtitle: `Masih ${target - glasses} gelas lagi untuk target hari ini.`,
+    sections: [
+      { heading: '⚡ Tanda Dehidrasi Ringan', dotColor: '#F57F17', items: ['Urin berwarna kuning tua, mulut kering, dan mudah lelah.', 'Penurunan konsentrasi dan sakit kepala ringan bisa muncul.'] },
+      { heading: '🛡️ Tips', dotColor: '#3b82f6', items: ['Minum segelas air setiap jam dan setelah setiap makan.', 'Bawa tumbler untuk pengingat visual asupan cairan harian.'] },
+    ],
+  }
+  return {
+    status: 'danger',
+    title: 'Dehidrasi — Asupan Cairan Rendah',
+    subtitle: `Cairan hari ini jauh di bawah target ${target} gelas.`,
+    sections: [
+      { heading: '🔴 Risiko Dehidrasi', dotColor: '#C62828', items: ['Dehidrasi berat memengaruhi fungsi ginjal, tekanan darah, dan produksi ASI.', 'Pada kehamilan, kurang cairan berisiko kontraksi dini dan infeksi saluran kemih.'] },
+      { heading: '🛡️ Tindakan Segera', dotColor: '#3b82f6', items: ['Minum minimal 2 gelas air sekarang, kemudian satu gelas setiap 30 menit.', 'Jika ada pusing berat atau urin sangat gelap, hubungi tenaga kesehatan.'] },
+    ],
+  }
+}
+
+function getRestInsight(hours: number, category: CategoryType): InsightConfig {
+  const minOk = category === 'pregnant' || category === 'breastfeeding' ? 7 : 7
+  const minCaution = 6
+  if (hours >= minOk) return {
+    status: 'safe',
+    title: 'Kualitas Tidur Baik',
+    subtitle: `${hours} jam — dalam rentang ideal.`,
+    sections: [
+      { heading: '✅ Manfaat Tidur Cukup', dotColor: '#2E7D32', items: ['Tidur 7–9 jam mendukung regenerasi sel, keseimbangan hormon, dan imunitas tubuh.', category === 'breastfeeding' ? 'Istirahat cukup berpengaruh langsung pada produksi dan kualitas ASI.' : 'Tidur berkualitas meningkatkan fokus dan suasana hati sepanjang hari.'] },
+      { heading: '🛡️ Tips Pertahankan', dotColor: '#3b82f6', items: ['Usahakan jadwal tidur dan bangun di jam yang sama tiap hari.', 'Hindari layar (HP/laptop) minimal 30 menit sebelum tidur.'] },
+    ],
+  }
+  if (hours >= minCaution) return {
+    status: 'caution',
+    title: 'Tidur di Bawah Ideal',
+    subtitle: `${hours} jam — disarankan minimal ${minOk} jam.`,
+    sections: [
+      { heading: '⚡ Dampak Kurang Tidur', dotColor: '#F57F17', items: ['Tidur <7 jam memengaruhi mood, produktivitas, dan sistem imun.', category === 'breastfeeding' ? 'Kurang tidur bisa mengurangi hormon prolaktin yang mengatur produksi ASI.' : 'Pada remaja, tidur kurang dari ideal menghambat pertumbuhan dan konsentrasi belajar.'] },
+      { heading: '🛡️ Saran', dotColor: '#3b82f6', items: ['Coba tidur 30 menit lebih awal malam ini.', 'Minta bantuan pasangan atau keluarga untuk giliran jaga bayi jika diperlukan.'] },
+    ],
+  }
+  return {
+    status: 'danger',
+    title: 'Kurang Tidur Parah',
+    subtitle: `${hours} jam — di bawah ambang batas aman.`,
+    sections: [
+      { heading: '🔴 Risiko', dotColor: '#C62828', items: ['Kurang dari 6 jam secara rutin meningkatkan risiko depresi pascamelahirkan dan gangguan kognisi.', 'Kelelahan ekstrem dapat memengaruhi keselamatan aktivitas sehari-hari.'] },
+      { heading: '🛡️ Tindakan Segera', dotColor: '#3b82f6', items: ['Prioritaskan tidur siang minimal 20–30 menit jika malam kurang.', 'Bicarakan dengan dokter atau bidan jika sering kurang tidur dalam seminggu.'] },
+    ],
+  }
+}
+
+function getMoodInsight(moodVal: string, category: CategoryType): InsightConfig {
+  const isNegative = ['lelah', 'sedih'].includes(moodVal)
+  const isNeutral  = moodVal === 'biasa'
+  if (!isNegative && !isNeutral) return {
+    status: 'safe',
+    title: 'Mood Positif — Pertahankan!',
+    subtitle: 'Kondisi mental stabil dan baik.',
+    sections: [
+      { heading: '✅ Manfaat Mood Positif', dotColor: '#2E7D32', items: ['Suasana hati yang baik mendukung produksi hormon oksitosin yang memperlancar ASI.', 'Mood positif meningkatkan kualitas interaksi dengan bayi dan lingkungan sekitar.'] },
+      { heading: '🛡️ Jaga Keseimbangan', dotColor: '#3b82f6', items: ['Luangkan waktu untuk aktivitas yang kamu nikmati setiap harinya.', 'Terhubung dengan komunitas ibu/remaja untuk berbagi pengalaman.'] },
+    ],
+  }
+  if (isNeutral) return {
+    status: 'caution',
+    title: 'Mood Biasa — Pantau Terus',
+    subtitle: 'Kondisi emosional stabil namun perlu perhatian.',
+    sections: [
+      { heading: '⚡ Perhatikan Tanda-Tanda', dotColor: '#F57F17', items: ['Mood yang terus datar bisa menjadi awal tanda kelelahan emosional.', category === 'breastfeeding' ? 'Stres ringan yang menumpuk dapat memengaruhi refleks let-down ASI.' : 'Perubahan mood yang konsisten perlu dicatat dan dikonsultasikan.'] },
+      { heading: '🛡️ Saran', dotColor: '#3b82f6', items: ['Lakukan aktivitas ringan yang menyenangkan: jalan kaki, musik, atau memasak.', 'Ceritakan perasaanmu ke orang yang dipercaya.'] },
+    ],
+  }
+  // Negatif
+  if (category === 'breastfeeding') return {
+    status: 'danger',
+    title: 'Mood Rendah — Waspadai Baby Blues',
+    subtitle: 'Kamu tidak sendirian. Perasaan ini sangat wajar.',
+    sections: [
+      { heading: '💜 Empati & Pemahaman', dotColor: '#7c3aed', items: ['Merasa lelah atau sedih setelah melahirkan adalah hal yang sangat umum — bukan kelemahanmu.', 'Hingga 80% ibu mengalami Baby Blues dalam 1–2 minggu pertama. Kalau berlanjut >2 minggu, itu bisa depresi postpartum.'] },
+      { heading: '⚡ Pengaruh pada ASI', dotColor: '#C62828', items: ['Stres dan kesedihan dapat menghambat hormon oksitosin — menyebabkan let-down ASI terlambat atau berkurang.', 'Kadar kortisol tinggi akibat stres kronis berdampak pada kualitas dan volume ASI.'] },
+      { heading: '🛡️ Langkah Dukungan', dotColor: '#3b82f6', items: ['Ceritakan perasaanmu ke pasangan, ibu, atau sahabat — jangan ditahan sendiri.', 'Hubungi konselor laktasi atau psikolog jika perasaan ini berlangsung lebih dari 2 minggu.', 'Aplikasi ini mendukungmu — catat mood harian dan tunjukkan ke bidan/doktermu.'] },
+    ],
+  }
+  return {
+    status: 'danger',
+    title: 'Mood Rendah — Perlu Perhatian',
+    subtitle: 'Kondisi emosional perlu dukungan lebih.',
+    sections: [
+      { heading: '🔴 Dampak Mood Negatif', dotColor: '#C62828', items: ['Kelelahan atau kesedihan berkepanjangan memengaruhi motivasi dan kesehatan fisik.', 'Pada remaja, mood buruk berkaitan dengan kualitas tidur, nafsu makan, dan performa belajar.'] },
+      { heading: '🛡️ Langkah Praktis', dotColor: '#3b82f6', items: ['Bicarakan perasaanmu ke orang dewasa yang kamu percaya.', 'Jika perasaan ini berlangsung >1 minggu, pertimbangkan konsultasi ke tenaga kesehatan mental.'] },
+    ],
+  }
+}
+
+function getCycleInsight(isMenstruating: boolean): InsightConfig {
+  return isMenstruating ? {
+    status: 'caution',
+    title: 'Sedang Haid',
+    subtitle: 'Pantau kebutuhan zat besi ekstra.',
+    sections: [
+      { heading: '⚡ Perhatikan Selama Haid', dotColor: '#F57F17', items: ['Kehilangan darah saat menstruasi meningkatkan kebutuhan zat besi — pastikan TTD tidak terlewat.', 'Nyeri haid dapat diringankan dengan olahraga ringan, kompres hangat, dan cairan cukup.'] },
+      { heading: '🛡️ Tips Haid Sehat', dotColor: '#3b82f6', items: ['Konsumsi makanan kaya zat besi: hati ayam, daging merah, bayam, dan tempe.', 'Istirahat cukup dan hindari aktivitas berat di hari pertama dan kedua.'] },
+    ],
+  } : {
+    status: 'safe',
+    title: 'Tidak Haid',
+    subtitle: 'Siklus terpantau baik.',
+    sections: [
+      { heading: '✅ Pantau Siklus', dotColor: '#2E7D32', items: ['Mencatat siklus haid membantu mendeteksi pola tidak teratur secara dini.', 'Siklus normal berlangsung 21–35 hari dengan durasi 2–7 hari.'] },
+      { heading: '🛡️ Tips', dotColor: '#3b82f6', items: ['Tetap konsumsi TTD setiap minggu di luar masa haid sesuai anjuran Kemenkes.', 'Catat tanggal mulai haid tiap bulan di jurnal ini.'] },
+    ],
+  }
+}
+
+function getMomWeightInsight(currentKg: number, prevKg: number, trimester: number): InsightConfig {
+  const gain = currentKg - prevKg
+  const idealWeekly = trimester === 1 ? 0.1 : 0.35
+  const tooMuch = gain > idealWeekly * 2
+  const tooLittle = gain < 0
+  if (!tooMuch && !tooLittle && gain >= 0) return {
+    status: 'safe',
+    title: 'Kenaikan BB Ideal',
+    subtitle: `+${gain.toFixed(1)} kg — sesuai standar Buku KIA.`,
+    sections: [
+      { heading: '✅ Kenaikan BB Normal', dotColor: '#2E7D32', items: ['Kenaikan berat badan yang teratur menandakan pertumbuhan janin yang sehat.', `Trimester ${trimester}: target kenaikan ≈ ${trimester === 1 ? '0.5–2 kg total' : '0.25–0.5 kg/minggu'}.`] },
+      { heading: '🛡️ Pertahankan', dotColor: '#3b82f6', items: ['Lanjutkan pola makan bergizi seimbang dengan porsi kecil tapi sering.', 'Timbang BB minimal seminggu sekali di waktu yang sama.'] },
+    ],
+  }
+  if (tooMuch) return {
+    status: 'caution',
+    title: 'Kenaikan BB Di Atas Ideal',
+    subtitle: `+${gain.toFixed(1)} kg — sedikit di atas rekomendasi Buku KIA.`,
+    sections: [
+      { heading: '⚡ Perhatikan', dotColor: '#F57F17', items: ['Kenaikan BB berlebih dapat meningkatkan risiko preeklamsia dan diabetes gestasional.', 'Konsultasikan dengan bidan/dokter jika kenaikan terus melebihi target.'] },
+      { heading: '🛡️ Rekomendasi', dotColor: '#3b82f6', items: ['Kurangi makanan tinggi gula dan lemak jenuh, perbanyak sayur dan protein.', 'Lakukan jalan kaki ringan 20–30 menit per hari jika tidak ada kontraindikasi.'] },
+    ],
+  }
+  return {
+    status: 'danger',
+    title: 'Berat Badan Turun',
+    subtitle: `${gain.toFixed(1)} kg — perlu evaluasi segera.`,
+    sections: [
+      { heading: '🔴 Risiko Penurunan BB', dotColor: '#C62828', items: ['Penurunan BB selama hamil berisiko menyebabkan janin kekurangan nutrisi.', 'Bisa jadi tanda mual/muntah berlebih (hiperemesis) atau asupan kalori yang kurang.'] },
+      { heading: '🛡️ Tindakan', dotColor: '#3b82f6', items: ['Segera konsultasikan ke bidan atau dokter kandungan.', 'Coba makan porsi kecil dan sering (5–6 kali sehari) untuk mengurangi mual.'] },
+    ],
+  }
+}
+
+function getPumpingInsight(sessions: number): InsightConfig {
+  if (sessions >= 8) return {
+    status: 'safe',
+    title: 'Frekuensi Menyusui Optimal',
+    subtitle: `${sessions} sesi — memenuhi standar laktasi.`,
+    sections: [
+      { heading: '✅ Produksi ASI Stabil', dotColor: '#2E7D32', items: ['Menyusui/pumping ≥8 sesi per hari menjaga suplai ASI tetap optimal melalui mekanisme supply-demand.', 'Konsistensi frekuensi ini mendukung perkembangan bayi dan mencegah bengkak payudara.'] },
+      { heading: '🛡️ Pertahankan', dotColor: '#3b82f6', items: ['Jaga interval antar sesi tidak lebih dari 3–4 jam di siang hari.', 'Pijat payudara ringan sebelum pumping untuk meningkatkan aliran ASI.'] },
+    ],
+  }
+  if (sessions >= 6) return {
+    status: 'caution',
+    title: 'Frekuensi Pumping Kurang',
+    subtitle: `${sessions} sesi — di bawah rekomendasi 8 sesi/hari.`,
+    sections: [
+      { heading: '⚡ Risiko Produksi ASI Menurun', dotColor: '#F57F17', items: ['Frekuensi pumping yang kurang dapat menyebabkan penurunan produksi ASI secara bertahap.', 'Payudara yang jarang dikosongkan berisiko bengkak (engorgement) atau mastitis.'] },
+      { heading: '🛡️ Tips', dotColor: '#3b82f6', items: ['Tambah 1–2 sesi pumping di pagi hari — saat produksi ASI biasanya tertinggi.', 'Gunakan power pumping selama 1 jam (20 menit pompa, 10 menit istirahat) 1x sehari.'] },
+    ],
+  }
+  return {
+    status: 'danger',
+    title: 'Status Pumping: LOW',
+    subtitle: `${sessions} sesi — produksi ASI berisiko menurun drastis.`,
+    sections: [
+      { heading: '🔴 Risiko Suplai ASI', dotColor: '#C62828', items: ['Kurang dari 6 sesi/hari secara konsisten sangat berisiko menyebabkan supply ASI menurun drastis.', 'Risiko mastitis dan galaktosele meningkat saat ASI tidak dikeluarkan secara teratur.'] },
+      { heading: '🛡️ Tindakan Segera', dotColor: '#3b82f6', items: ['Mulai tambah sesi pumping hari ini — setiap 2–3 jam selama payudara terasa penuh.', 'Konsultasikan dengan konselor laktasi bersertifikat (IBCLC) untuk panduan personal.'] },
+    ],
+  }
+}
 
 // ─── Breakpoint helper ────────────────────────────────────────────────────────
 const useBreakpoint = () => {
@@ -262,150 +500,282 @@ const DateInputField = ({ label, value, onChange }: { label: string; value: stri
   )
 }
 
-// ─── Toggle Switch ────────────────────────────────────────────────────────────
-const ToggleSwitch = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
-  <button
-    type="button"
-    onClick={() => onChange(!checked)}
-    aria-pressed={checked}
-    className={`relative w-[46px] h-[26px] rounded-full transition-colors duration-200 flex-shrink-0 ${checked ? 'bg-[#65a30d]' : 'bg-[#d1d5db]'}`}
-  >
-    <span className={`absolute top-[3px] w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${checked ? 'translate-x-[22px]' : 'translate-x-[3px]'}`} />
-  </button>
+// ─── Checkbox (replaces ToggleSwitch) ─────────────────────────────────────────
+const Checkbox = ({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) => (
+  <label className="flex items-center gap-3 cursor-pointer select-none group">
+    <span
+      onClick={() => onChange(!checked)}
+      className={`w-5 h-5 flex-shrink-0 rounded-[5px] border-2 flex items-center justify-center transition-all
+        ${checked ? 'bg-[#65a30d] border-[#65a30d]' : 'bg-white border-slate-300 group-hover:border-[#65a30d]'}`}
+    >
+      {checked && (
+        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+          <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )}
+    </span>
+    <span className="font-bold text-sm text-[#191c1a] font-[Montserrat,sans-serif]" onClick={() => onChange(!checked)}>{label}</span>
+  </label>
 )
 
-// ─── Stat Cards ───────────────────────────────────────────────────────────────
-const SupplementCard = ({ label = 'SUPPLEMENT INTAKE' }: { label?: string }) => (
-  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex-1 min-w-0">
-    <div className="flex flex-col gap-3 p-5">
-      <div className="flex items-center justify-between w-full">
-        <div className="w-9 h-9 rounded-full bg-[#fef2f2] flex items-center justify-center flex-shrink-0"><PillIconSvg /></div>
-        <span className="text-[9px] font-semibold text-[#a8a29e] tracking-[0.5px] uppercase font-[Inter,sans-serif] text-right leading-tight ml-2">{label}</span>
-      </div>
-      <div className="flex flex-col gap-1">
-        <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">80%</span>
-        <span className="text-[10px] text-[#78716c] font-[Inter,sans-serif]">Target: 1 tab/day</span>
-      </div>
-      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-        <div className="h-full bg-red-400 rounded-full" style={{ width: '80%' }} />
+// ─── Insight Modal (reusable) ─────────────────────────────────────────────────
+const InsightModal = ({
+  open, onClose, insight,
+}: {
+  open: boolean; onClose: () => void; insight: InsightConfig
+}) => {
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [open])
+  if (!open) return null
+  const c = STATUS_COLORS[insight.status]
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] sm:max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 pt-5 pb-4 flex-shrink-0" style={{ background: c.bg, borderBottom: `1px solid ${c.border}` }}>
+          <div className="flex flex-col gap-1.5">
+            <span className="font-[Montserrat,sans-serif] font-black text-lg text-slate-900">{insight.title}</span>
+            <span className="self-start font-[Montserrat,sans-serif] font-semibold text-xs px-2.5 py-1 rounded-full" style={{ background: c.badgeBg, color: c.badgeText, border: `1px solid ${c.badgeBorder}` }}>
+              {insight.subtitle}
+            </span>
+          </div>
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/60 transition-colors border-none bg-transparent cursor-pointer flex-shrink-0 ml-4">
+            <IconClose />
+          </button>
+        </div>
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
+          {insight.sections.map((sec, si) => (
+            <div key={si} className="flex flex-col gap-2">
+              <span className="font-[Montserrat,sans-serif] font-bold text-sm text-slate-700 uppercase tracking-[0.5px]">{sec.heading}</span>
+              <ul className="flex flex-col gap-2 m-0 pl-0 list-none">
+                {sec.items.map((item, ii) => (
+                  <li key={ii} className="flex items-start gap-2.5">
+                    <span className="flex-shrink-0 mt-1.5 w-2 h-2 rounded-full" style={{ background: sec.dotColor }} />
+                    <span className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-600 leading-[22px]">{item}</span>
+                  </li>
+                ))}
+              </ul>
+              {si < insight.sections.length - 1 && <div className="border-t border-slate-100 mt-1" />}
+            </div>
+          ))}
+          <p className="font-[Montserrat,sans-serif] text-[11px] text-slate-400 leading-5 border-t border-slate-100 pt-4">
+            * Informasi ini bersifat edukatif. Konsultasikan kondisi kesehatan Anda dengan tenaga medis terpercaya.
+          </p>
+        </div>
       </div>
     </div>
-  </div>
-)
-const FluidStatCard = () => (
-  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex-1 min-w-0">
-    <div className="flex flex-col gap-3 p-5">
-      <div className="flex items-center justify-between w-full">
-        <div className="w-9 h-9 rounded-full bg-[#eff6ff] flex items-center justify-center flex-shrink-0"><FluidIconSvg /></div>
-        <span className="text-[9px] font-semibold text-[#a8a29e] tracking-[0.5px] uppercase font-[Inter,sans-serif] text-right">FLUID</span>
+  )
+}
+
+// ─── Stat Card Base (with pastel bg + Details button) ─────────────────────────
+const StatCardBase = ({
+  icon, iconBg, label, children, sub, insight,
+}: {
+  icon: React.ReactNode; iconBg: string; label: string
+  children: React.ReactNode; sub: React.ReactNode; insight: InsightConfig
+}) => {
+  const [modalOpen, setModalOpen] = useState(false)
+  const c = STATUS_COLORS[insight.status]
+  return (
+    <>
+      <div
+        className="rounded-2xl border shadow-sm flex-1 min-w-0 transition-colors"
+        style={{ background: c.bg, borderColor: c.border }}
+      >
+        <div className="flex flex-col gap-3 p-5">
+          {/* Header: icon + label + Details button */}
+          <div className="flex items-center gap-2 w-full">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>{icon}</div>
+            <span className="text-[9px] font-semibold text-[#a8a29e] tracking-[0.5px] uppercase font-[Inter,sans-serif] flex-1 leading-tight">{label}</span>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-1 font-[Montserrat,sans-serif] font-semibold text-[10px] px-2 py-1 rounded-full transition-all hover:opacity-90 active:scale-95 flex-shrink-0"
+              style={{ background: c.badgeBg, color: c.badgeText, border: `1px solid ${c.badgeBorder}` }}
+            >
+              Details <span className="text-[11px] leading-none">→</span>
+            </button>
+          </div>
+          {/* Value */}
+          {children}
+          {/* Sub */}
+          <div className="text-[10px] font-[Inter,sans-serif]" style={{ color: c.badgeText }}>{sub}</div>
+        </div>
       </div>
+      <InsightModal open={modalOpen} onClose={() => setModalOpen(false)} insight={insight} />
+    </>
+  )
+}
+
+// ─── Individual Stat Cards ─────────────────────────────────────
+const SupplementCard = ({ label = 'SUPPLEMENT INTAKE', category }: { label?: string; category: CategoryType }) => {
+  const pct = 80 
+  const insight = getSupplementInsight(pct)
+
+  const targetLabel = category === 'pregnant' 
+    ? 'Target: 1 Tablet TTD/day' 
+    : category === 'breastfeeding'
+    ? 'Target: ASI Booster/day'
+    : 'Target: 1 tab/day'
+
+  return (
+    <StatCardBase 
+      icon={<PillIconSvg />} 
+      iconBg="#fef2f2" 
+      label={label} 
+      insight={insight}
+      sub={<>{targetLabel}</>} 
+    >
+      <div className="flex flex-col gap-1">
+        <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">
+          {pct}%
+        </span>
+        <div className="w-full h-1.5 bg-white/60 rounded-full overflow-hidden">
+          <div className="h-full bg-red-400 rounded-full" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+    </StatCardBase>
+  )
+}
+
+const FluidStatCard = ({ category }: { category: CategoryType }) => {
+  const glasses = 6; const target = category === 'breastfeeding' ? 10 : 8
+  const insight = getFluidInsight(glasses, target)
+  return (
+    <StatCardBase icon={<FluidIconSvg />} iconBg="#eff6ff" label="FLUID" insight={insight}
+      sub={<>{target - glasses > 0 ? `${target - glasses} glasses to go!` : 'Target tercapai!'}</>}
+    >
       <div className="flex flex-col gap-1">
         <div className="flex items-baseline gap-1">
-          <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">6/8</span>
+          <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{glasses}/{target}</span>
           <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">Gelas</span>
         </div>
-        <span className="text-[10px] text-[#78716c] font-[Inter,sans-serif]">2 glasses to go!</span>
-      </div>
-      <div className="flex gap-1">
-        {Array.from({ length: 8 }, (_, i) => (
-          <div key={i} className={`flex-1 h-1.5 rounded-full ${i < 6 ? 'bg-blue-400' : 'bg-slate-200'}`} />
-        ))}
-      </div>
-    </div>
-  </div>
-)
-const RestStatCard = () => (
-  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex-1 min-w-0">
-    <div className="flex flex-col gap-3 p-5">
-      <div className="flex items-center justify-between w-full">
-        <div className="w-9 h-9 rounded-full bg-[#f5f3ff] flex items-center justify-center flex-shrink-0"><MoonIconSvg /></div>
-        <span className="text-[9px] font-semibold text-[#a8a29e] tracking-[0.5px] uppercase font-[Inter,sans-serif] text-right">REST</span>
-      </div>
-      <div className="flex flex-col gap-1">
-        <div className="flex items-baseline gap-1">
-          <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">7.5</span>
-          <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">Jam</span>
+        <div className="flex gap-1">
+          {Array.from({ length: target }, (_, i) => (
+            <div key={i} className={`flex-1 h-1.5 rounded-full ${i < glasses ? 'bg-blue-400' : 'bg-white/60'}`} />
+          ))}
         </div>
-        <div className="flex items-center gap-1"><TrendUpIconSvg /><span className="text-[10px] text-emerald-600 font-[Inter,sans-serif]">Good quality</span></div>
       </div>
-    </div>
-  </div>
-)
-const MoodStatCard = () => (
-  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex-1 min-w-0">
-    <div className="flex flex-col gap-3 p-5">
-      <div className="flex items-center justify-between w-full">
-        <div className="w-9 h-9 rounded-full bg-[#f0fdf4] flex items-center justify-center flex-shrink-0"><SmileIconSvg /></div>
-        <span className="text-[9px] font-semibold text-[#a8a29e] tracking-[0.5px] uppercase font-[Inter,sans-serif] text-right">MOOD</span>
+    </StatCardBase>
+  )
+}
+
+const RestStatCard = ({ category }: { category: CategoryType }) => {
+  const hours = 7.5
+  const insight = getRestInsight(hours, category)
+  return (
+    <StatCardBase icon={<MoonIconSvg />} iconBg="#f5f3ff" label="REST" insight={insight}
+      sub={<span className="flex items-center gap-1"><TrendUpIconSvg /><span>Good quality</span></span>}
+    >
+      <div className="flex items-baseline gap-1">
+        <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{hours}</span>
+        <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">Jam</span>
       </div>
-      <div className="flex flex-col gap-1">
-        <div className="flex items-baseline gap-1.5"><span className="text-xl leading-none">🙂</span><span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">Nyaman</span></div>
-        <span className="text-[10px] text-[#78716c] font-[Inter,sans-serif]">Stability high</span>
+    </StatCardBase>
+  )
+}
+
+const MoodStatCard = ({ category }: { category: CategoryType }) => {
+  const moodVal = 'nyaman'
+  const moodOpt = MOOD_OPTIONS.find(m => m.value === moodVal)
+  const insight = getMoodInsight(moodVal, category)
+  return (
+    <StatCardBase icon={<SmileIconSvg />} iconBg="#f0fdf4" label="MOOD" insight={insight}
+      sub="Stability high"
+    >
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-xl leading-none">{moodOpt?.emoji}</span>
+        <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none capitalize">{moodOpt?.label.charAt(0) + moodOpt!.label.slice(1).toLowerCase()}</span>
       </div>
-    </div>
-  </div>
-)
-const CycleStatCard = () => (
-  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex-1 min-w-0">
-    <div className="flex flex-col gap-3 p-5">
-      <div className="flex items-center justify-between w-full">
-        <div className="w-9 h-9 rounded-full bg-[#fdf2f8] flex items-center justify-center flex-shrink-0"><CalendarIconSvg /></div>
-        <span className="text-[9px] font-semibold text-[#a8a29e] tracking-[0.5px] uppercase font-[Inter,sans-serif] text-right">CYCLE TRACKING</span>
+    </StatCardBase>
+  )
+}
+
+const CycleStatCard = () => {
+  const isMenstruating = true 
+  const insight = getCycleInsight(isMenstruating)
+  return (
+    <StatCardBase icon={<CalendarIconSvg />} iconBg="#fdf2f8" label="CYCLE TRACKING" insight={insight}
+      sub="Siklus teratur"
+    >
+      <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">
+        {isMenstruating ? 'Sedang haid' : 'Tidak haid'}
+      </span>
+    </StatCardBase>
+  )
+}
+
+const MomWeightCard = () => {
+  const current = 65; const prev = 64; const trimester = 2
+  const gain = current - prev
+  const insight = getMomWeightInsight(current, prev, trimester)
+  return (
+    <StatCardBase icon={<WeightIconSvg />} iconBg="#fdf2f8" label="MOM'S WEIGHT" insight={insight}
+      sub={<span className="flex items-center gap-1"><TrendUpIconSvg /><span>+{gain.toFixed(1)}kg this month</span></span>}
+    >
+      <div className="flex items-baseline gap-1">
+        <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{current}</span>
+        <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">kg</span>
       </div>
-      <div className="flex flex-col gap-1">
-        <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">Sedang haid</span>
-        <span className="text-[10px] text-[#78716c] font-[Inter,sans-serif]">Siklus teratur</span>
+    </StatCardBase>
+  )
+}
+
+const PumpingStatCard = () => {
+  const sessions = 5 
+  const insight = getPumpingInsight(sessions)
+  return (
+    <StatCardBase icon={<DropIconSvg />} iconBg="#fdf2f8" label="NURSING & PUMPING" insight={insight}
+      sub={sessions >= 8 ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Jadwal stabil</span></span> : `Target: 8 sesi/hari`}
+    >
+      <div className="flex items-baseline gap-1">
+        <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{sessions}</span>
+        <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">sesi</span>
       </div>
-    </div>
-  </div>
-)
-const MomWeightCard = () => (
-  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex-1 min-w-0">
-    <div className="flex flex-col gap-3 p-5">
-      <div className="flex items-center justify-between w-full">
-        <div className="w-9 h-9 rounded-full bg-[#fdf2f8] flex items-center justify-center flex-shrink-0"><WeightIconSvg /></div>
-        <span className="text-[9px] font-semibold text-[#a8a29e] tracking-[0.5px] uppercase font-[Inter,sans-serif] text-right">MOM'S WEIGHT</span>
-      </div>
-      <div className="flex flex-col gap-1">
-        <div className="flex items-baseline gap-1"><span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">64.5</span><span className="text-sm text-[#78716c] font-[Inter,sans-serif]">kg</span></div>
-        <div className="flex items-center gap-1"><TrendUpIconSvg /><span className="text-[10px] text-emerald-600 font-[Inter,sans-serif]">+1.2kg this month</span></div>
-      </div>
-    </div>
-  </div>
-)
-const PumpingStatCard = () => (
-  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex-1 min-w-0">
-    <div className="flex flex-col gap-3 p-5">
-      <div className="flex items-center justify-between w-full">
-        <div className="w-9 h-9 rounded-full bg-[#fdf2f8] flex items-center justify-center flex-shrink-0"><DropIconSvg /></div>
-        <span className="text-[9px] font-semibold text-[#a8a29e] tracking-[0.5px] uppercase font-[Inter,sans-serif] text-right">NURSING &amp; PUMPING</span>
-      </div>
-      <div className="flex flex-col gap-1">
-        <div className="flex items-baseline gap-1"><span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">8</span><span className="text-sm text-[#78716c] font-[Inter,sans-serif]">sesi</span></div>
-        <div className="flex items-center gap-1"><TrendUpIconSvg /><span className="text-[10px] text-emerald-600 font-[Inter,sans-serif]">Jadwal stabil</span></div>
-      </div>
-    </div>
-  </div>
-)
+    </StatCardBase>
+  )
+}
 
 // ─── Stats Grid ───────────────────────────────────────────────────────────────
 const StatsGrid = ({ category, bp }: { category: CategoryType; bp: 'mobile' | 'tablet' | 'desktop' }) => {
-  const card5 = category === 'teenage' ? <CycleStatCard /> : category === 'pregnant' ? <MomWeightCard /> : <PumpingStatCard />
   const suppLabel = category === 'breastfeeding' ? 'IRON INTAKE' : 'SUPPLEMENT INTAKE'
+  const card5 = category === 'teenage'
+    ? <CycleStatCard />
+    : category === 'pregnant'
+    ? <MomWeightCard />
+    : <PumpingStatCard />
+
   if (bp === 'mobile') return (
     <div className="flex flex-col gap-3 w-full">
-      <SupplementCard label={suppLabel} /><FluidStatCard /><RestStatCard /><MoodStatCard />{card5}
+      <SupplementCard label={suppLabel} category={category} />
+      <FluidStatCard category={category} />
+      <RestStatCard category={category} />
+      <MoodStatCard category={category} />
+      {card5}
     </div>
   )
   if (bp === 'tablet') return (
     <div className="flex flex-col gap-3 w-full">
-      <div className="grid grid-cols-3 gap-3"><SupplementCard label={suppLabel} /><FluidStatCard /><RestStatCard /></div>
-      <div className="grid grid-cols-2 gap-3"><MoodStatCard />{card5}</div>
+      <div className="grid grid-cols-3 gap-3">
+        <SupplementCard label={suppLabel} category={category} />
+        <FluidStatCard category={category} />
+        <RestStatCard category={category} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <MoodStatCard category={category} />
+        {card5}
+      </div>
     </div>
   )
   return (
     <div className="flex gap-4 w-full">
-      <SupplementCard label={suppLabel} /><FluidStatCard /><RestStatCard /><MoodStatCard />{card5}
+      <SupplementCard label={suppLabel} category={category} />
+      <FluidStatCard category={category} />
+      <RestStatCard category={category} />
+      <MoodStatCard category={category} />
+      {card5}
     </div>
   )
 }
@@ -469,18 +839,12 @@ const LogsTable = ({
               {showActions && (
                 <td className="py-2.5 px-2">
                   <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => onEdit && onEdit(i)}
-                      title="Edit"
-                      className="w-7 h-7 flex items-center justify-center rounded-md text-[#628141] hover:bg-[rgba(98,129,65,0.1)] transition-colors border-none bg-transparent cursor-pointer"
-                    >
+                    <button onClick={() => onEdit && onEdit(i)} title="Edit"
+                      className="w-7 h-7 flex items-center justify-center rounded-md text-[#628141] hover:bg-[rgba(98,129,65,0.1)] transition-colors border-none bg-transparent cursor-pointer">
                       <IconEdit />
                     </button>
-                    <button
-                      onClick={() => onDelete && onDelete(i)}
-                      title="Delete"
-                      className="w-7 h-7 flex items-center justify-center rounded-md text-red-500 hover:bg-red-50 transition-colors border-none bg-transparent cursor-pointer"
-                    >
+                    <button onClick={() => onDelete && onDelete(i)} title="Delete"
+                      className="w-7 h-7 flex items-center justify-center rounded-md text-red-500 hover:bg-red-50 transition-colors border-none bg-transparent cursor-pointer">
                       <IconDelete />
                     </button>
                   </div>
@@ -512,7 +876,6 @@ const AllLogsModal = ({
     document.body.style.overflow = open ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [open])
-
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
@@ -546,7 +909,6 @@ const RecentLogsSection = ({
   const [modalOpen, setModalOpen] = useState(false)
   const isMobile = bp === 'mobile'
   const previewData = logs.slice(0, 5)
-
   return (
     <>
       <div className={`bg-white rounded-[24px] border border-[#f0f0ee] shadow-sm ${isMobile ? 'px-4 py-4' : 'px-6 py-5'}`}>
@@ -580,6 +942,15 @@ type LogEntryModalProps = {
   fluidError?: string; sleepError?: string; isEditing?: boolean
 }
 
+// Pregnant weight warning helper
+const getWeightWarning = (weightStr: string): { text: string; level: 'ok' | 'caution' | 'danger' } | null => {
+  const w = parseFloat(weightStr)
+  if (isNaN(w) || w <= 0) return null
+  if (w < 45) return { text: 'Berat badan terlalu rendah untuk kehamilan yang sehat. Konsultasikan ke bidan/dokter.', level: 'danger' }
+  if (w > 110) return { text: 'Berat badan di atas batas ideal. Diskusikan dengan dokter kandunganmu.', level: 'caution' }
+  return null
+}
+
 const LogEntryModal = (props: LogEntryModalProps) => {
   const {
     open, onClose, category, saveStatus, onSave,
@@ -604,12 +975,26 @@ const LogEntryModal = (props: LogEntryModalProps) => {
   const leftTitle    = category === 'teenage' ? 'Tablet Tambah Darah (TTD)' : 'Supplement Intake'
   const leftSubtitle = category === 'teenage' ? 'Sudah minum TTD hari ini?' : 'Sudah minum vitamin hari ini?'
 
+  const weightWarning = category === 'pregnant' ? getWeightWarning(momWeight) : null
+  const weightBg = weightWarning?.level === 'danger' ? '#FFEBEE' : weightWarning?.level === 'caution' ? '#FFFDE7' : '#e6e9e4'
+  const weightBorder = weightWarning?.level === 'danger' ? '#FFCDD2' : weightWarning?.level === 'caution' ? '#FFF176' : 'transparent'
+
+  const pumpingNum = parseInt(nursingCount)
+  const pumpingLow = !isNaN(pumpingNum) && pumpingNum > 0 && pumpingNum < 6
+
   return (
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-3"
       onClick={(e) => { if (e.target === overlayRef.current) onClose() }}
     >
+      {/* CSS to hide number input spinners globally within this modal */}
+      <style>{`
+        .no-spinner::-webkit-outer-spin-button,
+        .no-spinner::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .no-spinner { -moz-appearance: textfield; appearance: textfield; }
+      `}</style>
+
       <div className="bg-white rounded-[22px] w-full max-w-[640px] shadow-2xl relative overflow-hidden flex flex-col" style={{ maxHeight: '92vh' }}>
 
         {/* ── Header ── */}
@@ -661,7 +1046,7 @@ const LogEntryModal = (props: LogEntryModalProps) => {
 
             {/* Dynamic Fields — 2 col */}
             <div className="grid grid-cols-2 gap-3">
-              {/* Left: supplement */}
+              {/* Left: supplement — now Checkbox */}
               <div className="bg-white rounded-[16px] shadow-[0px_2px_10px_0px_rgba(0,0,0,0.06)] p-3.5 flex flex-col gap-2.5">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0 pr-2">
@@ -670,9 +1055,8 @@ const LogEntryModal = (props: LogEntryModalProps) => {
                   </div>
                   <div className="w-9 h-9 rounded-full bg-[#d0ebb8] flex items-center justify-center flex-shrink-0"><AnemiaIconSvg /></div>
                 </div>
-                <div className="bg-[#e6e9e4] rounded-[40px] h-[52px] flex items-center justify-between px-4">
-                  <span className="font-bold text-sm text-[#191c1a] font-[Montserrat,sans-serif]">Sudah Konsumsi</span>
-                  <ToggleSwitch checked={suppChecked} onChange={suppOnChange} />
+                <div className="bg-[#e6e9e4] rounded-[40px] h-[52px] flex items-center px-4">
+                  <Checkbox checked={suppChecked} onChange={suppOnChange} label="Sudah Konsumsi" />
                 </div>
               </div>
 
@@ -687,9 +1071,8 @@ const LogEntryModal = (props: LogEntryModalProps) => {
                       </div>
                       <div className="w-9 h-9 rounded-full bg-[rgba(178,83,142,0.15)] flex items-center justify-center flex-shrink-0"><CalendarIconSvg /></div>
                     </div>
-                    <div className="bg-[#e6e9e4] rounded-[40px] h-[52px] flex items-center justify-between px-4">
-                      <span className="font-bold text-sm text-[#191c1a] font-[Montserrat,sans-serif]">Menstruasi</span>
-                      <ToggleSwitch checked={isMenstruating} onChange={setIsMenstruating} />
+                    <div className="bg-[#e6e9e4] rounded-[40px] h-[52px] flex items-center px-4">
+                      <Checkbox checked={isMenstruating} onChange={setIsMenstruating} label="Menstruasi" />
                     </div>
                   </>
                 )}
@@ -702,11 +1085,19 @@ const LogEntryModal = (props: LogEntryModalProps) => {
                       </div>
                       <div className="w-9 h-9 rounded-full bg-[rgba(178,83,142,0.15)] flex items-center justify-center flex-shrink-0"><WeightIconSvg /></div>
                     </div>
-                    <div className="relative h-[52px] rounded-[40px] bg-[#e6e9e4] flex items-center px-4 overflow-hidden">
+                    <div
+                      className="relative h-[52px] rounded-[40px] flex items-center px-4 overflow-hidden transition-colors"
+                      style={{ background: weightBg, border: `1.5px solid ${weightBorder}` }}
+                    >
                       <input type="number" value={momWeight} onChange={e => setMomWeight(e.target.value)} placeholder="0" min={0} max={200}
-                        className="flex-1 bg-transparent outline-none font-['Lexend',sans-serif] font-bold text-[20px] text-[#6b7280] leading-none w-full" />
+                        className="no-spinner flex-1 bg-transparent outline-none font-['Lexend',sans-serif] font-bold text-[20px] text-[#6b7280] leading-none w-full" />
                       <span className="absolute right-5 font-bold text-sm text-[#42493b] font-[Montserrat,sans-serif]">kg</span>
                     </div>
+                    {weightWarning && (
+                      <p className={`text-[11px] font-semibold font-[Montserrat,sans-serif] pl-1 ${weightWarning.level === 'danger' ? 'text-red-600' : 'text-amber-600'}`}>
+                        ⚠ {weightWarning.text}
+                      </p>
+                    )}
                   </>
                 )}
                 {category === 'breastfeeding' && (
@@ -718,11 +1109,19 @@ const LogEntryModal = (props: LogEntryModalProps) => {
                       </div>
                       <div className="w-9 h-9 rounded-full bg-[rgba(178,83,142,0.15)] flex items-center justify-center flex-shrink-0"><DropIconSvg /></div>
                     </div>
-                    <div className="relative h-[52px] rounded-[40px] bg-[#e6e9e4] flex items-center px-4 overflow-hidden">
+                    <div
+                      className="relative h-[52px] rounded-[40px] flex items-center px-4 overflow-hidden transition-colors"
+                      style={{ background: pumpingLow ? '#FFEBEE' : '#e6e9e4', border: `1.5px solid ${pumpingLow ? '#FFCDD2' : 'transparent'}` }}
+                    >
                       <input type="number" value={nursingCount} onChange={e => setNursingCount(e.target.value)} placeholder="0" min={0} max={30}
-                        className="flex-1 bg-transparent outline-none font-['Lexend',sans-serif] font-bold text-[20px] text-[#6b7280] leading-none w-full" />
+                        className="no-spinner flex-1 bg-transparent outline-none font-['Lexend',sans-serif] font-bold text-[20px] text-[#6b7280] leading-none w-full" />
                       <span className="absolute right-5 font-bold text-sm text-[#42493b] font-[Montserrat,sans-serif]">sesi</span>
                     </div>
+                    {pumpingLow && (
+                      <p className="text-[11px] font-semibold text-red-600 font-[Montserrat,sans-serif] pl-1">
+                        ⚠ Status: LOW — Di bawah 6 sesi/hari. Tingkatkan frekuensi pumping.
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -745,7 +1144,7 @@ const LogEntryModal = (props: LogEntryModalProps) => {
                 </div>
                 <div className={`relative h-[52px] rounded-[40px] flex items-center px-4 overflow-hidden ${fluidError ? 'bg-[#fde8e8]' : 'bg-[#e6e9e4]'}`}>
                   <input type="number" value={fluid} onChange={e => setFluid(e.target.value)} placeholder="0" min={0} max={20}
-                    className="flex-1 bg-transparent outline-none font-['Lexend',sans-serif] font-bold text-[20px] text-[#6b7280] leading-none w-full" />
+                    className="no-spinner flex-1 bg-transparent outline-none font-['Lexend',sans-serif] font-bold text-[20px] text-[#6b7280] leading-none w-full" />
                   <span className="absolute right-5 font-bold text-sm text-[#42493b] font-[Montserrat,sans-serif]">Gelas</span>
                 </div>
                 {fluidError && <span className="text-red-500 font-[Montserrat,sans-serif] text-[11px] font-semibold pl-1">{fluidError}</span>}
@@ -766,7 +1165,7 @@ const LogEntryModal = (props: LogEntryModalProps) => {
                 </div>
                 <div className={`relative h-[52px] rounded-[40px] flex items-center px-4 overflow-hidden ${sleepError ? 'bg-[#fde8e8]' : 'bg-[#e6e9e4]'}`}>
                   <input type="number" value={sleep} onChange={e => setSleep(e.target.value)} placeholder="0" min={0} max={24} step={0.5}
-                    className="flex-1 bg-transparent outline-none font-['Lexend',sans-serif] font-bold text-[20px] text-[#6b7280] leading-none w-full" />
+                    className="no-spinner flex-1 bg-transparent outline-none font-['Lexend',sans-serif] font-bold text-[20px] text-[#6b7280] leading-none w-full" />
                   <span className="absolute right-5 font-bold text-sm text-[#42493b] font-[Montserrat,sans-serif]">Jam</span>
                 </div>
                 {sleepError && <span className="text-red-500 font-[Montserrat,sans-serif] text-[11px] font-semibold pl-1">{sleepError}</span>}
@@ -867,11 +1266,8 @@ export default function HealthLog() {
 
     setLogs(prev => {
       const arr = [...prev[activeCategory]]
-      if (editIndex !== null) {
-        arr[editIndex] = newRow
-      } else {
-        arr.unshift(newRow)
-      }
+      if (editIndex !== null) arr[editIndex] = newRow
+      else arr.unshift(newRow)
       return { ...prev, [activeCategory]: arr }
     })
 
@@ -881,14 +1277,10 @@ export default function HealthLog() {
 
   const handleEdit = (index: number) => {
     const row = logs[activeCategory][index]
-    // Pre-fill form from row data
     const moodOpt = MOOD_OPTIONS.find(m => m.label.toLowerCase() === row.mood.toLowerCase())
     setMood(moodOpt?.value ?? 'biasa')
-    // Parse fluid: "6 Gelas" → "6"
     setFluid(row.fluid.replace(' Gelas', '').trim())
-    // Parse sleep: "8h" → "8"
     setSleep(row.sleep.replace('h', '').trim())
-    // Parse date: "13 April 2026" → "13/04/2026"
     try {
       const parts = row.date.split(' ')
       const monthMap: Record<string,string> = { January:'01', February:'02', March:'03', April:'04', May:'05', June:'06', July:'07', August:'08', September:'09', October:'10', November:'11', December:'12' }
@@ -897,20 +1289,14 @@ export default function HealthLog() {
       const y = parts[2]
       setLogDate(`${d}/${m}/${y}`)
     } catch { setLogDate('13/04/2026') }
-    // Parse supplement toggle
     if (activeCategory === 'teenage') setTtdTaken(row.supplement.startsWith('✓'))
     else if (activeCategory === 'pregnant') setSupplementTaken(row.supplement.startsWith('✓'))
     else setSupplementBfTaken(row.supplement.startsWith('✓'))
-    // Parse specific
     if (activeCategory === 'teenage') setIsMenstruating(row.specific === 'Sedang Haid')
     else if (activeCategory === 'pregnant') setMomWeight(row.specific.replace('BB: ', '').replace(' Kg', '').trim())
     else setNursingCount(row.specific.replace('Pumping: ', '').replace(' Sesi', '').trim())
-
-    setFluidError(undefined)
-    setSleepError(undefined)
-    setSaveStatus('idle')
-    setEditIndex(index)
-    setModalOpen(true)
+    setFluidError(undefined); setSleepError(undefined)
+    setSaveStatus('idle'); setEditIndex(index); setModalOpen(true)
   }
 
   const handleDelete = (index: number) => {
@@ -928,8 +1314,7 @@ export default function HealthLog() {
     setSupplementTaken(false); setMomWeight('')
     setSupplementBfTaken(false); setNursingCount('')
     setFluidError(undefined); setSleepError(undefined)
-    setSaveStatus('idle'); setEditIndex(null)
-    setModalOpen(true)
+    setSaveStatus('idle'); setEditIndex(null); setModalOpen(true)
   }
 
   const isMobile = bp === 'mobile'
