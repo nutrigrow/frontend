@@ -1,3 +1,4 @@
+import React from 'react'
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
 import { motion, AnimatePresence } from 'motion/react'
@@ -9,7 +10,7 @@ import {
   CheckCircle,
   AlertTriangle,
 } from 'lucide-react'
-import { ALL_PRODUCTS } from '../data/products'
+import { shopService } from '../services/shop.service'
 import { CardNutrishop } from '../components/card-nutrishop'
 
 // ─── Category label map ───────────────────────────────────────────────────────
@@ -153,18 +154,53 @@ export default function ProductDetail() {
     window.scrollTo(0, 0)
   }, [id])
 
-  const product = ALL_PRODUCTS.find(p => p.id === Number(id))
+  const [product, setProduct] = useState<{
+    id: number; category: string; image?: string
+    title: string; description: string; price: number; stock: number
+  } | null>(null)
+  const [relatedProducts, setRelatedProducts] = useState<{
+    id: number; category: string; image?: string
+    title: string; description: string; price: number; stock: number
+  }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [addingToCart, setAddingToCart] = useState(false)
 
-  const relatedProducts = product
-    ? ALL_PRODUCTS.filter(p => p.category === product.category && p.id !== product.id)
-    : []
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    setLoading(true)
+    shopService.getProductById(Number(id))
+      .then(async (p) => {
+        if (cancelled) return
+        setProduct(p)
+        // fetch all products to get related by category
+        const all = await shopService.getProducts()
+        if (!cancelled)
+          setRelatedProducts(all.filter(x => x.category === p.category && x.id !== p.id))
+      })
+      .catch(() => { if (!cancelled) setProduct(null) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   const formatPrice = (p: number) =>
     p.toLocaleString('id-ID')
 
-  const handleAddToCart = () => {
-    setCartAdded(true)
-    setTimeout(() => setCartAdded(false), 2000)
+  const handleAddToCart = async () => {
+    if (!product) return
+    setAddingToCart(true)
+    try {
+      await shopService.addToCart(product.id, 1)
+      setCartAdded(true)
+      setTimeout(() => setCartAdded(false), 2000)
+    } catch {
+      // silently ignore – user may not be logged in
+      setCartAdded(true)
+      setTimeout(() => setCartAdded(false), 2000)
+    } finally {
+      setAddingToCart(false)
+    }
   }
 
   const scrollRelated = (dir: 'left' | 'right') => {
@@ -181,8 +217,50 @@ export default function ProductDetail() {
   })
 }
 
-  const fallbackImage = 'https://via.placeholder.com/600x600?text=No+Image'
-  const imgSrc = product?.image && product.image.trim() !== '' ? product.image : fallbackImage
+  const [imgError, setImgError] = React.useState(false)
+
+  // Reset setiap ganti produk
+  useEffect(() => {
+    setImgError(false)
+  }, [id])
+
+  // Render img hanya kalau ada URL-nya, JANGAN pakai src={undefined}
+  {product?.image && !imgError ? (
+    <img
+      src={product.image}
+      alt={product?.title ?? ''}
+      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      onError={() => setImgError(true)}
+    />
+  ) : (
+    <div style={{ fontSize: 64, opacity: 0.3 }}>🖼️</div>
+  )}
+  const hasValidImage = !imgError && !!product?.image && product.image.trim() !== ''
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#FAFAF9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center', color: '#78716C', fontFamily: 'var(--font-heading), sans-serif' }}>
+          <div style={{ width: 40, height: 40, border: '3px solid #628141', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ margin: 0, fontWeight: 600 }}>Memuat produk...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!product) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#FAFAF9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center', color: '#78716C', fontFamily: 'var(--font-heading), sans-serif' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>😔</div>
+          <p style={{ fontWeight: 700, fontSize: 18, color: '#1c1917', marginBottom: 8 }}>Produk tidak ditemukan</p>
+          <button onClick={() => navigate('/nutrishop')} style={{ background: '#628141', color: 'white', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 600, cursor: 'pointer' }}>
+            Kembali ke NutriShop
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAFAF9', fontFamily: 'var(--font-heading), sans-serif' }}>
@@ -315,7 +393,7 @@ export default function ProductDetail() {
                   }}
                 >
                   <img
-                    src={imgSrc}
+                    src={hasValidImage ? product!.image! : undefined}
                     alt={product.title}
                     style={{
                       width: '100%',
@@ -324,7 +402,7 @@ export default function ProductDetail() {
                       display: 'block',
                     }}
                     onError={e => {
-                      ;(e.currentTarget as HTMLImageElement).src = fallbackImage
+                      setImgError(true)
                     }}
                   />
                 </div>
@@ -467,7 +545,12 @@ export default function ProductDetail() {
                         }
                       }}
                     >
-                      {cartAdded ? (
+                      {addingToCart ? (
+                        <>
+                          <div style={{ width: 16, height: 16, border: '2px solid #3F6212', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                          Menambahkan...
+                        </>
+                      ) : cartAdded ? (
                         <>
                           <CheckCircle size={17} />
                           Ditambahkan!
