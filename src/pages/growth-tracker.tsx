@@ -10,6 +10,13 @@ import {
   Tooltip,
 } from 'recharts'
 
+import {
+  childrenService,
+  transformBmiChartData,
+  transformPercentileToMeasurements,
+  transformToSubChartData,
+} from '../services/children.service'
+
 // ─── Breakpoint helper ────────────────────────────────────────────────────────
 const useBreakpoint = () => {
   const [bp, setBp] = useState<'mobile' | 'tablet' | 'desktop'>('desktop')
@@ -28,47 +35,9 @@ const useBreakpoint = () => {
 type SaveStatus = 'idle' | 'success' | 'error'
 
 // ─── Chart Data ───────────────────────────────────────────────────────────────
-const bmiChartData = [
-  { age: 'Birth', leo: 13.2, p25: 12.5, band: 2.0, p50: 13.4 },
-  { age: '6m',    leo: 16.2, p25: 15.3, band: 2.2, p50: 16.4 },
-  { age: '1y',    leo: 16.8, p25: 16.0, band: 2.0, p50: 17.1 },
-  { age: '2y',    leo: 15.8, p25: 15.0, band: 2.0, p50: 16.0 },
-  { age: '3y',    leo: 15.4, p25: 14.7, band: 2.0, p50: 15.7 },
-  { age: '4y',    leo: 15.7, p25: 15.0, band: 2.0, p50: 16.0 },
-]
-
-const heightForAgeData = [
-  { age: 'Birth', child: 50,   median: 50,  low: 47,  band: 6  },
-  { age: '9m',    child: 72,   median: 71,  low: 68,  band: 6  },
-  { age: '12m',   child: 76,   median: 75,  low: 71,  band: 8  },
-  { age: '18m',   child: 83,   median: 82,  low: 78,  band: 8  },
-  { age: '24m',   child: 92,   median: 87,  low: 83,  band: 8  },
-  { age: '30m',   child: 95.5, median: 92,  low: 88,  band: 8  },
-]
-
-const weightForAgeData = [
-  { age: 'Birth', child: 3.5,  median: 3.3,  low: 2.9,  band: 1.1 },
-  { age: '6m',    child: 8.0,  median: 7.9,  low: 6.7,  band: 2.5 },
-  { age: '12m',   child: 9.8,  median: 9.6,  low: 8.1,  band: 3.1 },
-  { age: '18m',   child: 11.5, median: 11.1, low: 9.4,  band: 3.5 },
-  { age: '24m',   child: 13.5, median: 12.2, low: 10.8, band: 3.5 },
-  { age: '30m',   child: 14.2, median: 13.3, low: 11.7, band: 3.8 },
-]
-
 type Measurement = {
   date: string; age: string; height: string; weight: string; heightPct: string; weightPct: string
 }
-
-const INITIAL_MEASUREMENTS: Measurement[] = [
-  { date: 'Oct 12, 2023', age: '24 months', height: '95.5 cm', weight: '14.2 kg', heightPct: '75th', weightPct: '15.4' },
-  { date: 'Aug 15, 2023', age: '22 months', height: '93.8 cm', weight: '13.8 kg', heightPct: '74th', weightPct: '14.8' },
-  { date: 'Jun 10, 2023', age: '20 months', height: '92.1 cm', weight: '13.4 kg', heightPct: '74th', weightPct: '14.2' },
-  { date: 'Apr 5, 2023',  age: '18 months', height: '89.5 cm', weight: '12.9 kg', heightPct: '73rd', weightPct: '14.0' },
-  { date: 'Feb 1, 2023',  age: '16 months', height: '87.2 cm', weight: '12.4 kg', heightPct: '73rd', weightPct: '13.6' },
-  { date: 'Dec 12, 2022', age: '14 months', height: '84.8 cm', weight: '11.9 kg', heightPct: '72nd', weightPct: '13.1' },
-  { date: 'Oct 3, 2022',  age: '12 months', height: '76.0 cm', weight: '9.8 kg',  heightPct: '70th', weightPct: '12.5' },
-  { date: 'Jul 20, 2022', age: '9 months',  height: '72.0 cm', weight: '8.0 kg',  heightPct: '68th', weightPct: '11.8' },
-]
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const IconAddCircle = () => (
@@ -309,6 +278,7 @@ const validateInputs = (height: string, weight: string, date: string) => {
 const LogNewGrowthSection = ({
   bp, heightVal, setHeightVal, weightVal, setWeightVal, dateVal, setDateVal,
   onSave, heightError, weightError, dateError, editIndex, onCancelEdit,
+  children, selectedChildId, onSelectChild,
 }: {
   bp: 'mobile' | 'tablet' | 'desktop'
   heightVal: string; setHeightVal: (v: string) => void
@@ -317,51 +287,36 @@ const LogNewGrowthSection = ({
   onSave: () => void
   heightError?: string; weightError?: string; dateError?: string
   editIndex: number | null; onCancelEdit: () => void
+  children: { id: number; namaDepan: string; namaAkhir: string | null }[]
+  selectedChildId: number | null
+  onSelectChild: (id: number) => void
 }) => {
   const isMobile = bp === 'mobile'
   const isTablet = bp === 'tablet'
 
-  const [childOpen, setChildOpen] = useState(false)
-  const [selectedChild, setSelectedChild] = useState('Leo')
-  const childRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (childRef.current && !childRef.current.contains(event.target as Node)) setChildOpen(false)
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
   const isEditing = editIndex !== null
 
   const ChildSelectDropdown = () => (
-    <div className="flex flex-col gap-1 w-full relative" ref={childRef}>
+    <div className="flex flex-col gap-1 w-full">
       <label className="pl-1 text-slate-500 font-bold text-[11px] uppercase tracking-[0.6px] leading-4 font-[Montserrat,sans-serif]">Select Child</label>
       <div className="relative w-full">
-        <button
-          type="button"
-          onClick={() => setChildOpen(!childOpen)}
-          className="h-[54px] px-4 flex items-center justify-between w-full font-bold text-lg text-slate-700 outline-none transition-all cursor-pointer font-[Montserrat,sans-serif]"
+        <select
+          value={selectedChildId ?? ''}
+          onChange={e => { if (e.target.value) onSelectChild(Number(e.target.value)) }}
+          className="h-[54px] px-4 w-full font-bold text-lg text-slate-700 outline-none cursor-pointer font-[Montserrat,sans-serif] appearance-none"
           style={{ borderRadius: '8px', border: '1px solid #E2E8F0', background: 'rgba(63, 98, 18, 0.10)' }}
         >
-          <span>{selectedChild}</span>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-            className={`transition-transform duration-200 ${childOpen ? 'rotate-180' : ''}`}>
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </button>
-        {childOpen && (
-          <div className="absolute top-full left-0 w-full bg-white rounded-xl overflow-hidden z-[100]"
-            style={{ marginTop: '6px', border: '1px solid #E2E8F0', boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}>
-            {['Leo', 'Sarah', 'Mike'].map((name) => (
-              <div key={name} onClick={() => { setSelectedChild(name); setChildOpen(false) }}
-                className={`px-4 py-3.5 font-bold text-base cursor-pointer transition-colors font-[Montserrat,sans-serif] ${selectedChild === name ? 'text-[#3f6212] bg-slate-50' : 'text-slate-600 hover:bg-slate-50'}`}>
-                {name}
-              </div>
-            ))}
-          </div>
-        )}
+          {!selectedChildId && <option value="" disabled>Pilih Anak</option>}
+          {children.map(ch => (
+            <option key={ch.id} value={ch.id}>
+              {ch.namaDepan}{ch.namaAkhir ? ' ' + ch.namaAkhir : ''}
+            </option>
+          ))}
+        </select>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
       </div>
     </div>
   )
@@ -772,11 +727,16 @@ const StuntingCard = ({
   )
 }
 
-const KeyStatsSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => (
+const KeyStatsSection = ({
+  bp, height, weight, stuntingPct, lastUpdated,
+}: {
+  bp: 'mobile' | 'tablet' | 'desktop'
+  height: string; weight: string; stuntingPct: number; lastUpdated: string
+}) => (
   <div className={`w-full mb-8 grid gap-6 ${bp === 'mobile' ? 'grid-cols-1' : 'grid-cols-3'}`}>
-    <StatCard icon={<IconHeightSvg />} label="Current Height" value="95.5" unit="cm" delta="+1.2%" deltaUp={true} sub="Last updated 2 days ago" bp={bp} />
-    <StatCard icon={<IconWeightSvg />} label="Current Weight" value="14.2" unit="kg" delta="-0.8%" deltaUp={false} sub="Last updated 2 days ago" bp={bp} />
-    <StuntingCard stuntingPct={17} bp={bp} />
+    <StatCard icon={<IconHeightSvg />} label="Current Height" value={height} unit="cm" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
+    <StatCard icon={<IconWeightSvg />} label="Current Weight" value={weight} unit="kg" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
+    <StuntingCard stuntingPct={stuntingPct} bp={bp} />
   </div>
 )
 
@@ -830,18 +790,25 @@ const ChartModal = ({ open, onClose, title, subtitle, children, legendItems }: C
 }
 
 // ─── Section 3: BMI Chart ─────────────────────────────────────────────────────
-const BmiChart = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
+const BmiChart = ({
+  bp, data, childName,
+}: {
+  bp: 'mobile' | 'tablet' | 'desktop'
+  data: { age: string; child: number; p50?: number }[]
+  childName: string
+}) => {
   const [modalOpen, setModalOpen] = useState(false)
-  const dotFn = makeLineDot(bmiChartData, '15.7')
+  const lastLabel = data.length > 0 ? String(data[data.length - 1].child) : ''
+  const dotFn = makeLineDot(data, lastLabel)
   const isMobile = bp === 'mobile'
   const legendItems = [
-    { color: '#3f6212', label: "Leo's BMI" },
+    { color: '#3f6212', label: `${childName}'s BMI` },
     { color: '#cbd5e1', dash: true, label: 'WHO Median' },
     { color: 'rgba(98,129,65,0.2)', isArea: true, label: 'WHO Normal Range' },
   ]
   const chartContent = (_height: number) => (
     <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={bmiChartData} margin={{ top: 24, right: 42, left: 0, bottom: 10 }}>
+      <ComposedChart data={data} margin={{ top: 24, right: 42, left: 0, bottom: 10 }}>
         <CartesianGrid vertical={false} stroke="#f1f5f9" strokeWidth={1} />
         <XAxis dataKey="age" tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
         <YAxis tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} domain={[11, 20]} />
@@ -875,8 +842,14 @@ const BmiChart = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   )
 }
 
-const GrowthChartSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => (
-  <div className="w-full mb-8"><BmiChart bp={bp} /></div>
+const GrowthChartSection = ({
+  bp, bmiData, childName,
+}: {
+  bp: 'mobile' | 'tablet' | 'desktop'
+  bmiData: { age: string; child: number; p50?: number }[]
+  childName: string
+}) => (
+  <div className="w-full mb-8"><BmiChart bp={bp} data={bmiData} childName={childName} /></div>
 )
 
 // ─── Section 4: Sub-charts ────────────────────────────────────────────────────
@@ -886,8 +859,6 @@ const SmallChart = ({ title, data, lastLabel, bp, unit }: { title: string; data:
   const isMobile = bp === 'mobile'
   const legendItems = [
     { color: '#3f6212', label: 'Your Child' },
-    { color: '#cbd5e1', dash: true, label: 'WHO Median' },
-    { color: 'rgba(98,129,65,0.2)', isArea: true, label: 'WHO Normal Range' },
   ]
   const chartContent = () => (
     <ResponsiveContainer width="100%" height="100%">
@@ -896,8 +867,6 @@ const SmallChart = ({ title, data, lastLabel, bp, unit }: { title: string; data:
         <XAxis dataKey="age" tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
         <YAxis tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
         <Tooltip content={<ChildTooltip unit={unit} />} cursor={{ stroke: '#628141', strokeWidth: 1, strokeDasharray: '4 4' }} />
-        <Area type="monotone" dataKey="low" stackId="band" fill="transparent" stroke="none" dot={false} activeDot={false} />
-        <Area type="monotone" dataKey="band" stackId="band" fill="rgba(98,129,65,0.08)" stroke="none" dot={false} activeDot={false} />
         <Line type="monotone" dataKey="median" stroke="#cbd5e1" strokeDasharray="4 4" strokeWidth={1.5} dot={false} activeDot={false} />
         <Line type="monotone" dataKey="child" stroke="#3f6212" strokeWidth={2.5} dot={dotFn as any} activeDot={{ r: 5, fill: '#3f6212', stroke: 'white', strokeWidth: 2 }} />
       </ComposedChart>
@@ -920,10 +889,16 @@ const SmallChart = ({ title, data, lastLabel, bp, unit }: { title: string; data:
   )
 }
 
-const SubChartsSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => (
+const SubChartsSection = ({
+  bp, heightData, weightData,
+}: {
+  bp: 'mobile' | 'tablet' | 'desktop'
+  heightData: { age: string; child: number }[]
+  weightData: { age: string; child: number }[]
+}) => (
   <div className={`w-full mb-8 grid gap-6 ${bp === 'mobile' ? 'grid-cols-1' : 'grid-cols-2'}`}>
-    <SmallChart title="Height for Age" data={heightForAgeData} lastLabel="95.5 cm" bp={bp} unit="cm" />
-    <SmallChart title="Weight for Age" data={weightForAgeData} lastLabel="14.2 kg" bp={bp} unit="kg" />
+    <SmallChart title="Height for Age" data={heightData} lastLabel={heightData.length > 0 ? String(heightData[heightData.length-1].child) : ''} bp={bp} unit="cm" />
+    <SmallChart title="Weight for Age" data={weightData} lastLabel={weightData.length > 0 ? String(weightData[weightData.length-1].child) : ''} bp={bp} unit="kg" />
   </div>
 )
 
@@ -1099,42 +1074,167 @@ const PageTitleSection = ({ bp, saveStatus }: { bp: 'mobile' | 'tablet' | 'deskt
   )
 }
 
+// ─── Add Child Modal ──────────────────────────────────────────────────────────
+const AddChildModal = ({
+  open, onClose, onSaved,
+}: {
+  open: boolean
+  onClose: () => void
+  onSaved: (child: { id: number; namaDepan: string; namaAkhir: string | null }) => void
+}) => {
+  const [namaDepan, setNamaDepan] = useState('')
+  const [namaAkhir, setNamaAkhir] = useState('')
+  const [tgl, setTgl] = useState('')
+  const [jk, setJk] = useState<'LAKI_LAKI' | 'PEREMPUAN'>('LAKI_LAKI')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  const handleSave = async () => {
+    if (!namaDepan.trim() || !tgl) { setErr('Nama dan tanggal lahir wajib diisi.'); return }
+    setSaving(true); setErr('')
+    try {
+      const child = await childrenService.create({
+        namaDepan: namaDepan.trim(),
+        namaAkhir: namaAkhir.trim() || undefined,
+        tanggalLahir: tgl,
+        jenisKelamin: jk,
+      })
+      onSaved(child)
+      onClose()
+    } catch (e: unknown) {
+      const axiosErr = e as { response?: { data?: { message?: string } } }
+      const msg = axiosErr?.response?.data?.message ?? 'Gagal menyimpan. Coba lagi.'
+      setErr(msg)
+    }
+    finally { setSaving(false) }
+  }
+
+  useEffect(() => {
+    if (!open) { setNamaDepan(''); setNamaAkhir(''); setTgl(''); setJk('LAKI_LAKI'); setErr('') }
+  }, [open])
+
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <h2 style={{ fontFamily: 'Montserrat,sans-serif', fontWeight: 800, fontSize: 18, color: '#1e293b', margin: '0 0 20px' }}>Tambah Anak Baru</h2>
+        {err && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 12 }}>{err}</p>}
+        {[
+          { label: 'Nama Depan *', val: namaDepan, set: setNamaDepan, type: 'text' },
+          { label: 'Nama Belakang', val: namaAkhir, set: setNamaAkhir, type: 'text' },
+          { label: 'Tanggal Lahir *', val: tgl, set: setTgl, type: 'date' },
+        ].map(({ label, val, set, type }) => (
+          <div key={label} style={{ marginBottom: 14 }}>
+            <label style={{ fontFamily: 'Montserrat,sans-serif', fontWeight: 700, fontSize: 12, color: '#475569', display: 'block', marginBottom: 6 }}>{label}</label>
+            <input
+              type={type} value={val} onChange={e => set(e.target.value)}
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontFamily: 'Montserrat,sans-serif', fontSize: 14, outline: 'none' }}
+            />
+          </div>
+        ))}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontFamily: 'Montserrat,sans-serif', fontWeight: 700, fontSize: 12, color: '#475569', display: 'block', marginBottom: 6 }}>Jenis Kelamin *</label>
+          <select value={jk} onChange={e => setJk(e.target.value as 'LAKI_LAKI' | 'PEREMPUAN')}
+            style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontFamily: 'Montserrat,sans-serif', fontSize: 14, outline: 'none', background: '#fff' }}>
+            <option value="LAKI_LAKI">Laki-laki</option>
+            <option value="PEREMPUAN">Perempuan</option>
+          </select>
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ fontFamily: 'Montserrat,sans-serif', fontWeight: 700, fontSize: 13, padding: '9px 20px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#fff', color: '#475569', cursor: 'pointer' }}>Batal</button>
+          <button onClick={handleSave} disabled={saving} style={{ fontFamily: 'Montserrat,sans-serif', fontWeight: 700, fontSize: 13, padding: '9px 20px', borderRadius: 10, border: 'none', background: '#628141', color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+            {saving ? 'Menyimpan...' : 'Simpan'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main GrowthTracker Component ─────────────────────────────────────────────
 const GrowthTracker = () => {
   const bp = useBreakpoint()
-  const [heightVal, setHeightVal] = useState('95.5')
-  const [weightVal, setWeightVal] = useState('14.2')
-  const [dateVal,   setDateVal]   = useState('10/03/2026')
+
+  // ── Children state ──
+  const [children, setChildren] = useState<{ id: number; namaDepan: string; namaAkhir: string | null; tanggalLahir: string; jenisKelamin: 'LAKI_LAKI' | 'PEREMPUAN' }[]>([])
+  const [selectedChildId, setSelectedChildId] = useState<number | null>(null)
+  const [childrenLoading, setChildrenLoading] = useState(true)
+  const [showAddChild, setShowAddChild] = useState(false)
+
+  // ── Chart / stats data ──
+  const [bmiData, setBmiData] = useState<{ age: string; child: number; p50?: number }[]>([])
+  const [heightData, setHeightData] = useState<{ age: string; child: number }[]>([])
+  const [weightData, setWeightData] = useState<{ age: string; child: number }[]>([])
+  const [measurements, setMeasurements] = useState<Measurement[]>([])
+  const [latestHeight, setLatestHeight] = useState('—')
+  const [latestWeight, setLatestWeight] = useState('—')
+  const [lastUpdated, setLastUpdated] = useState('')
+  const [chartsLoading, setChartsLoading] = useState(false)
+
+  // ── Form state ──
+  const [heightVal, setHeightVal] = useState('')
+  const [weightVal, setWeightVal] = useState('')
+  const today = new Date()
+  const [dateVal, setDateVal] = useState(
+    `${String(today.getDate()).padStart(2,'0')}/${String(today.getMonth()+1).padStart(2,'0')}/${today.getFullYear()}`
+  )
   const [heightError, setHeightError] = useState<string | undefined>()
   const [weightError, setWeightError] = useState<string | undefined>()
   const [dateError,   setDateError]   = useState<string | undefined>()
-  const [measurements, setMeasurements] = useState<Measurement[]>(INITIAL_MEASUREMENTS)
   const [editIndex, setEditIndex] = useState<number | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const formRef = useRef<HTMLDivElement>(null)
 
+  // ── Load children on mount ──
+  useEffect(() => {
+    childrenService.getAll()
+      .then(data => {
+        setChildren(data)
+        if (data.length > 0) setSelectedChildId(data[0].id)
+      })
+      .catch(() => {})
+      .finally(() => setChildrenLoading(false))
+  }, [])
+
+  // ── Load charts when selected child changes ──
+  useEffect(() => {
+    if (!selectedChildId) return
+    let cancelled = false
+    setChartsLoading(true)
+
+    Promise.all([
+      childrenService.getLatestGrowth(selectedChildId),
+      childrenService.getBmiChart(selectedChildId),
+      childrenService.getPercentile(selectedChildId),
+    ]).then(([latest, bmi, percentile]) => {
+      if (cancelled) return
+      if (latest) {
+        setLatestHeight(parseFloat(String(latest.tinggiBadan)).toFixed(1))
+        setLatestWeight(parseFloat(String(latest.beratBadan)).toFixed(1))
+        const d = new Date(latest.tanggalCatat)
+        setLastUpdated(`Updated ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
+      } else {
+        setLatestHeight('—'); setLatestWeight('—'); setLastUpdated('No data yet')
+      }
+      setBmiData(transformBmiChartData(bmi))
+      setHeightData(transformToSubChartData(percentile, 'height'))
+      setWeightData(transformToSubChartData(percentile, 'weight'))
+      setMeasurements(transformPercentileToMeasurements([...percentile].reverse()))
+    }).catch(() => {}).finally(() => { if (!cancelled) setChartsLoading(false) })
+
+    return () => { cancelled = true }
+  }, [selectedChildId])
+
+  const selectedChild = children.find(c => c.id === selectedChildId)
+  const childName = selectedChild ? `${selectedChild.namaDepan}${selectedChild.namaAkhir ? ' ' + selectedChild.namaAkhir : ''}` : 'Anak'
+
   const handleEdit = (index: number) => {
     const row = measurements[index]
-    const h = row.height.replace(' cm', '')
-    const w = row.weight.replace(' kg', '')
-    const d = new Date(row.date)
-    const dd = String(d.getDate()).padStart(2, '0')
-    const mm = String(d.getMonth() + 1).padStart(2, '0')
-    const yyyy = d.getFullYear()
-    setHeightVal(h)
-    setWeightVal(w)
-    setDateVal(`${dd}/${mm}/${yyyy}`)
-    setHeightError(undefined)
-    setWeightError(undefined)
-    setDateError(undefined)
-    setEditIndex(index)
-    setSaveStatus('idle')
-    setTimeout(() => {
-    window.scrollTo({
-      top: 0, 
-      behavior: 'smooth'
-    });
-  }, 50);
+    setHeightVal(row.height.replace(' cm', ''))
+    setWeightVal(row.weight.replace(' kg', ''))
+    setHeightError(undefined); setWeightError(undefined); setDateError(undefined)
+    setEditIndex(index); setSaveStatus('idle')
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50)
   }
 
   const handleDelete = (index: number) => {
@@ -1145,43 +1245,52 @@ const GrowthTracker = () => {
 
   const handleCancelEdit = () => {
     setEditIndex(null)
-    setHeightVal('95.5')
-    setWeightVal('14.2')
-    setDateVal('10/03/2026')
-    setHeightError(undefined)
-    setWeightError(undefined)
-    setDateError(undefined)
+    setHeightVal(''); setWeightVal('')
+    setHeightError(undefined); setWeightError(undefined); setDateError(undefined)
     setSaveStatus('idle')
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const errors = validateInputs(heightVal, weightVal, dateVal)
-    setHeightError(errors.height)
-    setWeightError(errors.weight)
-    setDateError(errors.date)
+    setHeightError(errors.height); setWeightError(errors.weight); setDateError(errors.date)
     if (Object.keys(errors).length > 0) return
+    if (!selectedChildId) return
 
-    const parts = dateVal.split('/')
-    const d = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]))
-    const storedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    const newEntry: Measurement = {
-      date: storedDate,
-      age: editIndex !== null ? measurements[editIndex].age : '—',
-      height: `${parseFloat(heightVal).toFixed(1)} cm`,
-      weight: `${parseFloat(weightVal).toFixed(1)} kg`,
-      heightPct: editIndex !== null ? measurements[editIndex].heightPct : '—',
-      weightPct: editIndex !== null ? measurements[editIndex].weightPct : String(parseFloat(weightVal).toFixed(1)),
+    const [dd, mm, yyyy] = dateVal.split('/')
+    const isoDate = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`
+
+    try {
+      await childrenService.createGrowthRecord(selectedChildId, {
+        tinggiBadan: parseFloat(heightVal),
+        beratBadan:  parseFloat(weightVal),
+        tanggalCatat: isoDate,
+      })
+
+      // Refresh charts
+      const [latest, bmi, percentile] = await Promise.all([
+        childrenService.getLatestGrowth(selectedChildId),
+        childrenService.getBmiChart(selectedChildId),
+        childrenService.getPercentile(selectedChildId),
+      ])
+      if (latest) {
+        setLatestHeight(parseFloat(String(latest.tinggiBadan)).toFixed(1))
+        setLatestWeight(parseFloat(String(latest.beratBadan)).toFixed(1))
+        const d = new Date(latest.tanggalCatat)
+        setLastUpdated(`Updated ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
+      }
+      setBmiData(transformBmiChartData(bmi))
+      setHeightData(transformToSubChartData(percentile, 'height'))
+      setWeightData(transformToSubChartData(percentile, 'weight'))
+      setMeasurements(transformPercentileToMeasurements([...percentile].reverse()))
+
+      setSaveStatus('success')
+      setTimeout(() => setSaveStatus('idle'), 2500)
+      if (editIndex !== null) setEditIndex(null)
+      setHeightVal(''); setWeightVal('')
+    } catch {
+      setSaveStatus('error')
+      setTimeout(() => setSaveStatus('idle'), 2500)
     }
-
-    if (editIndex !== null) {
-      setMeasurements(prev => prev.map((m, i) => i === editIndex ? newEntry : m))
-      setEditIndex(null)
-    } else {
-      setMeasurements(prev => [newEntry, ...prev])
-    }
-
-    setSaveStatus('success')
-    setTimeout(() => setSaveStatus('idle'), 2500)
   }
 
   const getPaddingInline = () => {
@@ -1201,25 +1310,79 @@ const GrowthTracker = () => {
           paddingBottom: bp === 'mobile' ? '40px' : '60px',
         }}
       >
-        <PageTitleSection bp={bp} saveStatus={saveStatus} />
-        <div ref={formRef}>
-          <LogNewGrowthSection
-            bp={bp}
-            heightVal={heightVal} setHeightVal={(v) => { setHeightVal(v); if (heightError) setHeightError(undefined) }}
-            weightVal={weightVal} setWeightVal={(v) => { setWeightVal(v); if (weightError) setWeightError(undefined) }}
-            dateVal={dateVal}     setDateVal={(v) => { setDateVal(v); if (dateError) setDateError(undefined) }}
-            onSave={handleSave}
-            heightError={heightError}
-            weightError={weightError}
-            dateError={dateError}
-            editIndex={editIndex}
-            onCancelEdit={handleCancelEdit}
-          />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <PageTitleSection bp={bp} saveStatus={saveStatus} />
+          <button
+            onClick={() => setShowAddChild(true)}
+            style={{
+              fontFamily: 'Montserrat,sans-serif', fontWeight: 700, fontSize: 13,
+              padding: '8px 18px', borderRadius: 999,
+              border: '2px dashed #cbd5e1', background: 'transparent',
+              color: '#94a3b8', cursor: 'pointer', whiteSpace: 'nowrap',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            + Tambah Anak
+          </button>
         </div>
-        <KeyStatsSection bp={bp} />
-        <GrowthChartSection bp={bp} />
-        <SubChartsSection bp={bp} />
-        <RecentMeasurementsSection bp={bp} measurements={measurements} onEdit={handleEdit} onDelete={handleDelete} />
+
+        {!selectedChildId && !childrenLoading && (
+          <div style={{ textAlign: 'center', padding: '60px 24px', color: '#78716c', fontFamily: 'Montserrat,sans-serif' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>👶</div>
+            <p style={{ fontWeight: 700, fontSize: 16, color: '#1e293b', marginBottom: 6 }}>Belum ada data anak</p>
+            <p style={{ fontSize: 13 }}>Klik "+ Tambah Anak" untuk mulai melacak pertumbuhan.</p>
+          </div>
+        )}
+
+        {selectedChildId && (
+          <>
+            <div ref={formRef}>
+              <LogNewGrowthSection
+                bp={bp}
+                heightVal={heightVal} setHeightVal={(v) => { setHeightVal(v); if (heightError) setHeightError(undefined) }}
+                weightVal={weightVal} setWeightVal={(v) => { setWeightVal(v); if (weightError) setWeightError(undefined) }}
+                dateVal={dateVal}     setDateVal={(v) => { setDateVal(v); if (dateError) setDateError(undefined) }}
+                onSave={handleSave}
+                heightError={heightError}
+                weightError={weightError}
+                dateError={dateError}
+                editIndex={editIndex}
+                onCancelEdit={handleCancelEdit}
+                children={children}
+                selectedChildId={selectedChildId}
+                onSelectChild={setSelectedChildId}
+              />
+            </div>
+            {chartsLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontFamily: 'Montserrat,sans-serif' }}>
+                <div style={{ width: 36, height: 36, border: '3px solid #628141', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+                <p style={{ fontSize: 13, margin: 0 }}>Memuat data pertumbuhan...</p>
+              </div>
+            ) : (
+              <>
+                <KeyStatsSection
+                  bp={bp}
+                  height={latestHeight}
+                  weight={latestWeight}
+                  stuntingPct={measurements.length > 0 ? 17 : 0}
+                  lastUpdated={lastUpdated}
+                />
+                <GrowthChartSection bp={bp} bmiData={bmiData} childName={childName} />
+                <SubChartsSection bp={bp} heightData={heightData} weightData={weightData} />
+                <RecentMeasurementsSection bp={bp} measurements={measurements} onEdit={handleEdit} onDelete={handleDelete} />
+              </>
+            )}
+          </>
+        )}
+
+        <AddChildModal
+          open={showAddChild}
+          onClose={() => setShowAddChild(false)}
+          onSaved={(child) => {
+            setChildren(prev => [...prev, child as any])
+            setSelectedChildId(child.id)
+          }}
+        />
       </div>
     </div>
   )
