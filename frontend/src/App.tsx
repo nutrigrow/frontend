@@ -11,9 +11,10 @@ import GrowthTracker from './pages/growth-tracker'
 import HealthLog from './pages/health-log'
 import VerifyEmail from './pages/auth/verify-email'
 import OAuthCallback from './pages/auth/oauth-callback' 
-import Dashboard from './pages/Dashboard'
+import Dashboard from './pages/dashboard'
 import NutriShop from './pages/nutrishop'
 import ProductDetail from './pages/product-detail'
+import Checkout from './pages/checkout'
 import { ProtectedRoute, PublicOnlyRoute } from './components/ProtectedRoute'
 
 // ─── Main App Component (Routing + Layout) ──────────────────────────────────
@@ -34,6 +35,7 @@ function App() {
               <Route path="/auth/callback" element={<OAuthCallback />} />
               <Route path="/nutrishop"     element={<NutriShop />} />
               <Route path="/product/:id"   element={<ProductDetail />} />
+              <Route path="/checkout"      element={<Checkout />} />
 
               {/* ── Auth only: redirect ke /dashboard jika sudah login ── */}
               <Route path="/sign-in"        element={<PublicOnlyRoute><SignIn /></PublicOnlyRoute>} />
