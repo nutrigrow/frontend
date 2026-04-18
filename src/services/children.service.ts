@@ -1,0 +1,141 @@
+import { apiClient } from './api';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+export interface ApiChild {
+  id: number;
+  namaDepan: string;
+  namaAkhir: string | null;
+  tanggalLahir: string;
+  jenisKelamin: 'LAKI_LAKI' | 'PEREMPUAN';
+}
+
+export interface ApiLatestGrowth {
+  tinggiBadan: number;
+  beratBadan: number;
+  tanggalCatat: string;
+}
+
+export interface ApiBmiChartItem {
+  tanggalCatat: string;
+  usiaHari: number;
+  bmiAnak: number;
+  bmiStandarWho: number | null;
+}
+
+export interface ApiPercentileItem {
+  tanggalCatat: string;
+  usiaHari: number;
+  tinggiBadan: number;
+  beratBadan: number;
+  persentilTinggi: string;
+  persentilBerat: string;
+}
+
+// ─── Transformers ─────────────────────────────────────────────────────────────
+const formatAgeLabel = (days: number): string => {
+  if (days < 31)  return `${days}d`;
+  if (days < 365) return `${Math.round(days / 30.44)}m`;
+  const y = Math.floor(days / 365.25);
+  const m = Math.round((days % 365.25) / 30.44);
+  return m > 0 ? `${y}y ${m}m` : `${y}y`;
+};
+
+const formatAgeMonths = (days: number): string => {
+  const months = Math.round(days / 30.44);
+  if (months < 12) return `${months} months`;
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  return m > 0 ? `${y} yr ${m} mo` : `${y} years`;
+};
+
+const formatDateDisplay = (iso: string): string => {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  });
+};
+
+export const transformBmiChartData = (items: ApiBmiChartItem[]) =>
+  items.map((item) => ({
+    age:   formatAgeLabel(item.usiaHari),
+    child: item.bmiAnak,
+    p50:   item.bmiStandarWho ?? undefined,
+  }));
+
+export const transformPercentileToMeasurements = (items: ApiPercentileItem[]) =>
+  items.map((item) => ({
+    date:      formatDateDisplay(item.tanggalCatat),
+    age:       formatAgeMonths(item.usiaHari),
+    height:    `${item.tinggiBadan.toFixed(1)} cm`,
+    weight:    `${item.beratBadan.toFixed(1)} kg`,
+    heightPct: item.persentilTinggi,
+    weightPct: item.persentilBerat,
+  }));
+
+export const transformToSubChartData = (
+  items: ApiPercentileItem[],
+  field: 'height' | 'weight'
+) =>
+  [...items].reverse().map((item) => ({
+    age:   formatAgeLabel(item.usiaHari),
+    child: field === 'height' ? item.tinggiBadan : item.beratBadan,
+  }));
+
+// ─── Service ──────────────────────────────────────────────────────────────────
+export const childrenService = {
+  getAll: async (): Promise<ApiChild[]> => {
+    const { data } = await apiClient.get('/api/children');
+    return data.data as ApiChild[];
+  },
+
+  create: async (payload: {
+    namaDepan: string;
+    namaAkhir?: string;
+    tanggalLahir: string;
+    jenisKelamin: 'LAKI_LAKI' | 'PEREMPUAN';
+  }): Promise<ApiChild> => {
+    const { data } = await apiClient.post('/api/children', payload);
+    return data.data as ApiChild;
+  },
+
+  getById: async (id: number): Promise<ApiChild> => {
+    const { data } = await apiClient.get(`/api/children/${id}`);
+    return data.data as ApiChild;
+  },
+
+  update: async (
+    id: number,
+    payload: Partial<{
+      namaDepan: string;
+      namaAkhir: string;
+      tanggalLahir: string;
+      jenisKelamin: 'LAKI_LAKI' | 'PEREMPUAN';
+    }>
+  ): Promise<ApiChild> => {
+    const { data } = await apiClient.put(`/api/children/${id}`, payload);
+    return data.data as ApiChild;
+  },
+
+  createGrowthRecord: async (
+    childId: number,
+    payload: { tinggiBadan: number; beratBadan: number; tanggalCatat: string }
+  ) => {
+    const { data } = await apiClient.post(`/api/children/${childId}/growth`, payload);
+    return data.data;
+  },
+
+  getLatestGrowth: async (childId: number): Promise<ApiLatestGrowth | null> => {
+    const { data } = await apiClient.get(`/api/children/${childId}/growth/latest`);
+    return data.data as ApiLatestGrowth | null;
+  },
+
+  getBmiChart: async (childId: number): Promise<ApiBmiChartItem[]> => {
+    const { data } = await apiClient.get(`/api/children/${childId}/growth/bmi-chart`);
+    return data.data as ApiBmiChartItem[];
+  },
+
+  getPercentile: async (childId: number): Promise<ApiPercentileItem[]> => {
+    const { data } = await apiClient.get(`/api/children/${childId}/growth/percentile`);
+    return data.data as ApiPercentileItem[];
+  },
+};
