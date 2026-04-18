@@ -12,10 +12,20 @@ import {
   X,
   Milk,
 } from 'lucide-react'
-import { ALL_PRODUCTS } from '../data/products'
-import type { Product } from '../data/products'
 import { CardNutrishop } from '../components/card-nutrishop'
 import FoodsImg from '../assets/images/img-foods.svg'
+import { shopService } from '../services/shop.service'
+
+// ─── Local Product type (matches backend-mapped shape) ────────────────────────
+interface Product {
+  id: number
+  category: string
+  image?: string
+  title: string
+  description: string
+  price: number
+  stock: number
+}
 
 // ─── Breakpoint helper ────────────────────────────────────────────────────────
 const useBreakpoint = () => {
@@ -61,12 +71,13 @@ const NeedAdviceIcon = () => (
 
 
 // ─── Categories Data ──────────────────────────────────────────────────────────
-const CATEGORIES = [
-  { id: 'all',          label: 'All Products',        count: 22, IconComp: LayoutGrid      }, 
-  { id: 'mpasi',        label: 'MPASI / Baby Food',   count: 6,  IconComp: Milk            },
-  { id: 'snacks',       label: 'Healthy Snacks',      count: 7,  IconComp: Apple           },
-  { id: 'supplements',  label: 'Supplements',         count: 5,  IconComp: Pill            },
-  { id: 'cooking',      label: 'Cooking Basics',      count: 4,  IconComp: ChefHat         },
+// Static category definitions — counts are computed dynamically from products
+const CATEGORY_DEFS = [
+  { id: 'all',         label: 'All Products',   IconComp: LayoutGrid },
+  { id: 'mpasi',       label: 'MPASI',          IconComp: Milk       },
+  { id: 'supplements', label: 'Supplements',    IconComp: Pill       },
+  { id: 'alat',        label: 'Alat',           IconComp: ChefHat   },
+  { id: 'paket',       label: 'Paket',          IconComp: Apple      },
 ]
 
 const ITEMS_PER_PAGE = 9
@@ -314,7 +325,8 @@ const SidebarFilter = ({
   onApply,
   isMobileOpen,
   onCloseMobile,
-}: SidebarProps) => {
+  categories,
+}: SidebarProps & { categories: { id: string; label: string; count: number; IconComp: React.ComponentType<{ size?: number; color?: string; width?: number; height?: number }> }[] }) => {
   const isMobile = bp === 'mobile'
   const navigate = useNavigate()
 
@@ -344,7 +356,7 @@ const SidebarFilter = ({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {CATEGORIES.map(({ id, label, count, IconComp }) => {
+          {categories.map(({ id, label, count, IconComp }) => {
             const isActive = selectedCategory === id
             return (
               <button
@@ -631,9 +643,31 @@ export default function NutriShop() {
   const bp = useBreakpoint()
   const isMobile = bp === 'mobile'
   const paddingInline = getPaddingInline(bp)
-  const products: Product[] = ALL_PRODUCTS 
+  const [products, setProducts] = useState<Product[]>([])
+  const [productsLoading, setProductsLoading] = useState(true)
+  const [productsError, setProductsError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setProductsLoading(true)
+    setProductsError(null)
+    shopService.getProducts()
+      .then((data) => { if (!cancelled) setProducts(data) })
+      .catch(() => { if (!cancelled) setProductsError("Gagal memuat produk. Pastikan kamu sudah login.") })
+      .finally(() => { if (!cancelled) setProductsLoading(false) })
+    return () => { cancelled = true }
+  }, [])
 
   // ── Filter state ──
+  const categories = useMemo(() => {
+    return CATEGORY_DEFS.map(def => ({
+      ...def,
+      count: def.id === 'all'
+        ? products.length
+        : products.filter(p => p.category === def.id).length,
+    })).filter(def => def.id === 'all' || def.count > 0)
+  }, [products])
+
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [minPriceInput, setMinPriceInput] = useState('')
   const [maxPriceInput, setMaxPriceInput] = useState('')
@@ -730,6 +764,7 @@ export default function NutriShop() {
               onApply={handleApplyFilter}
               isMobileOpen={false}
               onCloseMobile={() => {}}
+              categories={categories}
             />
           )}
 
@@ -746,6 +781,7 @@ export default function NutriShop() {
               onApply={handleApplyFilter}
               isMobileOpen={mobileFilterOpen}
               onCloseMobile={() => setMobileFilterOpen(false)}
+              categories={categories}
             />
           )}
 
@@ -837,14 +873,34 @@ export default function NutriShop() {
             </div>
 
             {/* Product count info */}
-            <p style={{ fontFamily: 'var(--font-heading), sans-serif', fontSize: 13, color: '#78716C', margin: '0 0 20px' }}>
-              Menampilkan{' '}
-              <strong style={{ color: '#628141' }}>{filteredProducts.length}</strong> produk
-              {searchQuery && <> untuk "<strong>{searchQuery}</strong>"</>}
-            </p>
+            {!productsLoading && !productsError && (
+              <p style={{ fontFamily: 'var(--font-heading), sans-serif', fontSize: 13, color: '#78716C', margin: '0 0 20px' }}>
+                Menampilkan{' '}
+                <strong style={{ color: '#628141' }}>{filteredProducts.length}</strong> produk
+                {searchQuery && <> untuk "<strong>{searchQuery}</strong>"</>}
+              </p>
+            )}
+
+            {/* Loading state */}
+            {productsLoading && (
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : bp === 'tablet' ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: isMobile ? 16 : 20 }}>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} style={{ background: '#f5f5f4', borderRadius: 12, height: 280, animation: 'pulse 1.5s ease-in-out infinite' }} />
+                ))}
+              </div>
+            )}
+
+            {/* Error state */}
+            {!productsLoading && productsError && (
+              <div style={{ textAlign: 'center', padding: '48px 24px', color: '#78716C', fontFamily: 'var(--font-heading), sans-serif' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+                <p style={{ fontWeight: 700, color: '#1c1917', marginBottom: 6 }}>Produk tidak tersedia</p>
+                <p style={{ fontSize: 13 }}>{productsError}</p>
+              </div>
+            )}
 
             {/* Products Grid */}
-            {paginatedProducts.length > 0 ? (
+            {!productsLoading && !productsError && paginatedProducts.length > 0 ? (
               <div
                 style={{
                   display: 'grid',
