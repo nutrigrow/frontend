@@ -1,7 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
+import { useAuth } from '../context/AuthContext'
 import { Plus, X } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+import {
+  healthLogService,
+  mapLogToRow,
+  MOOD_STR_TO_INT,
+  CATEGORY_TO_PROFILE,
+  toISODate,
+} from '../services/healthLog.service'
+
 type CategoryType = 'teenage' | 'pregnant' | 'breastfeeding'
 type SaveStatus = 'idle' | 'success' | 'error'
 type LogRow = { day: string; date: string; mood: string; sleep: string; fluid: string; supplement: string; specific: string }
@@ -22,6 +31,12 @@ type InsightConfig = {
   title: string
   subtitle: string
   sections: { heading: string; items: string[]; dotColor: string }[]
+}
+
+const CATEGORY_META: Record<CategoryType, { tab: string; badge: string }> = {
+  teenage:       { tab: 'Teenage',       badge: 'TEENAGE GIRL' },
+  pregnant:      { tab: 'Pregnant',      badge: 'PREGNANT MOTHER' },
+  breastfeeding: { tab: 'Breastfeeding', badge: 'BREASTFEEDING MOM' },
 }
 
 function getSupplementInsight(pct: number): InsightConfig {
@@ -268,36 +283,6 @@ const MOOD_OPTIONS = [
   { emoji: '🤩', label: 'BAHAGIA', value: 'bahagia' },
 ]
 
-const INITIAL_LOGS: Record<CategoryType, LogRow[]> = {
-  teenage: [
-    { day: 'Mon', date: '13 April 2026', mood: 'Bahagia', sleep: '8h',   fluid: '6 Gelas', supplement: '✓ TTD', specific: 'Sedang Haid'  },
-    { day: 'Sun', date: '12 April 2026', mood: 'Lelah',   sleep: '6h',   fluid: '5 Gelas', supplement: '✗ TTD', specific: 'Sedang Haid'  },
-    { day: 'Sat', date: '11 April 2026', mood: 'Nyaman',  sleep: '7.5h', fluid: '7 Gelas', supplement: '✓ TTD', specific: 'Tidak Haid'   },
-    { day: 'Fri', date: '10 April 2026', mood: 'Biasa',   sleep: '7h',   fluid: '6 Gelas', supplement: '✓ TTD', specific: 'Tidak Haid'   },
-    { day: 'Thu', date: '9 April 2026',  mood: 'Sedih',   sleep: '5.5h', fluid: '4 Gelas', supplement: '✗ TTD', specific: 'Sedang Haid'  },
-  ],
-  pregnant: [
-    { day: 'Mon', date: '13 April 2026', mood: 'Bahagia', sleep: '8h',   fluid: '8 Gelas', supplement: '✓ Suplemen', specific: 'BB: 65 Kg'    },
-    { day: 'Sun', date: '12 April 2026', mood: 'Lelah',   sleep: '6h',   fluid: '6 Gelas', supplement: '✓ Suplemen', specific: 'BB: 65 Kg'    },
-    { day: 'Sat', date: '11 April 2026', mood: 'Nyaman',  sleep: '7.5h', fluid: '7 Gelas', supplement: '✗ Suplemen', specific: 'BB: 64 Kg'    },
-    { day: 'Fri', date: '10 April 2026', mood: 'Biasa',   sleep: '7h',   fluid: '6 Gelas', supplement: '✓ Suplemen', specific: 'BB: 64 Kg'    },
-    { day: 'Thu', date: '9 April 2026',  mood: 'Nyaman',  sleep: '8h',   fluid: '8 Gelas', supplement: '✓ Suplemen', specific: 'BB: 63.5 Kg' },
-  ],
-  breastfeeding: [
-    { day: 'Mon', date: '13 April 2026', mood: 'Bahagia', sleep: '8h',   fluid: '9 Gelas', supplement: '✓ Iron', specific: 'Pumping: 5 Sesi' },
-    { day: 'Sun', date: '12 April 2026', mood: 'Lelah',   sleep: '6h',   fluid: '7 Gelas', supplement: '✓ Iron', specific: 'Pumping: 7 Sesi' },
-    { day: 'Sat', date: '11 April 2026', mood: 'Nyaman',  sleep: '7.5h', fluid: '8 Gelas', supplement: '✗ Iron', specific: 'Pumping: 6 Sesi' },
-    { day: 'Fri', date: '10 April 2026', mood: 'Biasa',   sleep: '7h',   fluid: '6 Gelas', supplement: '✓ Iron', specific: 'Pumping: 8 Sesi' },
-    { day: 'Thu', date: '9 April 2026',  mood: 'Nyaman',  sleep: '8h',   fluid: '8 Gelas', supplement: '✓ Iron', specific: 'Pumping: 6 Sesi' },
-  ],
-}
-
-const CATEGORY_META: Record<CategoryType, { tab: string; badge: string }> = {
-  teenage:       { tab: 'Teenage',       badge: 'TEENAGE GIRL'      },
-  pregnant:      { tab: 'Pregnant',      badge: 'PREGNANT MOTHER'   },
-  breastfeeding: { tab: 'Breastfeeding', badge: 'BREASTFEEDING MOM' },
-}
-
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const PillIconSvg = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -522,23 +507,24 @@ const Checkbox = ({ checked, onChange, label }: { checked: boolean; onChange: (v
 const InsightModal = ({
   open, onClose, insight,
 }: {
-  open: boolean; onClose: () => void; insight: InsightConfig
+  open: boolean; onClose: () => void; insight?: InsightConfig
 }) => {
+  const safe: InsightConfig = insight ?? { status: 'safe' as StatusLevel, title: 'Belum ada data', subtitle: '—', sections: [] }
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [open])
   if (!open) return null
-  const c = STATUS_COLORS[insight.status]
+  const col = STATUS_COLORS[safe.status]
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] sm:max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-start justify-between px-6 pt-5 pb-4 flex-shrink-0" style={{ background: c.bg, borderBottom: `1px solid ${c.border}` }}>
+        <div className="flex items-start justify-between px-6 pt-5 pb-4 flex-shrink-0" style={{ background: col.bg, borderBottom: `1px solid ${col.border}` }}>
           <div className="flex flex-col gap-1.5">
-            <span className="font-[Montserrat,sans-serif] font-black text-lg text-slate-900">{insight.title}</span>
-            <span className="self-start font-[Montserrat,sans-serif] font-semibold text-xs px-2.5 py-1 rounded-full" style={{ background: c.badgeBg, color: c.badgeText, border: `1px solid ${c.badgeBorder}` }}>
-              {insight.subtitle}
+            <span className="font-[Montserrat,sans-serif] font-black text-lg text-slate-900">{safe.title}</span>
+            <span className="self-start font-[Montserrat,sans-serif] font-semibold text-xs px-2.5 py-1 rounded-full" style={{ background: col.badgeBg, color: col.badgeText, border: `1px solid ${col.badgeBorder}` }}>
+              {safe.subtitle}
             </span>
           </div>
           <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/60 transition-colors border-none bg-transparent cursor-pointer flex-shrink-0 ml-4">
@@ -547,7 +533,9 @@ const InsightModal = ({
         </div>
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
-          {insight.sections.map((sec, si) => (
+          {safe.sections.length === 0 ? (
+            <p className="font-[Montserrat,sans-serif] text-sm text-slate-500 text-center py-6">Log hari ini untuk melihat insight.</p>
+          ) : safe.sections.map((sec, si) => (
             <div key={si} className="flex flex-col gap-2">
               <span className="font-[Montserrat,sans-serif] font-bold text-sm text-slate-700 uppercase tracking-[0.5px]">{sec.heading}</span>
               <ul className="flex flex-col gap-2 m-0 pl-0 list-none">
@@ -558,7 +546,7 @@ const InsightModal = ({
                   </li>
                 ))}
               </ul>
-              {si < insight.sections.length - 1 && <div className="border-t border-slate-100 mt-1" />}
+              {si < safe.sections.length - 1 && <div className="border-t border-slate-100 mt-1" />}
             </div>
           ))}
           <p className="font-[Montserrat,sans-serif] text-[11px] text-slate-400 leading-5 border-t border-slate-100 pt-4">
@@ -575,10 +563,11 @@ const StatCardBase = ({
   icon, iconBg, label, children, sub, insight,
 }: {
   icon: React.ReactNode; iconBg: string; label: string
-  children: React.ReactNode; sub: React.ReactNode; insight: InsightConfig
+  children: React.ReactNode; sub: React.ReactNode; insight?: InsightConfig
 }) => {
   const [modalOpen, setModalOpen] = useState(false)
-  const c = STATUS_COLORS[insight.status]
+  const defaultInsight: InsightConfig = { status: 'safe' as StatusLevel, title: 'Belum ada data', subtitle: '—', sections: [] }
+  const c = STATUS_COLORS[(insight ?? defaultInsight).status]
   return (
     <>
       <div
@@ -610,171 +599,192 @@ const StatCardBase = ({
 }
 
 // ─── Individual Stat Cards ─────────────────────────────────────
-const SupplementCard = ({ label = 'SUPPLEMENT INTAKE', category }: { label?: string; category: CategoryType }) => {
-  const pct = 80 
-  const insight = getSupplementInsight(pct)
-
-  const targetLabel = category === 'pregnant' 
-    ? 'Target: 1 Tablet TTD/day' 
+const SupplementCard = ({ label = 'SUPPLEMENT INTAKE', category, value }: { label?: string; category: CategoryType; value: number | null }) => {
+  const insight = value !== null ? getSupplementInsight(value) : undefined
+  const targetLabel = category === 'pregnant'
+    ? 'Target: 1 Tablet TTD/day'
     : category === 'breastfeeding'
     ? 'Target: ASI Booster/day'
     : 'Target: 1 tab/day'
-
   return (
-    <StatCardBase 
-      icon={<PillIconSvg />} 
-      iconBg="#fef2f2" 
-      label={label} 
-      insight={insight}
-      sub={<>{targetLabel}</>} 
-    >
-      <div className="flex flex-col gap-1">
-        <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">
-          {pct}%
-        </span>
-        <div className="w-full h-1.5 bg-white/60 rounded-full overflow-hidden">
-          <div className="h-full bg-red-400 rounded-full" style={{ width: `${pct}%` }} />
+    <StatCardBase icon={<PillIconSvg />} iconBg="#fef2f2" label={label} insight={insight} sub={<>{targetLabel}</>}>
+      {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
+        <div className="flex flex-col gap-1">
+          <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{value}%</span>
+          <div className="w-full h-1.5 bg-white/60 rounded-full overflow-hidden">
+            <div className="h-full bg-red-400 rounded-full" style={{ width: `${value}%` }} />
+          </div>
         </div>
-      </div>
+      )}
     </StatCardBase>
   )
 }
 
-const FluidStatCard = ({ category }: { category: CategoryType }) => {
-  const glasses = 6; const target = category === 'breastfeeding' ? 10 : 8
-  const insight = getFluidInsight(glasses, target)
+const FluidStatCard = ({ category, value }: { category: CategoryType; value: number | null }) => {
+  const target = category === 'breastfeeding' ? 10 : 8
+  const insight = value !== null ? getFluidInsight(value, target) : undefined
   return (
     <StatCardBase icon={<FluidIconSvg />} iconBg="#eff6ff" label="FLUID" insight={insight}
-      sub={<>{target - glasses > 0 ? `${target - glasses} glasses to go!` : 'Target tercapai!'}</>}
+      sub={value !== null ? <>{target - value > 0 ? `${target - value} glasses to go!` : 'Target tercapai!'}</> : <>Log hari ini</>}
     >
-      <div className="flex flex-col gap-1">
-        <div className="flex items-baseline gap-1">
-          <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{glasses}/{target}</span>
-          <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">Gelas</span>
+      {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-baseline gap-1">
+            <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{value}/{target}</span>
+            <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">Gelas</span>
+          </div>
+          <div className="flex gap-1">
+            {Array.from({ length: target }, (_, i) => (
+              <div key={i} className={`flex-1 h-1.5 rounded-full ${i < value ? 'bg-blue-400' : 'bg-white/60'}`} />
+            ))}
+          </div>
         </div>
-        <div className="flex gap-1">
-          {Array.from({ length: target }, (_, i) => (
-            <div key={i} className={`flex-1 h-1.5 rounded-full ${i < glasses ? 'bg-blue-400' : 'bg-white/60'}`} />
-          ))}
-        </div>
-      </div>
+      )}
     </StatCardBase>
   )
 }
 
-const RestStatCard = ({ category }: { category: CategoryType }) => {
-  const hours = 7.5
-  const insight = getRestInsight(hours, category)
+const RestStatCard = ({ category, value }: { category: CategoryType; value: number | null }) => {
+  const insight = value !== null ? getRestInsight(value, category) : undefined
   return (
     <StatCardBase icon={<MoonIconSvg />} iconBg="#f5f3ff" label="REST" insight={insight}
-      sub={<span className="flex items-center gap-1"><TrendUpIconSvg /><span>Good quality</span></span>}
+      sub={value !== null ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Good quality</span></span> : <>Log hari ini</>}
     >
-      <div className="flex items-baseline gap-1">
-        <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{hours}</span>
-        <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">Jam</span>
-      </div>
+      {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
+        <div className="flex items-baseline gap-1">
+          <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{value}</span>
+          <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">Jam</span>
+        </div>
+      )}
     </StatCardBase>
   )
 }
 
-const MoodStatCard = ({ category }: { category: CategoryType }) => {
-  const moodVal = 'nyaman'
-  const moodOpt = MOOD_OPTIONS.find(m => m.value === moodVal)
-  const insight = getMoodInsight(moodVal, category)
+const MOOD_INT_LABELS: Record<number,{emoji:string;label:string}> = {
+  5: { emoji: '😄', label: 'Bahagia' },
+  4: { emoji: '😊', label: 'Nyaman' },
+  3: { emoji: '😐', label: 'Biasa' },
+  2: { emoji: '😴', label: 'Lelah' },
+  1: { emoji: '😢', label: 'Sedih' },
+}
+const MoodStatCard = ({ category, value }: { category: CategoryType; value: number | null }) => {
+  const moodInfo = value !== null ? MOOD_INT_LABELS[value] : null
+  const moodVal  = value !== null ? Object.keys(MOOD_STR_TO_INT).find(k => MOOD_STR_TO_INT[k] === value) ?? 'biasa' : 'biasa'
+  const insight  = value !== null ? getMoodInsight(moodVal, category) : undefined
   return (
     <StatCardBase icon={<SmileIconSvg />} iconBg="#f0fdf4" label="MOOD" insight={insight}
-      sub="Stability high"
+      sub={value !== null ? 'Stability high' : 'Log hari ini'}
     >
-      <div className="flex items-baseline gap-1.5">
-        <span className="text-xl leading-none">{moodOpt?.emoji}</span>
-        <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none capitalize">{moodOpt?.label.charAt(0) + moodOpt!.label.slice(1).toLowerCase()}</span>
-      </div>
+      {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-xl leading-none">{moodInfo?.emoji}</span>
+          <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none capitalize">{moodInfo?.label}</span>
+        </div>
+      )}
     </StatCardBase>
   )
 }
 
-const CycleStatCard = () => {
-  const isMenstruating = true 
-  const insight = getCycleInsight(isMenstruating)
+const CycleStatCard = ({ value }: { value: string | null }) => {
+  const isMenstruating = value === 'Sedang haid'
+  const insight = value !== null ? getCycleInsight(isMenstruating) : undefined
   return (
     <StatCardBase icon={<CalendarIconSvg />} iconBg="#fdf2f8" label="CYCLE TRACKING" insight={insight}
-      sub="Siklus teratur"
+      sub={value !== null ? 'Siklus teratur' : 'Log hari ini'}
     >
-      <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">
-        {isMenstruating ? 'Sedang haid' : 'Tidak haid'}
-      </span>
+      {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
+        <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{value}</span>
+      )}
     </StatCardBase>
   )
 }
 
-const MomWeightCard = () => {
-  const current = 65; const prev = 64; const trimester = 2
-  const gain = current - prev
-  const insight = getMomWeightInsight(current, prev, trimester)
+const MomWeightCard = ({ value }: { value: number | null }) => {
+  const insight = value !== null ? getMomWeightInsight(value, value, 2) : undefined
   return (
     <StatCardBase icon={<WeightIconSvg />} iconBg="#fdf2f8" label="MOM'S WEIGHT" insight={insight}
-      sub={<span className="flex items-center gap-1"><TrendUpIconSvg /><span>+{gain.toFixed(1)}kg this month</span></span>}
+      sub={value !== null ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Terpantau</span></span> : <>Log hari ini</>}
     >
-      <div className="flex items-baseline gap-1">
-        <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{current}</span>
-        <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">kg</span>
-      </div>
+      {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
+        <div className="flex items-baseline gap-1">
+          <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{value}</span>
+          <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">kg</span>
+        </div>
+      )}
     </StatCardBase>
   )
 }
 
-const PumpingStatCard = () => {
-  const sessions = 5 
-  const insight = getPumpingInsight(sessions)
+const PumpingStatCard = ({ value }: { value: number | null }) => {
+  const insight = value !== null ? getPumpingInsight(value) : undefined
   return (
     <StatCardBase icon={<DropIconSvg />} iconBg="#fdf2f8" label="NURSING & PUMPING" insight={insight}
-      sub={sessions >= 8 ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Jadwal stabil</span></span> : `Target: 8 sesi/hari`}
+      sub={value !== null ? (value >= 8 ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Jadwal stabil</span></span> : 'Target: 8 sesi/hari') : <>Log hari ini</>}
     >
-      <div className="flex items-baseline gap-1">
-        <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{sessions}</span>
-        <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">sesi</span>
-      </div>
+      {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
+        <div className="flex items-baseline gap-1">
+          <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{value}</span>
+          <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">sesi</span>
+        </div>
+      )}
     </StatCardBase>
   )
 }
 
 // ─── Stats Grid ───────────────────────────────────────────────────────────────
-const StatsGrid = ({ category, bp }: { category: CategoryType; bp: 'mobile' | 'tablet' | 'desktop' }) => {
+const StatsGrid = ({
+  category, bp, todayLog,
+}: {
+  category: CategoryType
+  bp: 'mobile' | 'tablet' | 'desktop'
+  todayLog: import('../services/healthLog.service').ApiHealthLog | null
+}) => {
   const suppLabel = category === 'breastfeeding' ? 'IRON INTAKE' : 'SUPPLEMENT INTAKE'
+  const hasData = todayLog !== null && todayLog.profile_type === CATEGORY_TO_PROFILE[category]
+
+  // Derive today's values from the log (or null if no log)
+  const todaySuppPct   = hasData && todayLog ? (todayLog.took_supplement ? 100 : 0) : null
+  const todayGlasses   = hasData && todayLog ? todayLog.water_glasses : null
+  const todaySleep     = hasData && todayLog ? todayLog.sleep_hours : null
+  const todayMood      = hasData && todayLog ? todayLog.mood : null     // 1-5
+  const todayMensStr   = hasData && todayLog ? (todayLog.is_menstruating ? 'Sedang haid' : 'Tidak haid') : null
+  const todayWeight    = hasData && todayLog?.weight_kg != null ? todayLog.weight_kg : null
+  const todayPumping   = hasData && todayLog?.breastfeeding_count != null ? todayLog.breastfeeding_count : null
+
   const card5 = category === 'teenage'
-    ? <CycleStatCard />
+    ? <CycleStatCard value={todayMensStr} />
     : category === 'pregnant'
-    ? <MomWeightCard />
-    : <PumpingStatCard />
+    ? <MomWeightCard value={todayWeight} />
+    : <PumpingStatCard value={todayPumping} />
 
   if (bp === 'mobile') return (
     <div className="flex flex-col gap-3 w-full">
-      <SupplementCard label={suppLabel} category={category} />
-      <FluidStatCard category={category} />
-      <RestStatCard category={category} />
-      <MoodStatCard category={category} />
+      <SupplementCard label={suppLabel} category={category} value={todaySuppPct} />
+      <FluidStatCard category={category} value={todayGlasses} />
+      <RestStatCard category={category} value={todaySleep} />
+      <MoodStatCard category={category} value={todayMood} />
       {card5}
     </div>
   )
   if (bp === 'tablet') return (
     <div className="flex flex-col gap-3 w-full">
       <div className="grid grid-cols-3 gap-3">
-        <SupplementCard label={suppLabel} category={category} />
-        <FluidStatCard category={category} />
-        <RestStatCard category={category} />
+        <SupplementCard label={suppLabel} category={category} value={todaySuppPct} />
+        <FluidStatCard category={category} value={todayGlasses} />
+        <RestStatCard category={category} value={todaySleep} />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <MoodStatCard category={category} />
+        <MoodStatCard category={category} value={todayMood} />
         {card5}
       </div>
     </div>
   )
   return (
     <div className="flex gap-4 w-full">
-      <SupplementCard label={suppLabel} category={category} />
-      <FluidStatCard category={category} />
-      <RestStatCard category={category} />
-      <MoodStatCard category={category} />
+      <SupplementCard label={suppLabel} category={category} value={todaySuppPct} />
+      <FluidStatCard category={category} value={todayGlasses} />
+      <RestStatCard category={category} value={todaySleep} />
+      <MoodStatCard category={category} value={todayMood} />
       {card5}
     </div>
   )
@@ -1181,6 +1191,7 @@ const LogEntryModal = (props: LogEntryModalProps) => {
           </div>
         </div>
       </div>
+
     </div>
   )
 }
@@ -1189,8 +1200,27 @@ const LogEntryModal = (props: LogEntryModalProps) => {
 export default function HealthLog() {
   const bp = useBreakpoint()
 
+  const { user } = useAuth()
+  const userName = user?.nama?.split(' ')[0] ?? 'Kamu'
+
   const [activeCategory, setActiveCategory] = useState<CategoryType>('teenage')
-  const [logs, setLogs] = useState<Record<CategoryType, LogRow[]>>(INITIAL_LOGS)
+  const [pendingCategory, setPendingCategory] = useState<CategoryType | null>(null)
+
+  const handleCategoryChange = (cat: CategoryType) => {
+    if (cat === activeCategory) return
+    if (logs[activeCategory].length > 0) {
+      setPendingCategory(cat)
+    } else {
+      setActiveCategory(cat)
+    }
+  }
+
+  const [logs, setLogs] = useState<Record<CategoryType, LogRow[]>>({ teenage: [], pregnant: [], breastfeeding: [] })
+  const [logsLoading, setLogsLoading] = useState(true)
+  const [todayLog, setTodayLog] = useState<import('../services/healthLog.service').ApiHealthLog | null>(null)
+
+  // Maps backend log id → row index so delete works correctly
+  const [logIds, setLogIds] = useState<Record<CategoryType, (number | undefined)[]>>({ teenage: [], pregnant: [], breastfeeding: [] })
 
   const [modalOpen,  setModalOpen]  = useState(false)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
@@ -1200,7 +1230,9 @@ export default function HealthLog() {
   const [mood,              setMood]              = useState('biasa')
   const [fluid,             setFluid]             = useState('')
   const [sleep,             setSleep]             = useState('')
-  const [logDate,           setLogDate]           = useState('13/04/2026')
+  const today = new Date()
+  const todayStr = `${String(today.getDate()).padStart(2,'0')}/${String(today.getMonth()+1).padStart(2,'0')}/${today.getFullYear()}`
+  const [logDate,           setLogDate]           = useState(todayStr)
   const [ttdTaken,          setTtdTaken]          = useState(false)
   const [isMenstruating,    setIsMenstruating]    = useState(false)
   const [supplementTaken,   setSupplementTaken]   = useState(false)
@@ -1212,7 +1244,35 @@ export default function HealthLog() {
   const [fluidError, setFluidError] = useState<string | undefined>()
   const [sleepError, setSleepError] = useState<string | undefined>()
 
-  const validateAndSave = () => {
+  // ── Fetch all logs on mount ──
+  useEffect(() => {
+    setLogsLoading(true)
+    healthLogService.getAllLogs()
+      .then(apiLogs => {
+        const sorted = [...apiLogs].sort((a, b) => b.date.localeCompare(a.date))
+        const teen: LogRow[] = []; const teenIds: number[] = []
+        const preg: LogRow[] = []; const pregIds: number[] = []
+        const bf:   LogRow[] = []; const bfIds:   number[] = []
+
+        sorted.forEach(log => {
+          const row = mapLogToRow(log)
+          if (log.profile_type === 'teen') { teen.push(row); teenIds.push(log.id) }
+          else if (log.profile_type === 'pregnant') { preg.push(row); pregIds.push(log.id) }
+          else { bf.push(row); bfIds.push(log.id) }
+        })
+
+        setLogs({ teenage: teen, pregnant: preg, breastfeeding: bf })
+        setLogIds({ teenage: teenIds, pregnant: pregIds, breastfeeding: bfIds })
+        // Set today's log from the most recent entry
+        const todayIso = new Date().toISOString().split('T')[0]
+        const todayEntry = sorted.find(l => l.date === todayIso)
+        setTodayLog(todayEntry ?? null)
+      })
+      .catch(() => {})
+      .finally(() => setLogsLoading(false))
+  }, [])
+
+  const validateAndSave = async () => {
     let hasError = false
     if (!fluid.trim() || isNaN(Number(fluid)) || Number(fluid) < 0) {
       setFluidError('Masukkan jumlah gelas yang valid (contoh: 6).')
@@ -1220,9 +1280,7 @@ export default function HealthLog() {
     } else if (Number(fluid) > 20) {
       setFluidError('Jumlah cairan maksimal 20 gelas.')
       hasError = true
-    } else {
-      setFluidError(undefined)
-    }
+    } else { setFluidError(undefined) }
 
     if (!sleep.trim() || isNaN(Number(sleep)) || Number(sleep) < 0) {
       setSleepError('Masukkan durasi tidur yang valid (contoh: 7.5).')
@@ -1230,65 +1288,70 @@ export default function HealthLog() {
     } else if (Number(sleep) > 24) {
       setSleepError('Durasi tidur maksimal 24 jam.')
       hasError = true
-    } else {
-      setSleepError(undefined)
-    }
+    } else { setSleepError(undefined) }
 
     if (hasError) return
 
-    const suppPrefix = activeCategory === 'teenage' ? (ttdTaken ? '✓ TTD' : '✗ TTD')
-      : activeCategory === 'pregnant' ? (supplementTaken ? '✓ Suplemen' : '✗ Suplemen')
-      : (supplementBfTaken ? '✓ Iron' : '✗ Iron')
+    const profile = CATEGORY_TO_PROFILE[activeCategory]
+    const moodInt = MOOD_STR_TO_INT[mood] ?? 3
+    const isoDate = toISODate(logDate)
 
-    const specificVal = activeCategory === 'teenage'
-      ? (isMenstruating ? 'Sedang Haid' : 'Tidak Haid')
-      : activeCategory === 'pregnant'
-      ? (momWeight ? `BB: ${momWeight} Kg` : 'BB: — Kg')
-      : (nursingCount ? `Pumping: ${nursingCount} Sesi` : 'Pumping: 0 Sesi')
+    const took = activeCategory === 'teenage' ? ttdTaken
+      : activeCategory === 'pregnant' ? supplementTaken
+      : supplementBfTaken
 
-    const moodLabel = MOOD_OPTIONS.find(m => m.value === mood)?.label ?? mood
-    const [dd, mm, yyyy] = logDate.split('/')
-    const dateObj = new Date(Number(yyyy), Number(mm) - 1, Number(dd))
-    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
-    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
-    const dayLabel = dayNames[dateObj.getDay()]
-    const dateLabel = `${Number(dd)} ${monthNames[Number(mm) - 1]} ${yyyy}`
-
-    const newRow: LogRow = {
-      day: dayLabel,
-      date: dateLabel,
-      mood: moodLabel.charAt(0).toUpperCase() + moodLabel.slice(1).toLowerCase(),
-      sleep: `${sleep}h`,
-      fluid: `${fluid} Gelas`,
-      supplement: suppPrefix,
-      specific: specificVal,
+    const payload: Parameters<typeof healthLogService.createOrUpdate>[0] = {
+      date: isoDate,
+      profile_type: profile,
+      water_glasses: Number(fluid),
+      sleep_hours: Number(sleep),
+      took_supplement: took,
+      mood: moodInt,
+      ...(activeCategory === 'teenage' && { is_menstruating: isMenstruating }),
+      ...(activeCategory === 'pregnant' && momWeight ? { weight_kg: parseFloat(momWeight) } : {}),
+      ...(activeCategory === 'breastfeeding' && nursingCount ? { breastfeeding_count: parseInt(nursingCount, 10) } : {}),
     }
 
-    setLogs(prev => {
-      const arr = [...prev[activeCategory]]
-      if (editIndex !== null) arr[editIndex] = newRow
-      else arr.unshift(newRow)
-      return { ...prev, [activeCategory]: arr }
-    })
+    try {
+      const saved = await healthLogService.createOrUpdate(payload)
+      const newRow = mapLogToRow(saved)
 
-    setSaveStatus('success')
-    setTimeout(() => { setSaveStatus('idle'); setModalOpen(false); setEditIndex(null) }, 2000)
+      setLogs(prev => {
+        const arr = [...prev[activeCategory]]
+        if (editIndex !== null) arr[editIndex] = newRow
+        else arr.unshift(newRow)
+        return { ...prev, [activeCategory]: arr }
+      })
+      setLogIds(prev => {
+        const arr = [...prev[activeCategory]]
+        if (editIndex !== null) arr[editIndex] = saved.id
+        else arr.unshift(saved.id)
+        return { ...prev, [activeCategory]: arr }
+      })
+
+      setSaveStatus('success')
+      setTimeout(() => { setSaveStatus('idle'); setModalOpen(false); setEditIndex(null) }, 2000)
+    } catch {
+      setSaveStatus('error')
+      setTimeout(() => setSaveStatus('idle'), 2000)
+    }
   }
 
   const handleEdit = (index: number) => {
     const row = logs[activeCategory][index]
+    const _id  = logIds[activeCategory][index]  // reserved for future delete-by-id
     const moodOpt = MOOD_OPTIONS.find(m => m.label.toLowerCase() === row.mood.toLowerCase())
     setMood(moodOpt?.value ?? 'biasa')
     setFluid(row.fluid.replace(' Gelas', '').trim())
     setSleep(row.sleep.replace('h', '').trim())
     try {
       const parts = row.date.split(' ')
-      const monthMap: Record<string,string> = { January:'01', February:'02', March:'03', April:'04', May:'05', June:'06', July:'07', August:'08', September:'09', October:'10', November:'11', December:'12' }
+      const monthMap: Record<string,string> = { Januari:'01', Februari:'02', Maret:'03', April:'04', Mei:'05', Juni:'06', Juli:'07', Agustus:'08', September:'09', Oktober:'10', November:'11', Desember:'12', January:'01', February:'02', March:'03', May:'05', June:'06', July:'07', August:'08', October:'10' }
       const d = parts[0].padStart(2,'0')
       const m = monthMap[parts[1]] ?? '01'
       const y = parts[2]
       setLogDate(`${d}/${m}/${y}`)
-    } catch { setLogDate('13/04/2026') }
+    } catch { setLogDate(todayStr) }
     if (activeCategory === 'teenage') setTtdTaken(row.supplement.startsWith('✓'))
     else if (activeCategory === 'pregnant') setSupplementTaken(row.supplement.startsWith('✓'))
     else setSupplementBfTaken(row.supplement.startsWith('✓'))
@@ -1304,12 +1367,16 @@ export default function HealthLog() {
       const arr = prev[activeCategory].filter((_, i) => i !== index)
       return { ...prev, [activeCategory]: arr }
     })
+    setLogIds(prev => {
+      const arr = prev[activeCategory].filter((_, i) => i !== index)
+      return { ...prev, [activeCategory]: arr }
+    })
     if (editIndex === index) setEditIndex(null)
     else if (editIndex !== null && index < editIndex) setEditIndex(editIndex - 1)
   }
 
   const handleOpenModal = () => {
-    setMood('biasa'); setFluid(''); setSleep(''); setLogDate('13/04/2026')
+    setMood('biasa'); setFluid(''); setSleep(''); setLogDate(todayStr)
     setTtdTaken(false); setIsMenstruating(false)
     setSupplementTaken(false); setMomWeight('')
     setSupplementBfTaken(false); setNursingCount('')
@@ -1324,7 +1391,7 @@ export default function HealthLog() {
   const CategoryTabs = () => (
     <div className="flex items-center gap-1 p-[4px] rounded-full" style={{ background: '#f5f5f4', border: '1px solid #e7e5e4', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
       {(['teenage', 'pregnant', 'breastfeeding'] as CategoryType[]).map(cat => (
-        <button key={cat} onClick={() => setActiveCategory(cat)}
+        <button key={cat} onClick={() => handleCategoryChange(cat)}
           className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all font-[Inter,sans-serif] ${activeCategory === cat ? 'bg-white text-[#65a30d] shadow-sm' : 'text-[#78716c] hover:text-[#57534e]'}`}>
           {CATEGORY_META[cat].tab}
         </button>
@@ -1348,7 +1415,7 @@ export default function HealthLog() {
         {isMobile ? (
           <div className="flex flex-col gap-3.5 mb-5">
             <div className="flex flex-col gap-1">
-              <h1 className="font-extrabold text-[24px] text-[#1c1917] leading-none font-[Montserrat,sans-serif]">Hello, <span className="text-[#65a30d]">Sarah</span> 👋</h1>
+              <h1 className="font-extrabold text-[24px] text-[#1c1917] leading-none font-[Montserrat,sans-serif]">Hello, <span className="{`text-[#65a30d]`}">{userName}</span> 👋</h1>
               <div className="flex items-center gap-2 flex-wrap mt-0.5">
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-[0.5px] uppercase font-[Inter,sans-serif]" style={{ background: '#ecfccb', color: '#65a30d' }}>{meta.badge}</span>
                 <span className="text-xs text-[#78716c] font-[Inter,sans-serif]">• Pantau jurnal kesehatanmu.</span>
@@ -1356,7 +1423,7 @@ export default function HealthLog() {
             </div>
             <div className="flex items-center gap-1 p-[4px] rounded-full w-full" style={{ background: '#f5f5f4', border: '1px solid #e7e5e4', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
               {(['teenage', 'pregnant', 'breastfeeding'] as CategoryType[]).map(cat => (
-                <button key={cat} onClick={() => setActiveCategory(cat)}
+                <button key={cat} onClick={() => handleCategoryChange(cat)}
                   className={`flex-1 py-1.5 rounded-full text-[10px] font-semibold transition-all font-[Inter,sans-serif] ${activeCategory === cat ? 'bg-white text-[#65a30d] shadow-sm' : 'text-[#78716c] hover:text-[#57534e]'}`}>
                   {CATEGORY_META[cat].tab}
                 </button>
@@ -1367,7 +1434,7 @@ export default function HealthLog() {
         ) : isTablet ? (
           <div className="flex items-start justify-between gap-4 mb-5">
             <div className="flex flex-col gap-1">
-              <h1 className="font-extrabold text-[26px] text-[#1c1917] leading-none font-[Montserrat,sans-serif]">Hello, <span className="text-[#65a30d]">Sarah</span> 👋</h1>
+              <h1 className="font-extrabold text-[26px] text-[#1c1917] leading-none font-[Montserrat,sans-serif]">Hello, <span className="{`text-[#65a30d]`}">{userName}</span> 👋</h1>
               <div className="flex items-center gap-2 flex-wrap mt-0.5">
                 <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[10px] font-semibold tracking-[0.5px] uppercase font-[Inter,sans-serif]" style={{ background: '#ecfccb', color: '#65a30d' }}>{meta.badge}</span>
                 <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">• Pantau jurnal kesehatanmu.</span>
@@ -1378,7 +1445,7 @@ export default function HealthLog() {
         ) : (
           <div className="flex w-full items-center justify-between gap-4 mb-6">
             <div className="flex flex-col gap-1.5">
-              <h1 className="font-extrabold text-[28px] text-[#1c1917] leading-none font-[Montserrat,sans-serif]">Hello, <span className="text-[#65a30d]">Sarah</span> 👋</h1>
+              <h1 className="font-extrabold text-[28px] text-[#1c1917] leading-none font-[Montserrat,sans-serif]">Hello, <span className="{`text-[#65a30d]`}">{userName}</span> 👋</h1>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[11px] font-semibold tracking-[0.55px] uppercase font-[Inter,sans-serif]" style={{ background: '#ecfccb', color: '#65a30d' }}>{meta.badge}</span>
                 <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">• Pantau jurnal kesehatanmu.</span>
@@ -1389,10 +1456,17 @@ export default function HealthLog() {
         )}
 
         {/* ── Stats Grid ── */}
-        <div className="mb-5"><StatsGrid category={activeCategory} bp={bp} /></div>
+        <div className="mb-5"><StatsGrid category={activeCategory} bp={bp} todayLog={todayLog} /></div>
 
         {/* ── Recent Logs ── */}
-        <RecentLogsSection category={activeCategory} bp={bp} logs={logs[activeCategory]} onEdit={handleEdit} onDelete={handleDelete} />
+        {logsLoading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', fontFamily: 'Montserrat,sans-serif', color: '#78716c' }}>
+            <div style={{ width: 32, height: 32, border: '3px solid #65a30d', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+            <p style={{ fontSize: 13, margin: 0 }}>Memuat log kesehatan...</p>
+          </div>
+        ) : (
+          <RecentLogsSection category={activeCategory} bp={bp} logs={logs[activeCategory]} onEdit={handleEdit} onDelete={handleDelete} />
+        )}
 
       </div>
 
@@ -1417,6 +1491,46 @@ export default function HealthLog() {
         sleepError={sleepError}
         isEditing={editIndex !== null}
       />
+
+      {/* ── Phase Switch Confirmation ── */}
+      {pendingCategory && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(28,25,23,0.55)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setPendingCategory(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
+            style={{ border: '1px solid #e7e5e4' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 12 }}>
+              {pendingCategory === 'pregnant' ? '🤰' : pendingCategory === 'breastfeeding' ? '🤱' : '👧'}
+            </div>
+            <h3 style={{ fontFamily: 'Montserrat,sans-serif', fontWeight: 800, fontSize: 16, color: '#1c1917', textAlign: 'center', margin: '0 0 8px' }}>
+              Pindah Fase?
+            </h3>
+            <p style={{ fontFamily: 'Inter,sans-serif', fontSize: 13, color: '#78716c', textAlign: 'center', margin: '0 0 20px', lineHeight: 1.6 }}>
+              Kamu sedang di fase <strong>{CATEGORY_META[activeCategory].badge}</strong>.
+              Apakah kamu ingin berpindah ke fase <strong>{CATEGORY_META[pendingCategory as CategoryType].badge}</strong>?
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setPendingCategory(null)}
+                style={{ flex: 1, fontFamily: 'Inter,sans-serif', fontWeight: 600, fontSize: 13, padding: '10px 0', borderRadius: 10, border: '1.5px solid #e7e5e4', background: '#fff', color: '#78716c', cursor: 'pointer' }}
+              >
+                Tetap di sini
+              </button>
+              <button
+                onClick={() => { setActiveCategory(pendingCategory); setPendingCategory(null) }}
+                style={{ flex: 1, fontFamily: 'Inter,sans-serif', fontWeight: 700, fontSize: 13, padding: '10px 0', borderRadius: 10, border: 'none', background: '#65a30d', color: '#fff', cursor: 'pointer' }}
+              >
+                Ya, Pindah
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
