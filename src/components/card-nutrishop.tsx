@@ -19,7 +19,7 @@ export const CardNutrishop = ({ id, image, title, description, price }: ProductC
 
   return (
     <motion.div
-      onClick={() => navigate(`/nutrishop/${id}`)}
+      onClick={() => navigate(`/product/${id}`)}
       style={{
         background: '#fff',
         borderRadius: 16,
