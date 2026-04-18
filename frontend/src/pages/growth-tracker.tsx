@@ -466,6 +466,207 @@ const LogNewGrowthSection = ({
   )
 }
 
+// ─── Stunting Category Helper ─────────────────────────────────────────────────
+type StuntingCategory = 'low' | 'moderate' | 'high'
+
+const getStuntingCategory = (pct: number): StuntingCategory => {
+  if (pct < 20) return 'low'
+  if (pct < 40) return 'moderate'
+  return 'high'
+}
+
+const STUNTING_CONFIG: Record<StuntingCategory, {
+  label: string
+  bgColor: string
+  borderColor: string
+  badgeBg: string
+  badgeText: string
+  badgeBorder: string
+  icon: string
+  insights: {
+    reason: string[]
+    impact: string[]
+    prevention: string[]
+  }
+}> = {
+  low: {
+    label: 'Low risk of stunting',
+    bgColor: '#F1F8E9',
+    borderColor: '#C5E1A5',
+    badgeBg: '#E8F5E9',
+    badgeText: '#2E7D32',
+    badgeBorder: '#A5D6A7',
+    icon: '✅',
+    insights: {
+      reason: [
+        "Tinggi badan anak berada di atas persentil ke-25 kurva WHO, menandakan pertumbuhan linier yang baik.",
+        "Rasio berat/tinggi (weight-for-height) dalam rentang normal — indikator kecukupan asupan kalori harian.",
+        "Tidak ada riwayat penyakit infeksi berulang yang signifikan yang dapat mengganggu absorpsi nutrisi.",
+      ],
+      impact: [
+        "Risiko stunting rendah berarti perkembangan kognitif dan fisik berjalan sesuai jalurnya.",
+        "Anak dengan status ini umumnya memiliki sistem imun yang lebih baik dan performa akademik yang optimal.",
+      ],
+      prevention: [
+        "Lanjutkan pemantauan rutin setiap 3 bulan untuk mendeteksi perubahan dini.",
+        "Pastikan pola makan seimbang dengan cukup protein hewani, zinc, dan zat besi.",
+        "Pertahankan jadwal imunisasi dan kunjungan posyandu secara konsisten.",
+      ],
+    },
+  },
+  moderate: {
+    label: 'Moderate risk of stunting',
+    bgColor: '#FFFDE7',
+    borderColor: '#FFF176',
+    badgeBg: '#FFF9C4',
+    badgeText: '#F57F17',
+    badgeBorder: '#FFE082',
+    icon: '⚠️',
+    insights: {
+      reason: [
+        "Tinggi badan anak mulai berada di bawah median WHO, mengindikasikan potensi pertumbuhan yang melambat.",
+        "Asupan nutrisi makro atau mikro (terutama zinc, protein) mungkin belum optimal dalam 3–6 bulan terakhir.",
+        "Penyakit infeksi ringan yang berulang dapat menjadi faktor penyebab gangguan penyerapan nutrisi.",
+      ],
+      impact: [
+        "Stunting moderat dapat memengaruhi perkembangan otak dan kapasitas belajar jika tidak ditangani.",
+        "Anak berisiko mengalami keterlambatan perkembangan motorik halus dan kasar.",
+        "Dalam jangka panjang, stunting berkorelasi dengan produktivitas ekonomi yang lebih rendah.",
+      ],
+      prevention: [
+        "Konsultasikan dengan ahli gizi untuk penyesuaian diet MPASI atau makanan keluarga.",
+        "Tambahkan sumber protein hewani: telur, ikan, daging, atau susu setiap hari.",
+        "Perketat monitoring — lakukan pengukuran setiap bulan dan catat tren pertumbuhan.",
+        "Pertimbangkan suplementasi zinc dan zat besi sesuai rekomendasi dokter anak.",
+      ],
+    },
+  },
+  high: {
+    label: 'High risk of stunting',
+    bgColor: '#FFEBEE',
+    borderColor: '#FFCDD2',
+    badgeBg: '#FFCDD2',
+    badgeText: '#C62828',
+    badgeBorder: '#EF9A9A',
+    icon: '🚨',
+    insights: {
+      reason: [
+        "Tinggi badan anak berada di bawah -2 SD (standar deviasi) kurva pertumbuhan WHO — zona merah stunting.",
+        "Defisit asupan energi dan protein kronis selama masa 1000 Hari Pertama Kehidupan (HPK) merupakan penyebab utama.",
+        "Kemungkinan terdapat faktor penyerta: sanitasi buruk, infeksi parasit, atau kondisi sosioekonomis tertentu.",
+      ],
+      impact: [
+        "Stunting berdampak permanen pada struktur otak — neuron yang tidak berkembang optimal tidak dapat dipulihkan sepenuhnya.",
+        "Risiko tinggi mengalami gangguan metabolik (obesitas, diabetes tipe 2) di usia dewasa.",
+        "Penurunan IQ rata-rata 5–11 poin dibanding anak dengan pertumbuhan normal (data WHO, 2020).",
+        "Imunitas tubuh lebih lemah, rentan terhadap penyakit infeksi berat.",
+      ],
+      prevention: [
+        "Segera konsultasikan dengan dokter anak dan ahli gizi klinik — diperlukan intervensi medis.",
+        "Program therapeutic feeding dengan RUTF (Ready-to-Use Therapeutic Food) dapat dipertimbangkan.",
+        "Pastikan akses air bersih dan sanitasi untuk mencegah diare dan infeksi yang memperburuk kondisi.",
+        "Pantau berat dan tinggi badan setiap 2 minggu dengan bantuan tenaga kesehatan.",
+      ],
+    },
+  },
+}
+
+// ─── Stunting Insight Modal ───────────────────────────────────────────────────
+const StuntingInsightModal = ({
+  open, onClose, stuntingPct,
+}: {
+  open: boolean; onClose: () => void; stuntingPct: number
+}) => {
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [open])
+
+  if (!open) return null
+
+  const category = getStuntingCategory(stuntingPct)
+  const config   = STUNTING_CONFIG[category]
+
+  const SectionBlock = ({
+    title, items, dotColor,
+  }: { title: string; items: string[]; dotColor: string }) => (
+    <div className="flex flex-col gap-2">
+      <span className="font-[Montserrat,sans-serif] font-bold text-sm text-slate-700 uppercase tracking-[0.6px]">{title}</span>
+      <ul className="flex flex-col gap-2 m-0 pl-0 list-none">
+        {items.map((item, i) => (
+          <li key={i} className="flex items-start gap-2.5">
+            <span className="flex-shrink-0 mt-1.5 w-2 h-2 rounded-full" style={{ background: dotColor }} />
+            <span className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-600 leading-[22px]">{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[75vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div
+          className="flex items-start justify-between px-6 pt-6 pb-4 flex-shrink-0"
+          style={{ background: config.bgColor, borderBottom: `1px solid ${config.borderColor}` }}
+        >
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">{config.icon}</span>
+              <span className="font-[Montserrat,sans-serif] font-black text-lg text-slate-900">
+                Stunting Risk Insights
+              </span>
+            </div>
+            <span
+              className="self-start font-[Montserrat,sans-serif] font-bold text-xs px-2.5 py-1 rounded-full"
+              style={{ background: config.badgeBg, color: config.badgeText, border: `1px solid ${config.badgeBorder}` }}
+            >
+              {config.label} · {stuntingPct}%
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/60 transition-colors border-none bg-transparent cursor-pointer flex-shrink-0 ml-4"
+          >
+            <IconClose />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+          <SectionBlock
+            title="🔍 Mengapa kategori ini?"
+            items={config.insights.reason}
+            dotColor="#628141"
+          />
+          <div className="border-t border-slate-100" />
+          <SectionBlock
+            title="⚡ Dampak jika tidak ditangani"
+            items={config.insights.impact}
+            dotColor={category === 'low' ? '#059669' : category === 'moderate' ? '#d97706' : '#dc2626'}
+          />
+          <div className="border-t border-slate-100" />
+          <SectionBlock
+            title="🛡️ Langkah preventif"
+            items={config.insights.prevention}
+            dotColor="#3b82f6"
+          />
+          <p className="font-[Montserrat,sans-serif] font-normal text-[11px] text-slate-400 leading-5 m-0 border-t border-slate-100 pt-4">
+            * Informasi ini berdasarkan standar WHO Child Growth Standards. Konsultasikan dengan dokter anak untuk diagnosis dan penanganan medis yang tepat.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Section 2: Key Stats Cards ───────────────────────────────────────────────
 const StatCard = ({ icon, label, value, unit, delta, deltaUp, sub, bp }: {
   icon: React.ReactNode; label: string; value: string; unit: string
@@ -496,11 +697,86 @@ const StatCard = ({ icon, label, value, unit, delta, deltaUp, sub, bp }: {
   )
 }
 
+// ─── Stunting Card (clickable, pastel background by category) ─────────────────
+const StuntingCard = ({
+  stuntingPct, bp,
+}: {
+  stuntingPct: number; bp?: 'mobile' | 'tablet' | 'desktop'
+}) => {
+  const [modalOpen, setModalOpen] = useState(false)
+  const isTablet  = bp === 'tablet'
+  const category  = getStuntingCategory(stuntingPct)
+  const config    = STUNTING_CONFIG[category]
+
+  return (
+    <>
+      <div
+        className="relative rounded-lg flex-1 min-w-0 shadow-sm overflow-hidden"
+        style={{ background: config.bgColor, border: `1px solid ${config.borderColor}` }}
+      >
+        <div className="flex flex-col gap-3 items-start p-[25px] w-full box-border">
+          {/* Header row */}
+          <div className="flex items-center gap-2 w-full">
+            <div className="flex-shrink-0"><IconStuntingSvg /></div>
+            <span className={`font-[Montserrat,sans-serif] font-semibold uppercase text-slate-600 leading-5 ${isTablet ? 'text-[10px] tracking-[0.5px]' : 'text-sm tracking-[0.7px]'}`}>
+              Stunting Status
+            </span>
+          </div>
+
+          {/* Value row */}
+          <div className="relative w-full h-9">
+            <span className={`font-[Montserrat,sans-serif] font-black leading-9 absolute left-0 top-1/2 -translate-y-1/2 ${isTablet ? 'text-[24px]' : 'text-[30px]'}`}
+              style={{ color: config.badgeText }}
+            >
+              {stuntingPct}<span className={isTablet ? 'text-lg' : 'text-2xl'}>%</span>
+            </span>
+            {/* Details button */}
+            <button
+              onClick={() => setModalOpen(true)}
+              className="absolute flex items-center right-0 top-1/2 -translate-y-1/2 bg-transparent border-none p-0 cursor-pointer group"
+              title="Lihat Detail Insight Stunting"
+            >
+              <span
+                className={`font-[Montserrat,sans-serif] font-bold flex items-center gap-1.5 transition-all active:scale-95
+                  ${isTablet ? 'text-[12px] px-3 py-1.5' : 'text-[13px] px-4 py-2'} 
+                  rounded-full shadow-sm hover:shadow-md`}
+                style={{ 
+                  background: config.badgeBg, 
+                  color: config.badgeText, 
+                  border: `1.5px solid ${config.badgeBorder}`,
+                  backdropFilter: 'blur(4px)' 
+                }}
+              >
+                Details
+                <span className="text-[14px] leading-none group-hover:translate-x-0.5 transition-transform">→</span>
+              </span>
+            </button>
+          </div>
+
+          {/* Sub label */}
+          <span
+            className="font-[Montserrat,sans-serif] font-semibold text-xs leading-4"
+            style={{ color: config.badgeText }}
+          >
+            {config.icon} {config.label}
+          </span>
+        </div>
+      </div>
+
+      <StuntingInsightModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        stuntingPct={stuntingPct}
+      />
+    </>
+  )
+}
+
 const KeyStatsSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => (
   <div className={`w-full mb-8 grid gap-6 ${bp === 'mobile' ? 'grid-cols-1' : 'grid-cols-3'}`}>
     <StatCard icon={<IconHeightSvg />} label="Current Height" value="95.5" unit="cm" delta="+1.2%" deltaUp={true} sub="Last updated 2 days ago" bp={bp} />
     <StatCard icon={<IconWeightSvg />} label="Current Weight" value="14.2" unit="kg" delta="-0.8%" deltaUp={false} sub="Last updated 2 days ago" bp={bp} />
-    <StatCard icon={<IconStuntingSvg />} label="Stunting Status" value="17" unit="%" sub="Low risk of stunting" bp={bp} />
+    <StuntingCard stuntingPct={17} bp={bp} />
   </div>
 )
 
