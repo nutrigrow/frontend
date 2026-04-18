@@ -4,6 +4,7 @@ import Footer from './components/footer'
 import NutriShop from './pages/nutrishop'
 import ProductDetail from './pages/product-detail'
 import Cart from './pages/cart'
+import OrderDetail from "./pages/order-detail";
 
 // Mock user untuk Header
 const mockUser = {
@@ -105,6 +106,7 @@ function App() {
             <Route path="/nutrishop" element={<NutriShop />} />
             <Route path="/nutrishop/:id" element={<ProductDetail />} />
             <Route path="/cart" element={<Cart />} />
+            <Route path="/order-detail" element={<OrderDetail />} />
           </Routes>
         </div>
 
