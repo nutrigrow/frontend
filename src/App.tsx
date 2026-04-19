@@ -15,6 +15,7 @@ import Dashboard from './pages/dashboard'
 import NutriShop from './pages/nutrishop'
 import ProductDetail from './pages/product-detail'
 import Checkout from './pages/checkout'
+import Profile from './pages/profile'
 import { ProtectedRoute, PublicOnlyRoute } from './components/ProtectedRoute'
 
 // ─── Main App Component (Routing + Layout) ──────────────────────────────────
@@ -46,6 +47,7 @@ function App() {
               <Route path="/dashboard"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/growth-tracker" element={<ProtectedRoute><GrowthTracker /></ProtectedRoute>} />
               <Route path="/health-log"     element={<ProtectedRoute><HealthLog /></ProtectedRoute>} />
+              <Route path="/profile"        element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             </Routes>
           </div>
 

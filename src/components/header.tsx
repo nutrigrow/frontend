@@ -179,7 +179,7 @@ const Header = () => {
                       border: '1px solid var(--color-nutri-border-glow)',
                     }}
                   >
-                    <DropdownItem href="#" onClick={() => setProfileOpen(false)}>My Profile</DropdownItem>
+                    <DropdownItem href="/profile" onClick={() => setProfileOpen(false)}>My Profile</DropdownItem>
                     <div style={{ height: '1px', background: 'var(--color-nutri-border)' }} />
                     <DropdownItem href="#" onClick={() => { handleLogOut(); setProfileOpen(false) }}>
                       <span style={{ color: '#ef4444' }}>Log Out</span>
