@@ -43,6 +43,13 @@ export const KATEGORI_TO_FRONTEND: Record<string, string> = {
   PAKET:    'paket',
 };
 
+export const FRONTEND_TO_KATEGORI: Record<string, string> = {
+  mpasi: 'MPASI',
+  supplements: 'SUPLEMEN',
+  alat: 'ALAT',
+  paket: 'PAKET',
+};
+
 export const mapApiProduct = (p: ApiProduct) => {
   // Coba semua kemungkinan nama field dari backend
   const rawImageUrl = p.gambarUrl ?? p.gambar_url ?? null;
@@ -70,7 +77,10 @@ export const shopService = {
     if (filters?.search)   params.set('search',   filters.search);
     if (filters?.minPrice) params.set('minPrice', filters.minPrice);
     if (filters?.maxPrice) params.set('maxPrice', filters.maxPrice);
-    if (filters?.kategori) params.set('kategori', filters.kategori);
+    if (filters?.kategori) {
+      const mappedKategori = FRONTEND_TO_KATEGORI[filters.kategori] ?? filters.kategori;
+      params.set('kategori', mappedKategori);
+    }
     const { data } = await apiClient.get(`/api/products?${params.toString()}`);
     return (data.data.products as ApiProduct[]).map(mapApiProduct);
   },
@@ -110,6 +120,7 @@ export const shopService = {
   },
 
   checkoutCart: async (payload: {
+    cartItemIds: number[];
     alamatId: number;
     metodePengiriman: string;
   }) => {

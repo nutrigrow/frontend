@@ -11,10 +11,12 @@ import {
   Filter,
   X,
   Milk,
+  ShoppingBasket,
 } from 'lucide-react'
 import { CardNutrishop } from '../components/card-nutrishop'
 import FoodsImg from '../assets/images/img-foods.svg'
 import { shopService } from '../services/shop.service'
+import { useAuth } from '../context/AuthContext'
 
 // ─── Local Product type (matches backend-mapped shape) ────────────────────────
 interface Product {
@@ -640,6 +642,8 @@ const SidebarFilter = ({
 
 // ─── NutriShop Page ───────────────────────────────────────────────────────────
 export default function NutriShop() {
+  const navigate = useNavigate()
+  const { isLoggedIn } = useAuth()
   const bp = useBreakpoint()
   const isMobile = bp === 'mobile'
   const paddingInline = getPaddingInline(bp)
@@ -820,55 +824,105 @@ export default function NutriShop() {
                 </h2>
                 
                 {isMobile && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {isLoggedIn && (
+                      <button
+                        onClick={() => navigate('/cart')}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 40,
+                          height: 40,
+                          background: '#fff',
+                          border: '1px solid #E7E5E4',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                          color: '#44403C',
+                        }}
+                        aria-label="Buka keranjang"
+                      >
+                        <ShoppingBasket size={18} />
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => setMobileFilterOpen(true)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '8px 14px',
+                        background: '#fff',
+                        border: '1px solid #E7E5E4',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        fontFamily: 'var(--font-heading), sans-serif',
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#44403C',
+                      }}
+                    >
+                      <Filter size={16} />
+                      Filter
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: isMobile ? '100%' : 'auto' }}>
+                {isLoggedIn && !isMobile && (
                   <button
-                    onClick={() => setMobileFilterOpen(true)}
+                    onClick={() => navigate('/cart')}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 6,
-                      padding: '8px 14px',
+                      gap: 8,
+                      padding: '9px 14px',
                       background: '#fff',
                       border: '1px solid #E7E5E4',
-                      borderRadius: 8,
+                      borderRadius: 10,
                       cursor: 'pointer',
                       fontFamily: 'var(--font-heading), sans-serif',
                       fontSize: 14,
                       fontWeight: 500,
                       color: '#44403C',
+                      whiteSpace: 'nowrap',
                     }}
+                    aria-label="Buka keranjang"
                   >
-                    <Filter size={16} />
-                    Filter
+                    <ShoppingBasket size={17} />
+                    Cart
                   </button>
                 )}
-              </div>
 
-              {/* Search */}
-              <div style={{ position: 'relative', width: isMobile ? '100%' : 280 }}>
-                <Search
-                  size={16}
-                  color="#A8A29E"
-                  style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
-                />
-                <input
-                  type="text"
-                  placeholder="Search healthy products..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px 10px 36px',
-                    border: '1px solid #E7E5E4',
-                    borderRadius: 10,
-                    fontFamily: 'var(--font-heading), sans-serif',
-                    fontSize: 13,
-                    color: '#1C1917',
-                    outline: 'none',
-                    background: '#fff',
-                    boxSizing: 'border-box',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                  }}
-                />
+                {/* Search */}
+                <div style={{ position: 'relative', width: isMobile ? '100%' : 280 }}>
+                  <Search
+                    size={16}
+                    color="#A8A29E"
+                    style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Search healthy products..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px 10px 36px',
+                      border: '1px solid #E7E5E4',
+                      borderRadius: 10,
+                      fontFamily: 'var(--font-heading), sans-serif',
+                      fontSize: 13,
+                      color: '#1C1917',
+                      outline: 'none',
+                      background: '#fff',
+                      boxSizing: 'border-box',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                    }}
+                  />
+                </div>
               </div>
             </div>
 

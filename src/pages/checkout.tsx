@@ -1,6 +1,6 @@
-import { useState } from "react";
-import Header from "../components/header";
-import Footer from "../components/footer";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
+import { shopService } from "../services/shop.service";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface Address {
@@ -15,6 +15,7 @@ interface Address {
 
 interface CartItem {
   id: number;
+  productId: number;
   name: string;
   subtitle: string;
   price: number;
@@ -22,27 +23,36 @@ interface CartItem {
   emoji: string;
 }
 
+interface BackendAddress {
+  id: number;
+  namaPenerima: string;
+  noTelepon: string;
+  alamatLengkap: string;
+  kecamatan: string;
+  kota: string;
+  isUtama: boolean;
+}
+
+interface BackendCartRow {
+  id: number;
+  produkId: number;
+  kuantitas: number;
+  produk: {
+    id: number;
+    namaProduk: string;
+    harga: number;
+  };
+}
+
+interface CheckoutLocationState {
+  mode?: "cart" | "direct";
+  cartItemIds?: number[];
+  produkId?: number;
+  kuantitas?: number;
+}
+
 type ShippingMethod = "standard" | "express";
 type PaymentMethod  = "qris" | "va" | "ewallet";
-
-// ── Static data ────────────────────────────────────────────────────────────
-const savedAddresses: Address[] = [
-  {
-    id: 1, nama: "Sarah Kim", telepon: "(+62)85223398078",
-    alamat: "Jalan Damai 1 No. 65 RT 03/06, Depan kos kuning",
-    kecamatan: "Hegarmanah", kota: "Jatinangor, Sumedang", isDefault: true,
-  },
-  {
-    id: 2, nama: "Sarah Kim", telepon: "(+62)85223398078",
-    alamat: "Jalan Sukajadi No. 1 RT 03/06, Hegarmanah",
-    kecamatan: "Sukajadi", kota: "Bandung", isDefault: false,
-  },
-];
-
-const initialCart: CartItem[] = [
-  { id: 1, name: "Prenatal Core+ Complex", subtitle: "60 Capsules", price: 50000, qty: 1, emoji: "💊" },
-  { id: 2, name: "Stage 1 Veggie Mix",     subtitle: "Pack of 12",  price: 40000, qty: 2, emoji: "🥦" },
-];
 
 const shippingOptions = [
   { id: "standard" as ShippingMethod, label: "Standard Delivery", sub: "3-5 days", price: 5000  },
@@ -99,18 +109,151 @@ function AddressPicker({ addresses, selectedId, onSelect, onClose }: {
 
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function Checkout() {
-  const defaultAddr = savedAddresses.find(a => a.isDefault) ?? savedAddresses[0];
-  const [selectedAddressId, setSelectedAddressId] = useState(defaultAddr.id);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const checkoutState = (location.state ?? {}) as CheckoutLocationState;
+  const checkoutMode = checkoutState.mode === "direct" ? "direct" : "cart";
+
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
-  const [cart, setCart]         = useState<CartItem[]>(initialCart);
+  const [cart, setCart]         = useState<CartItem[]>([]);
   const [shipping, setShipping] = useState<ShippingMethod>("standard");
   const [payment, setPayment]   = useState<PaymentMethod>("qris");
+  const [loading, setLoading]   = useState(true);
+  const [placingOrder, setPlacingOrder] = useState(false);
 
-  const selectedAddress = savedAddresses.find(a => a.id === selectedAddressId)!;
+  useEffect(() => {
+    let cancelled = false;
 
-  function changeQty(id: number, delta: number) {
-    setCart(prev => prev.map(item => item.id === id ? { ...item, qty: item.qty + delta } : item).filter(item => item.qty > 0));
+    const loadCheckoutData = async () => {
+      setLoading(true);
+      try {
+        const rawAddresses = (await shopService.getAddresses()) as BackendAddress[];
+        if (cancelled) return;
+
+        const mappedAddresses: Address[] = rawAddresses.map((addr) => ({
+          id: addr.id,
+          nama: addr.namaPenerima,
+          telepon: addr.noTelepon,
+          alamat: addr.alamatLengkap,
+          kecamatan: addr.kecamatan,
+          kota: addr.kota,
+          isDefault: !!addr.isUtama,
+        }));
+
+        setAddresses(mappedAddresses);
+
+        const defaultAddress = mappedAddresses.find((a) => a.isDefault) ?? mappedAddresses[0] ?? null;
+        setSelectedAddressId((prev) => prev ?? defaultAddress?.id ?? null);
+
+        if (checkoutMode === "direct" && checkoutState.produkId) {
+          const product = await shopService.getProductById(checkoutState.produkId);
+          if (cancelled) return;
+
+          const qty = checkoutState.kuantitas && checkoutState.kuantitas > 0 ? checkoutState.kuantitas : 1;
+          setCart([
+            {
+              id: product.id,
+              productId: product.id,
+              name: product.title,
+              subtitle: "Direct Purchase",
+              price: product.price,
+              qty,
+              emoji: "🛍️",
+            },
+          ]);
+        } else {
+          const rawCart = (await shopService.getCart()) as BackendCartRow[];
+          if (cancelled) return;
+
+          const selectedIds = new Set(checkoutState.cartItemIds ?? []);
+
+          const mappedCart: CartItem[] = rawCart.map((row) => ({
+            id: row.id,
+            productId: row.produk?.id ?? row.produkId,
+            name: row.produk?.namaProduk ?? "Produk",
+            subtitle: "Cart Item",
+            price: row.produk?.harga ?? 0,
+            qty: row.kuantitas,
+            emoji: "🛒",
+          }));
+
+          setCart(selectedIds.size > 0 ? mappedCart.filter((item) => selectedIds.has(item.id)) : mappedCart);
+        }
+      } catch {
+        if (!cancelled) {
+          setAddresses([]);
+          setCart([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadCheckoutData();
+    return () => {
+      cancelled = true;
+    };
+  }, [checkoutMode, checkoutState.cartItemIds, checkoutState.produkId, checkoutState.kuantitas]);
+
+  const selectedAddress = useMemo(
+    () => addresses.find((a) => a.id === selectedAddressId) ?? addresses[0] ?? null,
+    [addresses, selectedAddressId]
+  );
+
+  async function changeQty(id: number, delta: number) {
+    const current = cart.find((item) => item.id === id);
+    if (!current) return;
+
+    const nextQty = current.qty + delta;
+    if (nextQty <= 0) return;
+
+    setCart(prev => prev.map(item => item.id === id ? { ...item, qty: nextQty } : item));
+
+    if (checkoutMode === "cart" && delta > 0) {
+      try {
+        await shopService.addToCart(current.productId, delta);
+      } catch {
+        // Keep UX smooth even if sync update fails.
+      }
+    }
   }
+
+  const handlePlaceOrder = async () => {
+    if (!selectedAddressId || cart.length === 0 || placingOrder) return;
+
+    const metodePengiriman = shipping === "express" ? "EXPRESS" : "STANDARD";
+
+    setPlacingOrder(true);
+    try {
+      let transaction: { id: number };
+
+      if (checkoutMode === "direct") {
+        const item = cart[0];
+        transaction = await shopService.checkoutDirect({
+          produkId: item.productId,
+          kuantitas: item.qty,
+          alamatId: selectedAddressId,
+          metodePengiriman,
+        });
+      } else {
+        transaction = await shopService.checkoutCart({
+          cartItemIds: cart.map((item) => item.id),
+          alamatId: selectedAddressId,
+          metodePengiriman,
+        });
+      }
+
+      navigate(`/order/${transaction.id}`);
+    } catch {
+      alert("Checkout gagal. Periksa data alamat dan item belanja Anda.");
+    } finally {
+      setPlacingOrder(false);
+    }
+  };
 
   const shippingPrice = shippingOptions.find(s => s.id === shipping)!.price;
   const subtotal      = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
@@ -119,7 +262,6 @@ export default function Checkout() {
 
   return (
     <div className="min-h-screen bg-[#f7f9f4] font-sans flex flex-col">
-      <Header />
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-8">
         <div className="text-sm text-gray-400 mb-1">NutriShop</div>
         <h1 className="text-3xl font-extrabold text-gray-900 mb-1">Checkout</h1>
@@ -135,13 +277,13 @@ export default function Checkout() {
                 <span className="text-[#4d7c0f]">🚚</span> Shipping Address
               </h2>
               <div className="border-2 border-[#4d7c0f] rounded-xl p-4 bg-green-50">
-                <p className="font-bold text-gray-900">{selectedAddress.nama}</p>
-                <p className="text-sm text-gray-500 mt-0.5">{selectedAddress.telepon}</p>
-                <p className="text-sm text-gray-600 mt-1">{selectedAddress.alamat}</p>
-                <p className="text-sm text-gray-600">{selectedAddress.kecamatan}, {selectedAddress.kota}</p>
+                <p className="font-bold text-gray-900">{selectedAddress?.nama ?? "Alamat belum tersedia"}</p>
+                <p className="text-sm text-gray-500 mt-0.5">{selectedAddress?.telepon ?? "-"}</p>
+                <p className="text-sm text-gray-600 mt-1">{selectedAddress?.alamat ?? "-"}</p>
+                <p className="text-sm text-gray-600">{selectedAddress ? `${selectedAddress.kecamatan}, ${selectedAddress.kota}` : "-"}</p>
                 <p className="text-sm text-gray-600">West Java, Indonesia</p>
               </div>
-              <button onClick={() => setShowAddressPicker(true)} className="mt-3 text-sm text-[#4d7c0f] font-semibold hover:underline">
+              <button onClick={() => setShowAddressPicker(true)} disabled={addresses.length === 0} className="mt-3 text-sm text-[#4d7c0f] font-semibold hover:underline disabled:text-gray-400 disabled:no-underline">
                 Ganti Alamat →
               </button>
             </section>
@@ -191,6 +333,7 @@ export default function Checkout() {
           <div className="lg:col-span-2">
             <div className="bg-gray-900 rounded-2xl p-6 text-white shadow-lg sticky top-20">
               <h2 className="text-lg font-bold mb-5">Order Summary</h2>
+              {loading && <p className="text-xs text-gray-400 mb-4">Memuat data checkout...</p>}
               <div className="space-y-4 mb-6">
                 {cart.map(item => (
                   <div key={item.id} className="flex items-center gap-3">
@@ -225,17 +368,20 @@ export default function Checkout() {
         </div>
 
         <div className="mt-6">
-          <button className="w-full bg-[#4d7c0f] hover:bg-[#3a5a00] text-white font-extrabold text-lg tracking-widest py-5 rounded-2xl transition flex items-center justify-center gap-3">
-            PLACE ORDER →
+          <button
+            onClick={handlePlaceOrder}
+            disabled={placingOrder || loading || cart.length === 0 || !selectedAddressId}
+            className="w-full bg-[#4d7c0f] hover:bg-[#3a5a00] disabled:bg-gray-400 text-white font-extrabold text-lg tracking-widest py-5 rounded-2xl transition flex items-center justify-center gap-3"
+          >
+            {placingOrder ? "PROCESSING..." : "PLACE ORDER →"}
           </button>
         </div>
       </main>
-      <Footer />
 
-      {showAddressPicker && (
+      {showAddressPicker && addresses.length > 0 && (
         <AddressPicker
-          addresses={savedAddresses}
-          selectedId={selectedAddressId}
+          addresses={addresses}
+          selectedId={selectedAddressId ?? addresses[0].id}
           onSelect={setSelectedAddressId}
           onClose={() => setShowAddressPicker(false)}
         />

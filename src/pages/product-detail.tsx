@@ -195,12 +195,22 @@ export default function ProductDetail() {
       setCartAdded(true)
       setTimeout(() => setCartAdded(false), 2000)
     } catch {
-      // silently ignore – user may not be logged in
-      setCartAdded(true)
-      setTimeout(() => setCartAdded(false), 2000)
+      setCartAdded(false)
+      navigate('/sign-in')
     } finally {
       setAddingToCart(false)
     }
+  }
+
+  const handleBuyNow = () => {
+    if (!product) return
+    navigate('/checkout', {
+      state: {
+        mode: 'direct',
+        produkId: product.id,
+        kuantitas: 1,
+      },
+    })
   }
 
   const scrollRelated = (dir: 'left' | 'right') => {
@@ -224,17 +234,6 @@ export default function ProductDetail() {
     setImgError(false)
   }, [id])
 
-  // Render img hanya kalau ada URL-nya, JANGAN pakai src={undefined}
-  {product?.image && !imgError ? (
-    <img
-      src={product.image}
-      alt={product?.title ?? ''}
-      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-      onError={() => setImgError(true)}
-    />
-  ) : (
-    <div style={{ fontSize: 64, opacity: 0.3 }}>🖼️</div>
-  )}
   const hasValidImage = !imgError && !!product?.image && product.image.trim() !== ''
 
   if (loading) {
@@ -401,7 +400,7 @@ export default function ProductDetail() {
                       objectFit: 'cover',
                       display: 'block',
                     }}
-                    onError={e => {
+                    onError={() => {
                       setImgError(true)
                     }}
                   />
@@ -568,6 +567,7 @@ export default function ProductDetail() {
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
+                    onClick={handleBuyNow}
                     style={{
                       flex: 1,
                       minWidth: 160,

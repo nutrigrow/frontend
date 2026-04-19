@@ -15,7 +15,9 @@ import Dashboard from './pages/dashboard'
 import NutriShop from './pages/nutrishop'
 import ProductDetail from './pages/product-detail'
 import Checkout from './pages/checkout'
+import OrderDetail from './pages/order-detail'
 import Profile from './pages/profile'
+import Cart from './pages/cart'
 import { ProtectedRoute, PublicOnlyRoute } from './components/ProtectedRoute'
 
 // ─── Main App Component (Routing + Layout) ──────────────────────────────────
@@ -48,6 +50,8 @@ function App() {
               <Route path="/growth-tracker" element={<ProtectedRoute><GrowthTracker /></ProtectedRoute>} />
               <Route path="/health-log"     element={<ProtectedRoute><HealthLog /></ProtectedRoute>} />
               <Route path="/profile"        element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/cart"           element={<ProtectedRoute><Cart /></ProtectedRoute>} />
+              <Route path="/order/:id"      element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
             </Routes>
           </div>
 
