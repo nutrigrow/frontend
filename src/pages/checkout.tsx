@@ -50,18 +50,12 @@ interface CheckoutLocationState {
 }
 
 type ShippingMethod = "standard" | "express";
-type PaymentMethod  = "qris" | "va" | "ewallet";
 
 const shippingOptions = [
   { id: "standard" as ShippingMethod, label: "Standard Delivery", sub: "3-5 days", price: 5000  },
   { id: "express"  as ShippingMethod, label: "Express Shipping",  sub: "1-2 days", price: 15000 },
 ];
 
-const paymentOptions = [
-  { id: "qris"    as PaymentMethod, label: "QRIS",            icon: "▦" },
-  { id: "va"      as PaymentMethod, label: "VIRTUAL ACCOUNT", icon: "🏦" },
-  { id: "ewallet" as PaymentMethod, label: "E-WALLET",        icon: "📱" },
-];
 
 function formatRp(n: number) {
   return "Rp" + n.toLocaleString("id-ID");
@@ -132,7 +126,6 @@ export default function Checkout() {
   const [showAddressPicker, setShowAddressPicker] = useState(false);
   const [cart, setCart]         = useState<CartItem[]>([]);
   const [shipping, setShipping] = useState<ShippingMethod>("standard");
-  const [payment, setPayment]   = useState<PaymentMethod>("qris");
   const [loading, setLoading]   = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -379,21 +372,6 @@ export default function Checkout() {
               </div>
             </section>
 
-            {/* Payment Method */}
-            <section className="bg-white rounded-2xl p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <span className="text-[#4d7c0f]">💳</span> Payment Method
-              </h2>
-              <div className="grid grid-cols-3 gap-3">
-                {paymentOptions.map(opt => (
-                  <button key={opt.id} onClick={() => setPayment(opt.id)}
-                    className={`flex flex-col items-center justify-center gap-2 py-5 rounded-xl border-2 transition ${payment === opt.id ? "border-[#4d7c0f] bg-green-50" : "border-gray-200 hover:border-gray-300"}`}>
-                    <span className="text-2xl">{opt.icon}</span>
-                    <span className="text-[10px] font-bold tracking-wider text-gray-600">{opt.label}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
           </div>
 
           {/* RIGHT */}
