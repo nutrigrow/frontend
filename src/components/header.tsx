@@ -91,6 +91,7 @@ const Header = () => {
     { label: "Growth Tracker",  href: '/growth-tracker'  },
     { label: "Health Log", href: '/health-log' },
   ]
+  const logoHref = isLoggedIn ? '/dashboard' : '/'
 
   return (
     <>
@@ -116,7 +117,7 @@ const Header = () => {
           }}
         >
           {/* Logo */}
-          <Link to="/" className="flex-shrink-0" aria-label="NutriGrow — Dashboard">
+          <Link to={logoHref} className="flex-shrink-0" aria-label="NutriGrow Home">
             <img src={NutriGrowLogo} alt="NutriGrow" style={{ height: '34px', width: 'auto' }} />
           </Link>
 
