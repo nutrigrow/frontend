@@ -17,7 +17,6 @@ import doctor1 from "../assets/images/images-doctor-1.png";
 import doctor2 from "../assets/images/images-doctor-2.png";
 import doctor3 from "../assets/images/images-doctor-3.png";
 
-import iconHealthyRange from "../assets/icons/icon-healthyrange.png";
 import iconTeleNutri from "../assets/icons/icon-tele-nutritionist.png";
 import iconNutriShop from "../assets/icons/icon-nutrishop.png";
 import iconWHO from "../assets/icons/icon-who.png";
@@ -303,7 +302,7 @@ export default function Dashboard() {
         const sorted = [...percentile].sort((a, b) => a.usiaHari - b.usiaHari);
         const recent = sorted.slice(-5);
         if (recent.length > 0) {
-          const mapped = recent.map((item, idx) => ({
+          const mapped = recent.map((item) => ({
             label: formatAgeLabel(item.usiaHari),
             val: item.tinggiBadan,
             height: item.tinggiBadan,
