@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router";
-import { shopService } from "../services/shop.service";
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import {
+  loadMidtransSnapScript,
+  shopService,
+  type BackendCartItem,
+  type ShopOrder,
+} from '../services/shop.service';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface Address {
@@ -8,6 +13,8 @@ interface Address {
   nama: string;
   telepon: string;
   alamat: string;
+  kelurahan: string;
+  kodePos: string;
   kecamatan: string;
   kota: string;
   isDefault: boolean;
@@ -28,20 +35,11 @@ interface BackendAddress {
   namaPenerima: string;
   noTelepon: string;
   alamatLengkap: string;
+  kelurahan: string;
+  kodePos: string;
   kecamatan: string;
   kota: string;
   isUtama: boolean;
-}
-
-interface BackendCartRow {
-  id: number;
-  produkId: number;
-  kuantitas: number;
-  produk: {
-    id: number;
-    namaProduk: string;
-    harga: number;
-  };
 }
 
 interface CheckoutLocationState {
@@ -67,6 +65,21 @@ const paymentOptions = [
 
 function formatRp(n: number) {
   return "Rp" + n.toLocaleString("id-ID");
+}
+
+function extractErrorMessage(error: unknown, fallback: string): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error
+  ) {
+    const response = (error as { response?: { data?: { message?: string } } }).response;
+    const message = response?.data?.message;
+    if (typeof message === 'string' && message.trim() !== '') {
+      return message;
+    }
+  }
+  return fallback;
 }
 
 // ── Address Picker Modal ───────────────────────────────────────────────────
@@ -122,6 +135,52 @@ export default function Checkout() {
   const [payment, setPayment]   = useState<PaymentMethod>("qris");
   const [loading, setLoading]   = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleMidtransPayment = async (order: ShopOrder) => {
+    if (!order.snapToken) {
+      navigate(`/order/${order.id}?payment=manual`);
+      return;
+    }
+
+    const fallbackClientKey = (import.meta.env.VITE_MIDTRANS_CLIENT_KEY || '').trim();
+    const clientKey = (order.midtransClientKey || fallbackClientKey || '').trim();
+
+    if (!clientKey) {
+      navigate(`/order/${order.id}?payment=missing-client-key`);
+      return;
+    }
+
+    await loadMidtransSnapScript(clientKey, order.midtransIsProduction);
+
+    if (!window.snap || typeof window.snap.pay !== 'function') {
+      throw new Error('Midtrans Snap belum siap dipakai di browser');
+    }
+
+    await new Promise<void>((resolve) => {
+      window.snap?.pay(order.snapToken!, {
+        onSuccess: async () => {
+          await shopService.syncOrderPayment(order.id).catch(() => undefined);
+          navigate(`/order/${order.id}?payment=success`);
+          resolve();
+        },
+        onPending: async () => {
+          await shopService.syncOrderPayment(order.id).catch(() => undefined);
+          navigate(`/order/${order.id}?payment=pending`);
+          resolve();
+        },
+        onError: async () => {
+          await shopService.syncOrderPayment(order.id).catch(() => undefined);
+          navigate(`/order/${order.id}?payment=error`);
+          resolve();
+        },
+        onClose: () => {
+          navigate(`/order/${order.id}?payment=close`);
+          resolve();
+        },
+      });
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -137,6 +196,8 @@ export default function Checkout() {
           nama: addr.namaPenerima,
           telepon: addr.noTelepon,
           alamat: addr.alamatLengkap,
+          kelurahan: addr.kelurahan,
+          kodePos: addr.kodePos,
           kecamatan: addr.kecamatan,
           kota: addr.kota,
           isDefault: !!addr.isUtama,
@@ -164,7 +225,7 @@ export default function Checkout() {
             },
           ]);
         } else {
-          const rawCart = (await shopService.getCart()) as BackendCartRow[];
+          const rawCart = (await shopService.getCart()) as BackendCartItem[];
           if (cancelled) return;
 
           const selectedIds = new Set(checkoutState.cartItemIds ?? []);
@@ -185,6 +246,7 @@ export default function Checkout() {
         if (!cancelled) {
           setAddresses([]);
           setCart([]);
+          setErrorMessage('Gagal memuat data checkout. Pastikan Anda sudah login.');
         }
       } finally {
         if (!cancelled) {
@@ -211,13 +273,15 @@ export default function Checkout() {
     const nextQty = current.qty + delta;
     if (nextQty <= 0) return;
 
+    const previousQty = current.qty;
     setCart(prev => prev.map(item => item.id === id ? { ...item, qty: nextQty } : item));
 
-    if (checkoutMode === "cart" && delta > 0) {
+    if (checkoutMode === 'cart') {
       try {
-        await shopService.addToCart(current.productId, delta);
-      } catch {
-        // Keep UX smooth even if sync update fails.
+        await shopService.updateCartItemQuantity(current.id, nextQty);
+      } catch (error) {
+        setCart(prev => prev.map(item => item.id === id ? { ...item, qty: previousQty } : item));
+        setErrorMessage(extractErrorMessage(error, 'Gagal memperbarui kuantitas keranjang.'));
       }
     }
   }
@@ -228,8 +292,9 @@ export default function Checkout() {
     const metodePengiriman = shipping === "express" ? "EXPRESS" : "STANDARD";
 
     setPlacingOrder(true);
+    setErrorMessage(null);
     try {
-      let transaction: { id: number };
+      let transaction: ShopOrder;
 
       if (checkoutMode === "direct") {
         const item = cart[0];
@@ -247,9 +312,9 @@ export default function Checkout() {
         });
       }
 
-      navigate(`/order/${transaction.id}`);
-    } catch {
-      alert("Checkout gagal. Periksa data alamat dan item belanja Anda.");
+      await handleMidtransPayment(transaction);
+    } catch (error) {
+      setErrorMessage(extractErrorMessage(error, 'Checkout gagal. Periksa data alamat dan item belanja Anda.'));
     } finally {
       setPlacingOrder(false);
     }
@@ -257,8 +322,7 @@ export default function Checkout() {
 
   const shippingPrice = shippingOptions.find(s => s.id === shipping)!.price;
   const subtotal      = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const tax           = Math.round(subtotal * 0.1);
-  const total         = subtotal + shippingPrice + tax;
+  const total         = subtotal + shippingPrice;
 
   return (
     <div className="min-h-screen bg-[#f7f9f4] font-sans flex flex-col">
@@ -280,8 +344,11 @@ export default function Checkout() {
                 <p className="font-bold text-gray-900">{selectedAddress?.nama ?? "Alamat belum tersedia"}</p>
                 <p className="text-sm text-gray-500 mt-0.5">{selectedAddress?.telepon ?? "-"}</p>
                 <p className="text-sm text-gray-600 mt-1">{selectedAddress?.alamat ?? "-"}</p>
-                <p className="text-sm text-gray-600">{selectedAddress ? `${selectedAddress.kecamatan}, ${selectedAddress.kota}` : "-"}</p>
-                <p className="text-sm text-gray-600">West Java, Indonesia</p>
+                <p className="text-sm text-gray-600">
+                  {selectedAddress
+                    ? `${selectedAddress.kelurahan}, ${selectedAddress.kecamatan}, ${selectedAddress.kota} ${selectedAddress.kodePos}`
+                    : '-'}
+                </p>
               </div>
               <button onClick={() => setShowAddressPicker(true)} disabled={addresses.length === 0} className="mt-3 text-sm text-[#4d7c0f] font-semibold hover:underline disabled:text-gray-400 disabled:no-underline">
                 Ganti Alamat →
@@ -355,7 +422,6 @@ export default function Checkout() {
               <div className="space-y-2 text-sm mb-4">
                 <div className="flex justify-between text-gray-400"><span>Subtotal</span><span>{formatRp(subtotal)}</span></div>
                 <div className="flex justify-between text-gray-400"><span>Shipping Fee</span><span>{formatRp(shippingPrice)}</span></div>
-                <div className="flex justify-between text-gray-400"><span>Tax (10%)</span><span>{formatRp(tax)}</span></div>
               </div>
               <div className="border-t border-gray-700 mb-4" />
               <div className="flex justify-between items-center mb-6">
@@ -375,6 +441,9 @@ export default function Checkout() {
           >
             {placingOrder ? "PROCESSING..." : "PLACE ORDER →"}
           </button>
+          {errorMessage && (
+            <p className="mt-3 text-sm text-red-600 font-semibold">{errorMessage}</p>
+          )}
         </div>
       </main>
 
