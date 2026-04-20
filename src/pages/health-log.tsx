@@ -1339,7 +1339,7 @@ export default function HealthLog() {
 
   const handleEdit = (index: number) => {
     const row = logs[activeCategory][index]
-    const _id  = logIds[activeCategory][index]  // reserved for future delete-by-id
+    void logIds[activeCategory][index] // reserved for future delete-by-id
     const moodOpt = MOOD_OPTIONS.find(m => m.label.toLowerCase() === row.mood.toLowerCase())
     setMood(moodOpt?.value ?? 'biasa')
     setFluid(row.fluid.replace(' Gelas', '').trim())
