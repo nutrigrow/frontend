@@ -943,7 +943,7 @@ const SectionTheTeam = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
     { img: Member2Img, name: 'Nazwa Nashatasya', role: 'Frontend Developer' },
     { img: Member3Img, name: 'Siti Nailah Eko', role: 'Frontend Developer' },
     { img: Member4Img, name: 'Exsfo Al Banjari', role: 'Backend Developer' },
-    { img: Member5Img, name: 'Raihan Rizky Zain', role: 'Backend Developer' },
+    { img: Member5Img, name: 'M. Raihan Rizky Zain', role: 'Backend Developer' },
   ]
 
   return (

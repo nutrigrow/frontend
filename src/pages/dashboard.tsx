@@ -17,10 +17,10 @@ import doctor1 from "../assets/images/images-doctor-1.png";
 import doctor2 from "../assets/images/images-doctor-2.png";
 import doctor3 from "../assets/images/images-doctor-3.png";
 
-import iconHealthyRange  from "../assets/icons/icon-healthyrange.png";
-import iconTeleNutri     from "../assets/icons/icon-tele-nutritionist.png";
-import iconNutriShop     from "../assets/icons/icon-nutrishop.png";
-import iconWHO           from "../assets/icons/icon-who.png";
+import iconHealthyRange from "../assets/icons/icon-healthyrange.png";
+import iconTeleNutri from "../assets/icons/icon-tele-nutritionist.png";
+import iconNutriShop from "../assets/icons/icon-nutrishop.png";
+import iconWHO from "../assets/icons/icon-who.png";
 import { childrenService } from "../services/children.service";
 import { healthLogService } from "../services/healthLog.service";
 import { shopService } from "../services/shop.service";
@@ -65,15 +65,15 @@ interface ShopItem {
 
 // ── Static data ────────────────────────────────────────────────────────────
 const defaultHealthItems: HealthItem[] = [
-  { icon: iconHydration,  label: "Hydration",         value: "0%",     percent: 0, color: "#f97316" },
-  { icon: iconSleep,      label: "Sleep Quality",     value: "0 hrs",  percent: 0, color: "#3b82f6" },
+  { icon: iconHydration, label: "Hydration", value: "0%", percent: 0, color: "#f97316" },
+  { icon: iconSleep, label: "Sleep Quality", value: "0 hrs", percent: 0, color: "#3b82f6" },
   { icon: iconSupplement, label: "Supplement Intake", value: "Pending", percent: 0, color: "#22c55e" },
 ];
 
 const articles: Article[] = [
   { tag: "TODDLER NUTRITION", tagColor: "#22c55e", title: "Hidden Veggies: 10 Recipes for Picky Eaters", excerpt: "Struggling with mealtime? These creative recipes ensure your toddler gets the nutrients they need.", readTime: "5 min read", image: img1 },
-  { tag: "POSTNATAL CARE",    tagColor: "#f97316", title: "Superfoods for Energy and Recovery",           excerpt: "Reclaim your vitality with these powerhouse ingredients packed with essential vitamins.",       readTime: "8 min read", image: img2 },
-  { tag: "MILESTONES",        tagColor: "#3b82f6", title: "Starting Solids: A Month-by-Month Guide",      excerpt: "When and how to introduce new textures and flavors safely to your growing baby.",              readTime: "12 min read", image: img3 },
+  { tag: "POSTNATAL CARE", tagColor: "#f97316", title: "Superfoods for Energy and Recovery", excerpt: "Reclaim your vitality with these powerhouse ingredients packed with essential vitamins.", readTime: "8 min read", image: img2 },
+  { tag: "MILESTONES", tagColor: "#3b82f6", title: "Starting Solids: A Month-by-Month Guide", excerpt: "When and how to introduce new textures and flavors safely to your growing baby.", readTime: "12 min read", image: img3 },
 ];
 
 const defaultGrowthData: GrowthPoint[] = [
@@ -86,10 +86,10 @@ const defaultGrowthData: GrowthPoint[] = [
 
 // Produk NutriShop — label ditampilkan di atas gambar (overlay)
 const defaultShopItems: ShopItem[] = [
-  { label: "Suplemen Vit A",    image: shopImg1 },
-  { label: "Camilan Organik",   image: shopImg2 },
+  { label: "Suplemen Vit A", image: shopImg1 },
+  { label: "Camilan Organik", image: shopImg2 },
   { label: "Kids Multivitamin", image: shopImg3 },
-  { label: "Vegetable Puree",   image: shopImg4 },
+  { label: "Vegetable Puree", image: shopImg4 },
 ];
 
 
@@ -103,8 +103,13 @@ const extractPercentileNumber = (raw: string | null | undefined): number | null 
 };
 
 const formatAgeLabel = (days: number): string => {
-  const months = Math.max(1, Math.round(days / 30.44));
-  return `${months} MONTHS`;
+  const totalMonths = Math.max(0, Math.round(days / 30.44));
+  const years = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+
+  if (years === 0) return `${months}m`;
+  if (months === 0) return `${years}y`;
+  return `${years}y${months}m`;
 };
 
 // ── Sparkline ──────────────────────────────────────────────────────────────
@@ -127,10 +132,10 @@ function Sparkline({ data }: { data: GrowthPoint[] }) {
     <div className="relative group/sparkline">
       {/* Custom Tooltip */}
       {activeIndex !== null && (
-        <div 
+        <div
           className="absolute z-50 pointer-events-none bg-slate-900 text-white rounded-lg px-3 py-2 shadow-xl border border-slate-700 text-xs font-[Montserrat,sans-serif] -translate-x-1/2 -translate-y-full mb-2"
-          style={{ 
-            left: `${(xs[activeIndex] / W) * 100}%`, 
+          style={{
+            left: `${(xs[activeIndex] / W) * 100}%`,
             top: `${(ys[activeIndex] / H) * 100}%`,
             marginTop: '-10px'
           }}
@@ -266,7 +271,7 @@ export default function Dashboard() {
           },
         ]);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     shopService.getProducts()
       .then((products) => {
@@ -277,7 +282,7 @@ export default function Dashboard() {
         }));
         setShopItems(mapped);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       cancelled = true;
@@ -299,7 +304,7 @@ export default function Dashboard() {
         const recent = sorted.slice(-5);
         if (recent.length > 0) {
           const mapped = recent.map((item, idx) => ({
-            label: idx === recent.length - 1 ? "CURRENT" : formatAgeLabel(item.usiaHari),
+            label: formatAgeLabel(item.usiaHari),
             val: item.tinggiBadan,
             height: item.tinggiBadan,
             weight: item.beratBadan,
@@ -361,7 +366,7 @@ export default function Dashboard() {
           setWeightValue(`${(Number(fallback.beratBadan) || 0).toFixed(1)} kg`);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       cancelled = true;
@@ -374,8 +379,8 @@ export default function Dashboard() {
 
         {/* Greeting */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <h1 className="text-3xl font-extrabold text-gray-900">Good morning, {userName}!</h1>
-            <p className="text-gray-500 mt-1 text-sm">Mari lanjutkan perjalanan nutrisi optimal untuk si kecil bersama NutriGrow.</p>
+          <h1 className="text-3xl font-extrabold text-gray-900">Good morning, {userName}!</h1>
+          <p className="text-gray-500 mt-1 text-sm">Mari lanjutkan perjalanan nutrisi optimal untuk si kecil bersama NutriGrow.</p>
         </div>
 
         {/* Growth + Health Log */}
@@ -411,20 +416,21 @@ export default function Dashboard() {
             <div className="grid grid-cols-4 gap-3 mt-4">
               {[
                 { label: "Height", value: heightValue, sub: heightSub },
-                { label: "Weight", value: weightValue,  sub: weightSub },
+                { label: "Weight", value: weightValue, sub: weightSub },
                 { label: "Stunting Risk", value: stuntingValue, sub: stuntingSub },
               ].map(s => (
-                <div key={s.label} className="bg-gray-50 rounded-xl p-3">
-                  <p className="text-xs text-gray-500">{s.label}</p>
-                  <p className="text-lg font-bold text-gray-900 mt-0.5">{s.value}</p>
-                  <p className="text-xs text-[#4d7c0f] mt-0.5">{s.sub}</p>
+                <div key={s.label} className="bg-gray-50 rounded-xl p-3 flex flex-col justify-between">
+                  <p className="text-[10px] font-bold tracking-wider text-slate-500">{s.label}</p>
+                  <p className="text-xl font-bold text-slate-900 mt-1">{s.value}</p>
+                  <p className="text-[11px] font-medium text-slate-400 mt-1 leading-tight">{s.sub}</p>
                 </div>
               ))}
               <button
                 type="button"
                 onClick={() => {
                   window.scrollTo(0, 0);
-                  navigate("/growth-tracker")}
+                  navigate("/growth-tracker")
+                }
                 }
                 className="bg-[#4d7c0f] rounded-xl p-3 flex flex-col justify-between cursor-pointer hover:bg-[#3a5a00] transition text-left border-none w-full"
               >
@@ -435,7 +441,7 @@ export default function Dashboard() {
             </div>
             <div className="mt-4">
               <Sparkline data={growthData} />
-              <div className="flex justify-between text-[10px] text-gray-400 px-1 mt-1">
+              <div className="flex justify-between text-[10px] font-bold text-[#94a3b8] px-1 mt-1 font-[Montserrat,sans-serif]">
                 {growthData.map(d => <span key={d.label}>{d.label}</span>)}
               </div>
             </div>
@@ -472,7 +478,8 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => {
                   window.scrollTo(0, 0);
-                  navigate("/health-log")}
+                  navigate("/health-log")
+                }
                 }
                 className="bg-[#4d7c0f] text-white font-semibold rounded-xl py-3 px-8 text-sm hover:bg-[#3a5a00] transition"
               >
@@ -501,7 +508,7 @@ export default function Dashboard() {
             <div className="flex -space-x-3 mt-1">
               {[doctor1, doctor2, doctor3].map((doc, i) => (
                 <div key={i} className="w-10 h-10 rounded-full border-2 border-white overflow-hidden flex-shrink-0">
-                  <img src={doc} className="w-full h-full object-cover" alt={`doctor ${i+1}`} />
+                  <img src={doc} className="w-full h-full object-cover" alt={`doctor ${i + 1}`} />
                 </div>
               ))}
             </div>
