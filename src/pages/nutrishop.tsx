@@ -12,6 +12,7 @@ import {
   X,
   Milk,
   ShoppingBasket,
+  Package,
 } from 'lucide-react'
 import { CardNutrishop } from '../components/card-nutrishop'
 import FoodsImg from '../assets/images/img-foods.svg'
@@ -826,24 +827,45 @@ export default function NutriShop() {
                 {isMobile && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {isLoggedIn && (
-                      <button
-                        onClick={() => navigate('/cart')}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 40,
-                          height: 40,
-                          background: '#fff',
-                          border: '1px solid #E7E5E4',
-                          borderRadius: 8,
-                          cursor: 'pointer',
-                          color: '#44403C',
-                        }}
-                        aria-label="Buka keranjang"
-                      >
-                        <ShoppingBasket size={18} />
-                      </button>
+                      <>
+                        <button
+                          onClick={() => navigate('/orders')}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 40,
+                            height: 40,
+                            background: '#fff',
+                            border: '1px solid #E7E5E4',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            color: '#44403C',
+                          }}
+                          aria-label="Buka pesanan saya"
+                        >
+                          <Package size={18} />
+                        </button>
+
+                        <button
+                          onClick={() => navigate('/cart')}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 40,
+                            height: 40,
+                            background: '#fff',
+                            border: '1px solid #E7E5E4',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            color: '#44403C',
+                          }}
+                          aria-label="Buka keranjang"
+                        >
+                          <ShoppingBasket size={18} />
+                        </button>
+                      </>
                     )}
 
                     <button
@@ -872,28 +894,53 @@ export default function NutriShop() {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: isMobile ? '100%' : 'auto' }}>
                 {isLoggedIn && !isMobile && (
-                  <button
-                    onClick={() => navigate('/cart')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '9px 14px',
-                      background: '#fff',
-                      border: '1px solid #E7E5E4',
-                      borderRadius: 10,
-                      cursor: 'pointer',
-                      fontFamily: 'var(--font-heading), sans-serif',
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: '#44403C',
-                      whiteSpace: 'nowrap',
-                    }}
-                    aria-label="Buka keranjang"
-                  >
-                    <ShoppingBasket size={17} />
-                    Cart
-                  </button>
+                  <>
+                    <button
+                      onClick={() => navigate('/orders')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '9px 14px',
+                        background: '#fff',
+                        border: '1px solid #E7E5E4',
+                        borderRadius: 10,
+                        cursor: 'pointer',
+                        fontFamily: 'var(--font-heading), sans-serif',
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#44403C',
+                        whiteSpace: 'nowrap',
+                      }}
+                      aria-label="Buka pesanan saya"
+                    >
+                      <Package size={17} />
+                      Pesanan Saya
+                    </button>
+
+                    <button
+                      onClick={() => navigate('/cart')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '9px 14px',
+                        background: '#fff',
+                        border: '1px solid #E7E5E4',
+                        borderRadius: 10,
+                        cursor: 'pointer',
+                        fontFamily: 'var(--font-heading), sans-serif',
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#44403C',
+                        whiteSpace: 'nowrap',
+                      }}
+                      aria-label="Buka keranjang"
+                    >
+                      <ShoppingBasket size={17} />
+                      Cart
+                    </button>
+                  </>
                 )}
 
                 {/* Search */}
