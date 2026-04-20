@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import img1 from "../assets/images/img-article-1.png";
 import img2 from "../assets/images/img-article-2.png";
@@ -21,6 +21,10 @@ import iconHealthyRange  from "../assets/icons/icon-healthyrange.png";
 import iconTeleNutri     from "../assets/icons/icon-tele-nutritionist.png";
 import iconNutriShop     from "../assets/icons/icon-nutrishop.png";
 import iconWHO           from "../assets/icons/icon-who.png";
+import { childrenService } from "../services/children.service";
+import { healthLogService } from "../services/healthLog.service";
+import { shopService } from "../services/shop.service";
+import { useNavigate } from "react-router-dom";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface HealthItem {
@@ -40,8 +44,26 @@ interface Article {
   image: string;
 }
 
+interface GrowthPoint {
+  label: string;
+  val: number;
+  height: number;
+  weight: number;
+}
+
+interface ChildOption {
+  id: number;
+  namaDepan: string;
+  namaAkhir: string | null;
+}
+
+interface ShopItem {
+  label: string;
+  image: string;
+}
+
 // ── Static data ────────────────────────────────────────────────────────────
-const healthItems: HealthItem[] = [
+const defaultHealthItems: HealthItem[] = [
   { icon: iconHydration,  label: "Hydration",         value: "75%",     percent: 75, color: "#f97316" },
   { icon: iconSleep,      label: "Sleep Quality",     value: "6.5 hrs", percent: 68, color: "#3b82f6" },
   { icon: iconSupplement, label: "Supplement Intake", value: "Optimal", percent: 90, color: "#22c55e" },
@@ -53,13 +75,16 @@ const articles: Article[] = [
   { tag: "MILESTONES",        tagColor: "#3b82f6", title: "Starting Solids: A Month-by-Month Guide",      excerpt: "When and how to introduce new textures and flavors safely to your growing baby.",              readTime: "12 min read", image: img3 },
 ];
 
-const growthData = [
-  { label: "6 MONTHS", val: 30 }, { label: "8 MONTHS", val: 38 },
-  { label: "10 MONTHS", val: 52 }, { label: "12 MONTHS", val: 61 }, { label: "CURRENT", val: 82 },
+const defaultGrowthData: GrowthPoint[] = [
+  { label: "6 MONTHS", val: 30, height: 30, weight: 5.2 },
+  { label: "8 MONTHS", val: 38, height: 38, weight: 6.1 },
+  { label: "10 MONTHS", val: 52, height: 52, weight: 7.3 },
+  { label: "12 MONTHS", val: 61, height: 61, weight: 8.2 },
+  { label: "CURRENT", val: 82, height: 82, weight: 9.4 },
 ];
 
 // Produk NutriShop — label ditampilkan di atas gambar (overlay)
-const shopItems = [
+const defaultShopItems: ShopItem[] = [
   { label: "Suplemen Vit A",    image: shopImg1 },
   { label: "Camilan Organik",   image: shopImg2 },
   { label: "Kids Multivitamin", image: shopImg3 },
@@ -67,12 +92,33 @@ const shopItems = [
 ];
 
 // ── Sparkline ──────────────────────────────────────────────────────────────
-function Sparkline() {
+const formatAgeLabel = (days: number): string => {
+  const months = Math.max(1, Math.round(days / 30.44));
+  return `${months} MONTHS`;
+};
+
+const extractPercentileNumber = (raw: string): number | null => {
+  const m = raw.match(/-?\d+(\.\d+)?/);
+  if (!m) return null;
+  const num = Number(m[0]);
+  return Number.isNaN(num) ? null : num;
+};
+
+function Sparkline({ data }: { data: GrowthPoint[] }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const W = 520, H = 160, PAD = 20;
-  const xs = growthData.map((_, i) => PAD + (i / (growthData.length - 1)) * (W - PAD * 2));
-  const ys = growthData.map(d => H - PAD - ((d.val - 25) / 62) * (H - PAD * 2));
+
+  const safeData = data.length > 0 ? data : defaultGrowthData;
+  const values = safeData.map((d) => d.val);
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const range = Math.max(1, maxVal - minVal);
+
+  const xs = safeData.map((_, i) => PAD + (i / Math.max(1, safeData.length - 1)) * (W - PAD * 2));
+  const ys = safeData.map((d) => H - PAD - ((d.val - minVal) / range) * (H - PAD * 2));
   const line = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x},${ys[i]}`).join(" ");
   const area = `${line} L${xs[xs.length - 1]},${H} L${xs[0]},${H} Z`;
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="none">
       <defs>
@@ -83,14 +129,179 @@ function Sparkline() {
       </defs>
       <path d={area} fill="url(#gfill)" />
       <path d={line} fill="none" stroke="#4d7c0f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      {xs.map((x, i) => <circle key={i} cx={x} cy={ys[i]} r="4" fill="#4d7c0f" />)}
+      {activeIndex !== null && (
+        <line x1={xs[activeIndex]} y1={PAD - 4} x2={xs[activeIndex]} y2={H - PAD + 4} stroke="#4d7c0f" strokeOpacity="0.22" strokeDasharray="3 3" />
+      )}
+      {xs.map((x, i) => (
+        <circle
+          key={i}
+          cx={x}
+          cy={ys[i]}
+          r={activeIndex === i ? 5.5 : 4}
+          fill="#4d7c0f"
+          style={{ cursor: "pointer" }}
+          onMouseEnter={() => setActiveIndex(i)}
+          onMouseLeave={() => setActiveIndex(null)}
+        >
+          <title>{`${safeData[i].label} • Height ${safeData[i].height.toFixed(1)} cm • Weight ${safeData[i].weight.toFixed(1)} kg`}</title>
+        </circle>
+      ))}
     </svg>
   );
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [selectedChild] = useState("Leo");
+  const navigate = useNavigate();
+  const [children, setChildren] = useState<ChildOption[]>([]);
+  const [selectedChildId, setSelectedChildId] = useState<number | null>(null);
+  const [selectedChild, setSelectedChild] = useState("Leo");
+
+  const [growthData, setGrowthData] = useState<GrowthPoint[]>(defaultGrowthData);
+  const [heightValue, setHeightValue] = useState("78.5 cm");
+  const [weightValue, setWeightValue] = useState("10.4 kg");
+  const [heightSub, setHeightSub] = useState("+2.1% ↑");
+  const [weightSub, setWeightSub] = useState("+1.5% ↑");
+  const [stuntingValue, setStuntingValue] = useState("Low");
+  const [stuntingSub, setStuntingSub] = useState("Safe");
+
+  const [healthItems, setHealthItems] = useState<HealthItem[]>(defaultHealthItems);
+  const [shopItems, setShopItems] = useState<ShopItem[]>(defaultShopItems);
+
+  const selectedChildName = useMemo(() => {
+    const child = children.find((c) => c.id === selectedChildId);
+    if (!child) return selectedChild;
+    return `${child.namaDepan}${child.namaAkhir ? ` ${child.namaAkhir}` : ""}`;
+  }, [children, selectedChild, selectedChildId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    childrenService.getAll()
+      .then((rows) => {
+        if (cancelled) return;
+        setChildren(rows);
+        if (rows.length > 0) {
+          setSelectedChildId(rows[0].id);
+          setSelectedChild(`${rows[0].namaDepan}${rows[0].namaAkhir ? ` ${rows[0].namaAkhir}` : ""}`);
+        }
+      })
+      .catch(() => {});
+
+    healthLogService.getAllLogs()
+      .then((rows) => {
+        if (cancelled || rows.length === 0) return;
+        const latest = [...rows].sort((a, b) => b.date.localeCompare(a.date))[0];
+
+        const hydrationPct = Math.max(0, Math.min(100, Math.round((latest.water_glasses / 8) * 100)));
+        const sleepPct = Math.max(0, Math.min(100, Math.round((latest.sleep_hours / 8) * 100)));
+        const supplementPct = latest.took_supplement ? 90 : 35;
+
+        setHealthItems([
+          {
+            icon: iconHydration,
+            label: "Hydration",
+            value: `${hydrationPct}%`,
+            percent: hydrationPct,
+            color: "#f97316",
+          },
+          {
+            icon: iconSleep,
+            label: "Sleep Quality",
+            value: `${latest.sleep_hours} hrs`,
+            percent: sleepPct,
+            color: "#3b82f6",
+          },
+          {
+            icon: iconSupplement,
+            label: "Supplement Intake",
+            value: latest.took_supplement ? "Optimal" : "Need Attention",
+            percent: supplementPct,
+            color: "#22c55e",
+          },
+        ]);
+      })
+      .catch(() => {});
+
+    shopService.getProducts()
+      .then((products) => {
+        if (cancelled || products.length === 0) return;
+        const mapped = products.slice(0, 4).map((product, idx) => ({
+          label: product.title,
+          image: product.image && product.image.trim() !== "" ? product.image : defaultShopItems[idx % defaultShopItems.length].image,
+        }));
+        setShopItems(mapped);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedChildId) return;
+    let cancelled = false;
+
+    Promise.all([
+      childrenService.getLatestGrowth(selectedChildId),
+      childrenService.getPercentile(selectedChildId),
+    ])
+      .then(([latest, percentile]) => {
+        if (cancelled) return;
+
+        const sorted = [...percentile].sort((a, b) => a.usiaHari - b.usiaHari);
+        const recent = sorted.slice(-5);
+        if (recent.length > 0) {
+          const mapped = recent.map((item, idx) => ({
+            label: idx === recent.length - 1 ? "CURRENT" : formatAgeLabel(item.usiaHari),
+            val: item.tinggiBadan,
+            height: item.tinggiBadan,
+            weight: item.beratBadan,
+          }));
+          setGrowthData(mapped);
+
+          const current = mapped[mapped.length - 1];
+          const prev = mapped.length > 1 ? mapped[mapped.length - 2] : null;
+
+          const currentWeight = current.weight;
+          const prevWeight = prev ? prev.weight : null;
+
+          const hDelta = prev ? current.height - prev.height : null;
+          const wDelta = prevWeight !== null ? currentWeight - prevWeight : null;
+
+          setHeightSub(hDelta === null ? "No previous data" : `${hDelta >= 0 ? "+" : ""}${hDelta.toFixed(1)} cm ${hDelta >= 0 ? "↑" : "↓"}`);
+          setWeightSub(wDelta === null ? "No previous data" : `${wDelta >= 0 ? "+" : ""}${wDelta.toFixed(1)} kg ${wDelta >= 0 ? "↑" : "↓"}`);
+
+          const pNum = extractPercentileNumber(recent[recent.length - 1].persentilTinggi);
+          if (pNum !== null) {
+            if (pNum <= 3) {
+              setStuntingValue("High");
+              setStuntingSub("Monitor closely");
+            } else if (pNum <= 10) {
+              setStuntingValue("Moderate");
+              setStuntingSub("Need attention");
+            } else {
+              setStuntingValue("Low");
+              setStuntingSub("Safe");
+            }
+          }
+        }
+
+        if (latest) {
+          setHeightValue(`${Number(latest.tinggiBadan).toFixed(1)} cm`);
+          setWeightValue(`${Number(latest.beratBadan).toFixed(1)} kg`);
+        } else if (recent.length > 0) {
+          const fallback = recent[recent.length - 1];
+          setHeightValue(`${Number(fallback.tinggiBadan).toFixed(1)} cm`);
+          setWeightValue(`${Number(fallback.beratBadan).toFixed(1)} kg`);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedChildId]);
 
   return (
     <div className="min-h-screen bg-[#f7f9f4] font-sans flex flex-col">
@@ -111,10 +322,22 @@ export default function Dashboard() {
               <div className="flex-1">
                 <p className="text-xs font-bold tracking-widest text-[#4d7c0f] uppercase">Smart Growth Tracker</p>
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
-                  <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#4d7c0f]">
-                    <option>Child: {selectedChild}</option>
+                  <select
+                    value={selectedChildId ?? ""}
+                    onChange={(e) => {
+                      if (e.target.value) setSelectedChildId(Number(e.target.value));
+                    }}
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#4d7c0f]"
+                  >
+                    {!selectedChildId && <option value="" disabled>Pilih Anak</option>}
+                    {children.length === 0 && <option value="" disabled>Child: {selectedChild}</option>}
+                    {children.map((child) => (
+                      <option key={child.id} value={child.id}>
+                        {`${child.namaDepan}${child.namaAkhir ? ` ${child.namaAkhir}` : ""}`}
+                      </option>
+                    ))}
                   </select>
-                  <h2 className="text-xl font-bold text-gray-900">{selectedChild}'s Height & Weight</h2>
+                  <h2 className="text-xl font-bold text-gray-900">{selectedChildName}'s Height & Weight</h2>
                 </div>
                 <p className="text-xs text-gray-400 mt-1 max-w-sm">Pantau perkembangan bayi Anda melalui grafik pertumbuhan kami yang komprehensif. Lacak tinggi, berat badan, dan risiko stunting untuk memastikan ia mencapai target perkembangan dengan akurat.</p>
               </div>
@@ -122,9 +345,9 @@ export default function Dashboard() {
             </div>
             <div className="grid grid-cols-4 gap-3 mt-4">
               {[
-                { label: "Height", value: "78.5 cm", sub: "+2.1% ↑" },
-                { label: "Weight", value: "10.4 kg",  sub: "+1.5% ↑" },
-                { label: "Stunting Risk", value: "Low", sub: "Safe" },
+                { label: "Height", value: heightValue, sub: heightSub },
+                { label: "Weight", value: weightValue,  sub: weightSub },
+                { label: "Stunting Risk", value: stuntingValue, sub: stuntingSub },
               ].map(s => (
                 <div key={s.label} className="bg-gray-50 rounded-xl p-3">
                   <p className="text-xs text-gray-500">{s.label}</p>
@@ -132,14 +355,18 @@ export default function Dashboard() {
                   <p className="text-xs text-[#4d7c0f] mt-0.5">{s.sub}</p>
                 </div>
               ))}
-              <div className="bg-[#4d7c0f] rounded-xl p-3 flex flex-col justify-between cursor-pointer hover:bg-[#3a5a00] transition">
+              <button
+                type="button"
+                onClick={() => navigate("/growth-tracker")}
+                className="bg-[#4d7c0f] rounded-xl p-3 flex flex-col justify-between cursor-pointer hover:bg-[#3a5a00] transition text-left border-none w-full"
+              >
                 <p className="text-xs text-green-200">Explore more!</p>
                 <p className="text-sm font-bold text-white leading-tight">See full tracker here</p>
                 <span className="text-white text-lg">›</span>
-              </div>
+              </button>
             </div>
             <div className="mt-4">
-              <Sparkline />
+              <Sparkline data={growthData} />
               <div className="flex justify-between text-[10px] text-gray-400 px-1 mt-1">
                 {growthData.map(d => <span key={d.label}>{d.label}</span>)}
               </div>
@@ -173,7 +400,11 @@ export default function Dashboard() {
 
             {/* Button tidak full width */}
             <div className="mt-auto flex justify-center">
-              <button className="bg-[#4d7c0f] text-white font-semibold rounded-xl py-3 px-8 text-sm hover:bg-[#3a5a00] transition">
+              <button
+                type="button"
+                onClick={() => navigate("/health-log")}
+                className="bg-[#4d7c0f] text-white font-semibold rounded-xl py-3 px-8 text-sm hover:bg-[#3a5a00] transition"
+              >
                 More log data
               </button>
             </div>
@@ -236,7 +467,11 @@ export default function Dashboard() {
 
             {/* Button di tengah */}
             <div className="flex justify-center mt-4">
-              <button className="text-sm font-semibold text-[#4d7c0f] flex items-center gap-1 hover:underline">
+              <button
+                type="button"
+                onClick={() => navigate("/nutrishop")}
+                className="text-sm font-semibold text-[#4d7c0f] flex items-center gap-1 hover:underline"
+              >
                 Kunjungi NutriShop ›
               </button>
             </div>
