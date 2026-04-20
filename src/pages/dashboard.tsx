@@ -21,7 +21,7 @@ import iconHealthyRange  from "../assets/icons/icon-healthyrange.png";
 import iconTeleNutri     from "../assets/icons/icon-tele-nutritionist.png";
 import iconNutriShop     from "../assets/icons/icon-nutrishop.png";
 import iconWHO           from "../assets/icons/icon-who.png";
-import { childrenService } from "../services/children.service";
+import { childrenService, type ApiChild, type ApiPercentileItem } from "../services/children.service";
 import { healthLogService } from "../services/healthLog.service";
 import { shopService } from "../services/shop.service";
 import { useAuth } from "../context/AuthContext";
