@@ -21,9 +21,10 @@ import iconHealthyRange  from "../assets/icons/icon-healthyrange.png";
 import iconTeleNutri     from "../assets/icons/icon-tele-nutritionist.png";
 import iconNutriShop     from "../assets/icons/icon-nutrishop.png";
 import iconWHO           from "../assets/icons/icon-who.png";
-import { childrenService } from "../services/children.service";
+import { childrenService, type ApiChild, type ApiPercentileItem } from "../services/children.service";
 import { healthLogService } from "../services/healthLog.service";
 import { shopService } from "../services/shop.service";
+import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -64,9 +65,9 @@ interface ShopItem {
 
 // ── Static data ────────────────────────────────────────────────────────────
 const defaultHealthItems: HealthItem[] = [
-  { icon: iconHydration,  label: "Hydration",         value: "75%",     percent: 75, color: "#f97316" },
-  { icon: iconSleep,      label: "Sleep Quality",     value: "6.5 hrs", percent: 68, color: "#3b82f6" },
-  { icon: iconSupplement, label: "Supplement Intake", value: "Optimal", percent: 90, color: "#22c55e" },
+  { icon: iconHydration,  label: "Hydration",         value: "0%",     percent: 0, color: "#f97316" },
+  { icon: iconSleep,      label: "Sleep Quality",     value: "0 hrs",  percent: 0, color: "#3b82f6" },
+  { icon: iconSupplement, label: "Supplement Intake", value: "Pending", percent: 0, color: "#22c55e" },
 ];
 
 const articles: Article[] = [
@@ -120,38 +121,60 @@ function Sparkline({ data }: { data: GrowthPoint[] }) {
   const area = `${line} L${xs[xs.length - 1]},${H} L${xs[0]},${H} Z`;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="gfill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#4d7c0f" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="#4d7c0f" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#gfill)" />
-      <path d={line} fill="none" stroke="#4d7c0f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    <div className="relative group/sparkline">
+      {/* Custom Tooltip */}
       {activeIndex !== null && (
-        <line x1={xs[activeIndex]} y1={PAD - 4} x2={xs[activeIndex]} y2={H - PAD + 4} stroke="#4d7c0f" strokeOpacity="0.22" strokeDasharray="3 3" />
-      )}
-      {xs.map((x, i) => (
-        <circle
-          key={i}
-          cx={x}
-          cy={ys[i]}
-          r={activeIndex === i ? 5.5 : 4}
-          fill="#4d7c0f"
-          style={{ cursor: "pointer" }}
-          onMouseEnter={() => setActiveIndex(i)}
-          onMouseLeave={() => setActiveIndex(null)}
+        <div 
+          className="absolute z-50 pointer-events-none bg-slate-900 text-white rounded-lg px-3 py-2 shadow-xl border border-slate-700 text-xs font-[Montserrat,sans-serif] -translate-x-1/2 -translate-y-full mb-2"
+          style={{ 
+            left: `${(xs[activeIndex] / W) * 100}%`, 
+            top: `${(ys[activeIndex] / H) * 100}%`,
+            marginTop: '-10px'
+          }}
         >
-          <title>{`${safeData[i].label} • Height ${safeData[i].height.toFixed(1)} cm • Weight ${safeData[i].weight.toFixed(1)} kg`}</title>
-        </circle>
-      ))}
-    </svg>
+          <p className="font-bold text-slate-300 mb-0.5 text-[11px] uppercase tracking-wider">{safeData[activeIndex].label}</p>
+          <div className="space-y-0.5">
+            <p className="font-bold text-[#86efac] text-[11px]">Height: <span className="text-white">{safeData[activeIndex].height.toFixed(1)} cm</span></p>
+            <p className="font-bold text-[#86efac] text-[11px]">Weight: <span className="text-white">{safeData[activeIndex].weight.toFixed(1)} kg</span></p>
+          </div>
+          {/* Arrow */}
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-900" />
+        </div>
+      )}
+
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="gfill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#4d7c0f" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#4d7c0f" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={area} fill="url(#gfill)" />
+        <path d={line} fill="none" stroke="#4d7c0f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {activeIndex !== null && (
+          <line x1={xs[activeIndex]} y1={PAD - 4} x2={xs[activeIndex]} y2={H - PAD + 4} stroke="#4d7c0f" strokeOpacity="0.22" strokeDasharray="3 3" />
+        )}
+        {xs.map((x, i) => (
+          <circle
+            key={i}
+            cx={x}
+            cy={ys[i]}
+            r={activeIndex === i ? 5.5 : 4}
+            fill="#4d7c0f"
+            style={{ cursor: "pointer" }}
+            onMouseEnter={() => setActiveIndex(i)}
+            onMouseLeave={() => setActiveIndex(null)}
+          />
+        ))}
+      </svg>
+    </div>
   );
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function Dashboard() {
+  const { user } = useAuth();
+  const userName = user?.nama?.split(' ')[0] ?? 'Kamu';
   const navigate = useNavigate();
   const [children, setChildren] = useState<ChildOption[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<number | null>(null);
@@ -187,14 +210,13 @@ export default function Dashboard() {
       })
       .catch(() => {});
 
-    healthLogService.getAllLogs()
-      .then((rows) => {
-        if (cancelled || rows.length === 0) return;
-        const latest = [...rows].sort((a, b) => b.date.localeCompare(a.date))[0];
+    healthLogService.getTodayLog()
+      .then((log) => {
+        if (cancelled || !log) return;
 
-        const hydrationPct = Math.max(0, Math.min(100, Math.round((latest.water_glasses / 8) * 100)));
-        const sleepPct = Math.max(0, Math.min(100, Math.round((latest.sleep_hours / 8) * 100)));
-        const supplementPct = latest.took_supplement ? 90 : 35;
+        const hydrationPct = Math.max(0, Math.min(100, Math.round((log.water_glasses / 8) * 100)));
+        const sleepPct = Math.max(0, Math.min(100, Math.round((log.sleep_hours / 8) * 100)));
+        const supplementPct = log.took_supplement ? 100 : 0;
 
         setHealthItems([
           {
@@ -207,14 +229,14 @@ export default function Dashboard() {
           {
             icon: iconSleep,
             label: "Sleep Quality",
-            value: `${latest.sleep_hours} hrs`,
+            value: `${log.sleep_hours} hrs`,
             percent: sleepPct,
             color: "#3b82f6",
           },
           {
             icon: iconSupplement,
             label: "Supplement Intake",
-            value: latest.took_supplement ? "Optimal" : "Need Attention",
+            value: log.took_supplement ? "Took" : "Pending",
             percent: supplementPct,
             color: "#22c55e",
           },
@@ -272,17 +294,25 @@ export default function Dashboard() {
           setHeightSub(hDelta === null ? "No previous data" : `${hDelta >= 0 ? "+" : ""}${hDelta.toFixed(1)} cm ${hDelta >= 0 ? "↑" : "↓"}`);
           setWeightSub(wDelta === null ? "No previous data" : `${wDelta >= 0 ? "+" : ""}${wDelta.toFixed(1)} kg ${wDelta >= 0 ? "↑" : "↓"}`);
 
-          const pNum = extractPercentileNumber(recent[recent.length - 1].persentilTinggi);
-          if (pNum !== null) {
-            if (pNum <= 3) {
-              setStuntingValue("High");
-              setStuntingSub("Monitor closely");
-            } else if (pNum <= 10) {
-              setStuntingValue("Moderate");
-              setStuntingSub("Need attention");
-            } else {
-              setStuntingValue("Low");
-              setStuntingSub("Safe");
+          const lastRec = recent[recent.length - 1];
+          const hasAiPrediction = lastRec.risikoStuntingMl !== null;
+
+          if (hasAiPrediction) {
+            setStuntingValue(lastRec.risikoStuntingMl ?? "Unknown");
+            setStuntingSub(lastRec.mlConfidence ? `${lastRec.mlConfidence.toFixed(1)}% confidence` : "Analyzing...");
+          } else {
+            const pNum = extractPercentileNumber(lastRec.persentilTinggi);
+            if (pNum !== null) {
+              if (pNum <= 3) {
+                setStuntingValue("High");
+                setStuntingSub("Monitor closely");
+              } else if (pNum <= 10) {
+                setStuntingValue("Moderate");
+                setStuntingSub("Need attention");
+              } else {
+                setStuntingValue("Low");
+                setStuntingSub("Safe");
+              }
             }
           }
         }
@@ -309,7 +339,7 @@ export default function Dashboard() {
 
         {/* Greeting */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <h1 className="text-3xl font-extrabold text-gray-900">Good morning, Sarah!</h1>
+            <h1 className="text-3xl font-extrabold text-gray-900">Good morning, {userName}!</h1>
             <p className="text-gray-500 mt-1 text-sm">Mari lanjutkan perjalanan nutrisi optimal untuk si kecil bersama NutriGrow.</p>
         </div>
 
@@ -341,7 +371,7 @@ export default function Dashboard() {
                 </div>
                 <p className="text-xs text-gray-400 mt-1 max-w-sm">Pantau perkembangan bayi Anda melalui grafik pertumbuhan kami yang komprehensif. Lacak tinggi, berat badan, dan risiko stunting untuk memastikan ia mencapai target perkembangan dengan akurat.</p>
               </div>
-              <span className="flex items-center gap-1 text-xs font-medium text-[#4d7c0f] bg-green-50 border border-green-200 rounded-full px-3 py-1 flex-shrink-0"><img src={iconHealthyRange} className="w-4 h-4 object-contain" alt="" /> Within Healthy Range</span>
+              {/* <span className="flex items-center gap-1 text-xs font-medium text-[#4d7c0f] bg-green-50 border border-green-200 rounded-full px-3 py-1 flex-shrink-0"><img src={iconHealthyRange} className="w-4 h-4 object-contain" alt="" /> Within Healthy Range</span> */}
             </div>
             <div className="grid grid-cols-4 gap-3 mt-4">
               {[
@@ -357,7 +387,10 @@ export default function Dashboard() {
               ))}
               <button
                 type="button"
-                onClick={() => navigate("/growth-tracker")}
+                onClick={() => {
+                  window.scrollTo(0, 0);
+                  navigate("/growth-tracker")}
+                }
                 className="bg-[#4d7c0f] rounded-xl p-3 flex flex-col justify-between cursor-pointer hover:bg-[#3a5a00] transition text-left border-none w-full"
               >
                 <p className="text-xs text-green-200">Explore more!</p>
@@ -402,7 +435,10 @@ export default function Dashboard() {
             <div className="mt-auto flex justify-center">
               <button
                 type="button"
-                onClick={() => navigate("/health-log")}
+                onClick={() => {
+                  window.scrollTo(0, 0);
+                  navigate("/health-log")}
+                }
                 className="bg-[#4d7c0f] text-white font-semibold rounded-xl py-3 px-8 text-sm hover:bg-[#3a5a00] transition"
               >
                 More log data
