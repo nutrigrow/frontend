@@ -127,7 +127,7 @@ export const authService = {
   /** Ambil data user yang sedang login. */
   getMe: async () => {
     const { data } = await apiClient.get('/api/auth/me');
-    return data.data;
+    return data.data.user;
   },
 
   /** Redirect ke Google OAuth (backend yang handle). */

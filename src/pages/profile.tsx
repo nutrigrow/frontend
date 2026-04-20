@@ -47,7 +47,7 @@ interface ChildProfile {
   jenisKelamin: "LAKI_LAKI" | "PEREMPUAN";
 }
 
-type ActiveMenu = "alamat" | "profil-anak" | "reset-password";
+type ActiveMenu = "data-diri" | "alamat" | "profil-anak" | "reset-password";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const mapAddr = (a: BackendAddress): Address => ({
@@ -231,8 +231,8 @@ function MenuItem({ icon, label, active, onClick }: {
 
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function EditProfile() {
-  const { user } = useAuth();
-  const [activeMenu, setActiveMenu] = useState<ActiveMenu>("alamat");
+  const { user, refreshUser } = useAuth();
+  const [activeMenu, setActiveMenu] = useState<ActiveMenu>("data-diri");
 
   // Address state
   const [addresses, setAddresses]           = useState<Address[]>([]);
@@ -252,6 +252,26 @@ export default function EditProfile() {
   const [pwSaving, setPwSaving]     = useState(false);
   const [pwError, setPwError]       = useState("");
   const [pwSuccess, setPwSuccess]   = useState("");
+
+  // Data Diri state
+  const [personalData, setPersonalData] = useState({ 
+    nama: user?.nama || "", 
+    tinggiBadanIbu: user?.tinggiBadanIbu || "" 
+  });
+  const [pdSaving, setPdSaving]         = useState(false);
+  const [pdError, setPdError]           = useState("");
+  const [pdSuccess, setPdSuccess]       = useState("");
+  const [isEditingPD, setIsEditingPD]   = useState(false);
+
+  // Sync personal data when user context updates
+  useEffect(() => {
+    if (user) {
+      setPersonalData({
+        nama: user.nama,
+        tinggiBadanIbu: user.tinggiBadanIbu || ""
+      });
+    }
+  }, [user]);
 
   // Load addresses
   useEffect(() => {
@@ -386,6 +406,26 @@ export default function EditProfile() {
     }
   };
 
+  const handleSavePersonalData = async () => {
+    setPdError(""); setPdSuccess("");
+    if (!personalData.nama.trim()) { setPdError("Nama tidak boleh kosong."); return; }
+    
+    setPdSaving(true);
+    try {
+      await apiClient.patch("/api/auth/me", {
+        nama: personalData.nama,
+        tinggiBadanIbu: personalData.tinggiBadanIbu ? parseFloat(personalData.tinggiBadanIbu.toString()) : null
+      });
+      await refreshUser();
+      setPdSuccess("Data diri berhasil diperbarui!");
+      setIsEditingPD(false);
+    } catch (e: any) {
+      setPdError(e.response?.data?.message || "Gagal memperbarui data diri.");
+    } finally {
+      setPdSaving(false);
+    }
+  };
+
   const strengthLabel = ["", "Weak", "Fair", "Good", "Strong"][pwStrength];
   const strengthColor = ["", "#ef4444", "#f97316", "#eab308", "#22c55e"][pwStrength];
 
@@ -411,10 +451,10 @@ export default function EditProfile() {
           </div>
           <p className="font-bold text-gray-900 text-lg">{user?.nama ?? "—"}</p>
           <p className="text-sm text-gray-400">{user?.email ?? ""}</p>
-          <div className="mt-2 text-left w-full max-w-sm">
+          {/* <div className="mt-2 text-left w-full max-w-sm">
             <p className="font-bold text-gray-900">Personal Information</p>
             <p className="text-xs text-gray-500 mt-0.5">Update your personal details and how we can reach you.</p>
-          </div>
+          </div> */}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
@@ -423,6 +463,7 @@ export default function EditProfile() {
           <div className="md:col-span-1 bg-white rounded-2xl p-4 shadow-sm">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-2 mb-3">Main Menu</p>
             <div className="space-y-1">
+              <MenuItem icon={fotoProfile}  label="Data Diri"      active={activeMenu === "data-diri"}      onClick={() => setActiveMenu("data-diri")} />
               <MenuItem icon={iconAlamat}   label="Alamat"         active={activeMenu === "alamat"}         onClick={() => setActiveMenu("alamat")} />
               <MenuItem icon={iconAnak}     label="Profil Anak"    active={activeMenu === "profil-anak"}    onClick={() => setActiveMenu("profil-anak")} />
               <MenuItem icon={iconPassword} label="Reset Password" active={activeMenu === "reset-password"} onClick={() => setActiveMenu("reset-password")} />
@@ -431,6 +472,99 @@ export default function EditProfile() {
 
           {/* Content */}
           <div className="md:col-span-3 space-y-4">
+
+            {/* ── DATA DIRI ── */}
+            {activeMenu === "data-diri" && (
+              <div className="bg-white rounded-2xl p-6 shadow-sm">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900 mb-1">Personal Information</h2>
+                    <p className="text-sm text-gray-400">Update your basic profile details here.</p>
+                  </div>
+                  {!isEditingPD && (
+                    <button 
+                      onClick={() => setIsEditingPD(true)}
+                      className="flex items-center gap-2 text-sm font-semibold text-[#4d7c0f] hover:text-[#3a5a00] transition"
+                    >
+                      <img src={editsign} alt="" className="w-4 h-4" />
+                      Edit Profil
+                    </button>
+                  )}
+                </div>
+                
+                {pdError && <p className="text-xs text-red-500 mb-4 bg-red-50 rounded-lg px-3 py-2">{pdError}</p>}
+                {pdSuccess && <p className="text-xs text-green-600 mb-4 bg-green-50 rounded-lg px-3 py-2">{pdSuccess}</p>}
+                
+                {isEditingPD ? (
+                  /* EDIT MODE */
+                  <>
+                    <div className="space-y-5">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Nama Lengkap</label>
+                        <input 
+                          type="text" 
+                          placeholder="Masukkan nama lengkap"
+                          className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
+                          value={personalData.nama}
+                          onChange={e => setPersonalData(p => ({ ...p, nama: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Tinggi Badan Ibu (cm)</label>
+                        <input 
+                          type="number" 
+                          placeholder="Contoh: 155"
+                          className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
+                          value={personalData.tinggiBadanIbu}
+                          onChange={e => setPersonalData(p => ({ ...p, tinggiBadanIbu: e.target.value }))}
+                        />
+                        <p className="text-[10px] text-gray-400 mt-1">Data ini digunakan untuk perhitungan akurat pada prediksi stunting.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 mt-6">
+                      <button 
+                        onClick={() => {
+                          setIsEditingPD(false);
+                          setPersonalData({ nama: user?.nama || "", tinggiBadanIbu: user?.tinggiBadanIbu || "" });
+                        }}
+                        className="text-gray-600 px-4 py-2 rounded-xl hover:bg-gray-100 transition text-sm"
+                      >
+                        Batal
+                      </button>
+                      <button 
+                        onClick={handleSavePersonalData} 
+                        disabled={pdSaving}
+                        className="bg-[#4d7c0f] text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-[#3a5a00] transition text-sm disabled:opacity-60"
+                      >
+                        {pdSaving ? "Menyimpan..." : "Simpan Perubahan"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  /* VIEW MODE */
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Nama Lengkap</p>
+                        <p className="text-sm text-gray-900 font-medium">{user?.nama || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Tinggi Badan Ibu</p>
+                        <p className="text-sm text-gray-900 font-medium">
+                          {user?.tinggiBadanIbu ? `${user.tinggiBadanIbu} cm` : "Belum diisi"}
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</p>
+                      <p className="text-sm text-gray-500 font-medium">{user?.email || "—"}</p>
+                      <p className="text-[10px] text-gray-400 mt-1 italic">* Email tidak dapat diubah (terhubung ke akun Google/Login)</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ── ALAMAT ── */}
             {activeMenu === "alamat" && (
