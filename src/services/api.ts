@@ -63,7 +63,7 @@ apiClient.interceptors.response.use(
 
       try {
         const { data } = await axios.post(`${API_URL}/api/auth/refresh`, { refreshToken });
-        const { accessToken, refreshToken: newRefresh } = data.data;
+        const { accessToken, refreshToken: newRefresh } = data.data.tokens;
         tokenStorage.setTokens(accessToken, newRefresh);
 
         // Retry semua request yang tertunda
