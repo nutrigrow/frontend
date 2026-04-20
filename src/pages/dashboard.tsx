@@ -21,7 +21,7 @@ import iconHealthyRange  from "../assets/icons/icon-healthyrange.png";
 import iconTeleNutri     from "../assets/icons/icon-tele-nutritionist.png";
 import iconNutriShop     from "../assets/icons/icon-nutrishop.png";
 import iconWHO           from "../assets/icons/icon-who.png";
-import { childrenService, type ApiChild, type ApiPercentileItem } from "../services/children.service";
+import { childrenService } from "../services/children.service";
 import { healthLogService } from "../services/healthLog.service";
 import { shopService } from "../services/shop.service";
 import { useAuth } from "../context/AuthContext";
@@ -92,19 +92,22 @@ const defaultShopItems: ShopItem[] = [
   { label: "Vegetable Puree",   image: shopImg4 },
 ];
 
-// ── Sparkline ──────────────────────────────────────────────────────────────
-const formatAgeLabel = (days: number): string => {
-  const months = Math.max(1, Math.round(days / 30.44));
-  return `${months} MONTHS`;
-};
 
-const extractPercentileNumber = (raw: string): number | null => {
+// ── Helpers ───────────────────────────────────────────────────────────────
+const extractPercentileNumber = (raw: string | null | undefined): number | null => {
+  if (!raw) return null;
   const m = raw.match(/-?\d+(\.\d+)?/);
   if (!m) return null;
   const num = Number(m[0]);
   return Number.isNaN(num) ? null : num;
 };
 
+const formatAgeLabel = (days: number): string => {
+  const months = Math.max(1, Math.round(days / 30.44));
+  return `${months} MONTHS`;
+};
+
+// ── Sparkline ──────────────────────────────────────────────────────────────
 function Sparkline({ data }: { data: GrowthPoint[] }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const W = 520, H = 160, PAD = 20;
@@ -180,13 +183,13 @@ export default function Dashboard() {
   const [selectedChildId, setSelectedChildId] = useState<number | null>(null);
   const [selectedChild, setSelectedChild] = useState("Leo");
 
-  const [growthData, setGrowthData] = useState<GrowthPoint[]>(defaultGrowthData);
-  const [heightValue, setHeightValue] = useState("78.5 cm");
-  const [weightValue, setWeightValue] = useState("10.4 kg");
-  const [heightSub, setHeightSub] = useState("+2.1% ↑");
-  const [weightSub, setWeightSub] = useState("+1.5% ↑");
-  const [stuntingValue, setStuntingValue] = useState("Low");
-  const [stuntingSub, setStuntingSub] = useState("Safe");
+  const [growthData, setGrowthData] = useState<GrowthPoint[]>([]);
+  const [heightValue, setHeightValue] = useState("—");
+  const [weightValue, setWeightValue] = useState("—");
+  const [heightSub, setHeightSub] = useState("Loading...");
+  const [weightSub, setWeightSub] = useState("Loading...");
+  const [stuntingValue, setStuntingValue] = useState("—");
+  const [stuntingSub, setStuntingSub] = useState("Loading...");
 
   const [healthItems, setHealthItems] = useState<HealthItem[]>(defaultHealthItems);
   const [shopItems, setShopItems] = useState<ShopItem[]>(defaultShopItems);
@@ -206,9 +209,30 @@ export default function Dashboard() {
         if (rows.length > 0) {
           setSelectedChildId(rows[0].id);
           setSelectedChild(`${rows[0].namaDepan}${rows[0].namaAkhir ? ` ${rows[0].namaAkhir}` : ""}`);
+        } else {
+          setSelectedChildId(null);
+          setSelectedChild("No child listed");
+          setGrowthData([]);
+          setHeightValue("—");
+          setWeightValue("—");
+          setHeightSub("Add a child first");
+          setWeightSub("Add a child first");
+          setStuntingValue("—");
+          setStuntingSub("No data");
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (cancelled) return;
+        setSelectedChildId(null);
+        setSelectedChild("No child listed");
+        setGrowthData([]);
+        setHeightValue("—");
+        setWeightValue("—");
+        setHeightSub("Error loading data");
+        setWeightSub("Error loading data");
+        setStuntingValue("—");
+        setStuntingSub("Error");
+      });
 
     healthLogService.getTodayLog()
       .then((log) => {
@@ -265,8 +289,8 @@ export default function Dashboard() {
     let cancelled = false;
 
     Promise.all([
-      childrenService.getLatestGrowth(selectedChildId),
-      childrenService.getPercentile(selectedChildId),
+      childrenService.getLatestGrowth(selectedChildId).catch(() => null),
+      childrenService.getPercentile(selectedChildId).catch(() => []),
     ])
       .then(([latest, percentile]) => {
         if (cancelled) return;
@@ -291,6 +315,9 @@ export default function Dashboard() {
           const hDelta = prev ? current.height - prev.height : null;
           const wDelta = prevWeight !== null ? currentWeight - prevWeight : null;
 
+          setHeightValue(`${(Number(current.height) || 0).toFixed(1)} cm`);
+          setWeightValue(`${(Number(current.weight) || 0).toFixed(1)} kg`);
+
           setHeightSub(hDelta === null ? "No previous data" : `${hDelta >= 0 ? "+" : ""}${hDelta.toFixed(1)} cm ${hDelta >= 0 ? "↑" : "↓"}`);
           setWeightSub(wDelta === null ? "No previous data" : `${wDelta >= 0 ? "+" : ""}${wDelta.toFixed(1)} kg ${wDelta >= 0 ? "↑" : "↓"}`);
 
@@ -302,28 +329,36 @@ export default function Dashboard() {
             setStuntingSub(lastRec.mlConfidence ? `${lastRec.mlConfidence.toFixed(1)}% confidence` : "Analyzing...");
           } else {
             const pNum = extractPercentileNumber(lastRec.persentilTinggi);
-            if (pNum !== null) {
-              if (pNum <= 3) {
-                setStuntingValue("High");
-                setStuntingSub("Monitor closely");
-              } else if (pNum <= 10) {
-                setStuntingValue("Moderate");
-                setStuntingSub("Need attention");
-              } else {
-                setStuntingValue("Low");
-                setStuntingSub("Safe");
-              }
+            if (pNum !== null && pNum <= 3) {
+              setStuntingValue("High");
+              setStuntingSub("Monitor closely");
+            } else if (pNum !== null && pNum <= 10) {
+              setStuntingValue("Moderate");
+              setStuntingSub("Need attention");
+            } else {
+              // fallback: covers pNum > 10 AND pNum === null (unparseable)
+              setStuntingValue("Low");
+              setStuntingSub("Safe");
             }
           }
+        } else {
+          // If no records, reset to "no data" state
+          setGrowthData([]);
+          setHeightValue("—");
+          setWeightValue("—");
+          setHeightSub("No data yet");
+          setWeightSub("No data yet");
+          setStuntingValue("—");
+          setStuntingSub("Record measurement first");
         }
 
         if (latest) {
-          setHeightValue(`${Number(latest.tinggiBadan).toFixed(1)} cm`);
-          setWeightValue(`${Number(latest.beratBadan).toFixed(1)} kg`);
+          setHeightValue(`${(Number(latest.tinggiBadan) || 0).toFixed(1)} cm`);
+          setWeightValue(`${(Number(latest.beratBadan) || 0).toFixed(1)} kg`);
         } else if (recent.length > 0) {
           const fallback = recent[recent.length - 1];
-          setHeightValue(`${Number(fallback.tinggiBadan).toFixed(1)} cm`);
-          setWeightValue(`${Number(fallback.beratBadan).toFixed(1)} kg`);
+          setHeightValue(`${(Number(fallback.tinggiBadan) || 0).toFixed(1)} cm`);
+          setWeightValue(`${(Number(fallback.beratBadan) || 0).toFixed(1)} kg`);
         }
       })
       .catch(() => {});

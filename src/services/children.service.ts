@@ -59,21 +59,21 @@ const formatDateDisplay = (iso: string): string => {
 };
 
 export const transformBmiChartData = (items: ApiBmiChartItem[]) =>
-  items.map((item) => ({
-    age:   formatAgeLabel(item.usiaHari),
-    child: item.bmiAnak,
+  (items || []).map((item) => ({
+    age:   formatAgeLabel(item.usiaHari || 0),
+    child: Number(item.bmiAnak) || 0,
     p50:   item.bmiStandarWho ?? undefined,
   }));
 
 export const transformPercentileToMeasurements = (items: ApiPercentileItem[]) =>
-  items.map((item) => ({
+  (items || []).map((item) => ({
     id:               item.id,
     date:             formatDateDisplay(item.tanggalCatat),
-    age:              formatAgeMonths(item.usiaHari),
-    height:           `${item.tinggiBadan.toFixed(1)} cm`,
-    weight:           `${item.beratBadan.toFixed(1)} kg`,
-    heightPct:        item.persentilTinggi,
-    weightPct:        item.persentilBerat,
+    age:              formatAgeMonths(item.usiaHari || 0),
+    height:           `${(Number(item.tinggiBadan) || 0).toFixed(1)} cm`,
+    weight:           `${(Number(item.beratBadan) || 0).toFixed(1)} kg`,
+    heightPct:        item.persentilTinggi || 'N/A',
+    weightPct:        item.persentilBerat || 'N/A',
     risikoStuntingMl: item.risikoStuntingMl,
     mlConfidence:     item.mlConfidence,
   }));
@@ -82,9 +82,9 @@ export const transformToSubChartData = (
   items: ApiPercentileItem[],
   field: 'height' | 'weight'
 ) =>
-  [...items].reverse().map((item) => ({
-    age:   formatAgeLabel(item.usiaHari),
-    child: field === 'height' ? item.tinggiBadan : item.beratBadan,
+  [...(items || [])].reverse().map((item) => ({
+    age:   formatAgeLabel(item.usiaHari || 0),
+    child: field === 'height' ? (Number(item.tinggiBadan) || 0) : (Number(item.beratBadan) || 0),
   }));
 
 // ─── Service ──────────────────────────────────────────────────────────────────

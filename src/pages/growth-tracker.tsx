@@ -430,13 +430,16 @@ type StuntingCategory = 'low' | 'moderate' | 'high'
 
 const getStuntingCategory = (pct: number, aiLabel?: string | null): StuntingCategory => {
   if (aiLabel) {
-    const lowAlpha = aiLabel.toLowerCase()
+    const lowAlpha = String(aiLabel).toLowerCase()
     if (lowAlpha.includes('high')) return 'high'
     if (lowAlpha.includes('moderate')) return 'moderate'
-    return 'low'
+    if (lowAlpha.includes('low')) return 'low'
   }
-  if (pct <= 3) return 'high'
-  if (pct <= 10) return 'moderate'
+  
+  const p = Number(pct)
+  if (isNaN(p)) return 'low' // Default safest
+  if (p <= 3) return 'high'
+  if (p <= 10) return 'moderate'
   return 'low'
 }
 
@@ -557,7 +560,7 @@ const StuntingInsightModal = ({
   if (!open) return null
 
   const category = getStuntingCategory(stuntingPct)
-  const config   = STUNTING_CONFIG[category]
+  const config   = STUNTING_CONFIG[category] || STUNTING_CONFIG.low
 
   const SectionBlock = ({
     title, items, dotColor,
@@ -679,7 +682,7 @@ const StuntingCard = ({
   const isTablet = bp === 'tablet'
 
   const category = getStuntingCategory(stuntingPct, aiLabel)
-  const config    = STUNTING_CONFIG[category]
+  const config    = STUNTING_CONFIG[category] || STUNTING_CONFIG.low
 
   return (
     <>
@@ -1307,8 +1310,8 @@ const GrowthTracker = () => {
           childrenService.getPercentile(selectedChildId),
         ])
         if (latest) {
-          setLatestHeight(parseFloat(String(latest.tinggiBadan)).toFixed(1))
-          setLatestWeight(parseFloat(String(latest.beratBadan)).toFixed(1))
+          setLatestHeight((Number(latest.tinggiBadan) || 0).toFixed(1))
+          setLatestWeight((Number(latest.beratBadan) || 0).toFixed(1))
           const d = new Date(latest.tanggalCatat)
           setLastUpdated(`Updated ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
         } else {
@@ -1364,8 +1367,8 @@ const GrowthTracker = () => {
         childrenService.getPercentile(selectedChildId),
       ])
       if (latest) {
-        setLatestHeight(parseFloat(String(latest.tinggiBadan)).toFixed(1))
-        setLatestWeight(parseFloat(String(latest.beratBadan)).toFixed(1))
+        setLatestHeight((Number(latest.tinggiBadan) || 0).toFixed(1))
+        setLatestWeight((Number(latest.beratBadan) || 0).toFixed(1))
         const d = new Date(latest.tanggalCatat)
         setLastUpdated(`Updated ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
       }
