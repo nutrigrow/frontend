@@ -38,7 +38,7 @@ function App() {
               <Route path="/auth/callback" element={<OAuthCallback />} />
               <Route path="/nutrishop"     element={<NutriShop />} />
               <Route path="/product/:id"   element={<ProductDetail />} />
-              <Route path="/checkout"      element={<Checkout />} />
+              <Route path="/checkout"      element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
 
               {/* ── Auth only: redirect ke /dashboard jika sudah login ── */}
               <Route path="/sign-in"        element={<PublicOnlyRoute><SignIn /></PublicOnlyRoute>} />
@@ -51,6 +51,7 @@ function App() {
               <Route path="/health-log"     element={<ProtectedRoute><HealthLog /></ProtectedRoute>} />
               <Route path="/profile"        element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/cart"           element={<ProtectedRoute><Cart /></ProtectedRoute>} />
+              <Route path="/orders"         element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
               <Route path="/order/:id"      element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
             </Routes>
           </div>
