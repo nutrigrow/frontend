@@ -36,7 +36,10 @@ type SaveStatus = 'idle' | 'success' | 'error'
 
 // ─── Chart Data ───────────────────────────────────────────────────────────────
 type Measurement = {
+  id: number;
   date: string; age: string; height: string; weight: string; heightPct: string; weightPct: string
+  risikoStuntingMl: string | null
+  mlConfidence: number | null
 }
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
@@ -278,7 +281,7 @@ const validateInputs = (height: string, weight: string, date: string) => {
 const LogNewGrowthSection = ({
   bp, heightVal, setHeightVal, weightVal, setWeightVal, dateVal, setDateVal,
   onSave, heightError, weightError, dateError, editIndex, onCancelEdit,
-  children, selectedChildId, onSelectChild,
+  children, selectedChildId, onSelectChild, saving,
 }: {
   bp: 'mobile' | 'tablet' | 'desktop'
   heightVal: string; setHeightVal: (v: string) => void
@@ -290,6 +293,7 @@ const LogNewGrowthSection = ({
   children: { id: number; namaDepan: string; namaAkhir: string | null }[]
   selectedChildId: number | null
   onSelectChild: (id: number) => void
+  saving?: boolean
 }) => {
   const isMobile = bp === 'mobile'
   const isTablet = bp === 'tablet'
@@ -348,8 +352,8 @@ const LogNewGrowthSection = ({
             <InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" error={weightError} />
           </div>
           <DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} error={dateError} />
-          <button onClick={onSave} className="flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[50px] w-full font-[Montserrat,sans-serif] font-black text-lg text-white cursor-pointer">
-            {saveLabel}
+          <button onClick={onSave} disabled={saving} className={`flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[50px] w-full font-[Montserrat,sans-serif] font-black text-lg text-white cursor-pointer ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}>
+            {saving ? 'Saving...' : saveLabel}
           </button>
         </div>
       </div>
@@ -383,8 +387,8 @@ const LogNewGrowthSection = ({
               <div className="flex-1 min-w-0"><InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" error={weightError} /></div>
               <div className="flex-[1.4] min-w-0"><DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} error={dateError} /></div>
             </div>
-            <button onClick={onSave} className="flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[54px] w-full font-[Montserrat,sans-serif] font-black text-base text-white cursor-pointer">
-              {saveLabel}
+            <button onClick={onSave} disabled={saving} className={`flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[54px] w-full font-[Montserrat,sans-serif] font-black text-base text-white cursor-pointer ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}>
+              {saving ? 'Saving...' : saveLabel}
             </button>
           </>
         ) : (
@@ -410,8 +414,8 @@ const LogNewGrowthSection = ({
                 <InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" error={weightError} />
                 <DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} error={dateError} />
               </div>
-              <button onClick={onSave} className="flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[50px] w-full font-[Montserrat,sans-serif] font-black text-lg text-white cursor-pointer">
-                {saveLabel}
+              <button onClick={onSave} disabled={saving} className={`flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[50px] w-full font-[Montserrat,sans-serif] font-black text-lg text-white cursor-pointer ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                {saving ? 'Saving...' : saveLabel}
               </button>
             </div>
           </>
@@ -424,10 +428,23 @@ const LogNewGrowthSection = ({
 // ─── Stunting Category Helper ─────────────────────────────────────────────────
 type StuntingCategory = 'low' | 'moderate' | 'high'
 
-const getStuntingCategory = (pct: number): StuntingCategory => {
-  if (pct < 20) return 'low'
-  if (pct < 40) return 'moderate'
-  return 'high'
+const getStuntingCategory = (pct: number, aiLabel?: string | null): StuntingCategory => {
+  if (aiLabel) {
+    const lowAlpha = aiLabel.toLowerCase()
+    if (lowAlpha.includes('high')) return 'high'
+    if (lowAlpha.includes('moderate')) return 'moderate'
+    return 'low'
+  }
+  if (pct <= 3) return 'high'
+  if (pct <= 10) return 'moderate'
+  return 'low'
+}
+
+const extractPercentileNumber = (raw: string): number | null => {
+  const m = raw.match(/-?\d+(\.\d+)?/)
+  if (!m) return null
+  const num = Number(m[0])
+  return Number.isNaN(num) ? null : num
 }
 
 const STUNTING_CONFIG: Record<StuntingCategory, {
@@ -653,14 +670,15 @@ const StatCard = ({ icon, label, value, unit, delta, deltaUp, sub, bp }: {
 }
 
 // ─── Stunting Card (clickable, pastel background by category) ─────────────────
-const StuntingCard = ({
-  stuntingPct, bp,
-}: {
-  stuntingPct: number; bp?: 'mobile' | 'tablet' | 'desktop'
+const StuntingCard = ({ 
+  stuntingValue, stuntingSub, stuntingPct, bp, aiLabel 
+}: { 
+  stuntingValue: string; stuntingSub: string; stuntingPct: number; bp: 'mobile' | 'tablet' | 'desktop'; aiLabel?: string | null
 }) => {
   const [modalOpen, setModalOpen] = useState(false)
-  const isTablet  = bp === 'tablet'
-  const category  = getStuntingCategory(stuntingPct)
+  const isTablet = bp === 'tablet'
+
+  const category = getStuntingCategory(stuntingPct, aiLabel)
   const config    = STUNTING_CONFIG[category]
 
   return (
@@ -683,7 +701,7 @@ const StuntingCard = ({
             <span className={`font-[Montserrat,sans-serif] font-black leading-9 absolute left-0 top-1/2 -translate-y-1/2 ${isTablet ? 'text-[24px]' : 'text-[30px]'}`}
               style={{ color: config.badgeText }}
             >
-              {stuntingPct}<span className={isTablet ? 'text-lg' : 'text-2xl'}>%</span>
+              {stuntingValue}
             </span>
             {/* Details button */}
             <button
@@ -713,7 +731,7 @@ const StuntingCard = ({
             className="font-[Montserrat,sans-serif] font-semibold text-xs leading-4"
             style={{ color: config.badgeText }}
           >
-            {config.icon} {config.label}
+            {config.icon} {stuntingSub}
           </span>
         </div>
       </div>
@@ -728,17 +746,50 @@ const StuntingCard = ({
 }
 
 const KeyStatsSection = ({
-  bp, height, weight, stuntingPct, lastUpdated,
+  bp, height, weight, lastUpdated, measurements
 }: {
   bp: 'mobile' | 'tablet' | 'desktop'
-  height: string; weight: string; stuntingPct: number; lastUpdated: string
-}) => (
-  <div className={`w-full mb-8 grid gap-6 ${bp === 'mobile' ? 'grid-cols-1' : 'grid-cols-3'}`}>
-    <StatCard icon={<IconHeightSvg />} label="Current Height" value={height} unit="cm" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
-    <StatCard icon={<IconWeightSvg />} label="Current Weight" value={weight} unit="kg" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
-    <StuntingCard stuntingPct={stuntingPct} bp={bp} />
-  </div>
-)
+  height: string; weight: string; lastUpdated: string; measurements: Measurement[]
+}) => {
+  // Derive dynamic stunting risk from latest measurement
+  let stuntingValue = "Unknown"
+  let stuntingSub = "No data yet"
+  let stuntingPct = 50 // default/neutral for modal
+  let aiLabel: string | null = null
+
+  if (measurements.length > 0) {
+    const last = measurements[0]
+    aiLabel = last.risikoStuntingMl
+    if (last.risikoStuntingMl) {
+      stuntingValue = last.risikoStuntingMl
+      stuntingSub = last.mlConfidence ? `${last.mlConfidence.toFixed(1)}% confidence` : "Analyzing..."
+      stuntingPct = last.mlConfidence ?? 50
+    } else {
+      const pNum = extractPercentileNumber(last.heightPct)
+      stuntingPct = pNum ?? 50
+      if (pNum !== null) {
+        if (pNum <= 3) {
+          stuntingValue = "High"
+          stuntingSub = "Monitor closely"
+        } else if (pNum <= 10) {
+          stuntingValue = "Moderate"
+          stuntingSub = "Need attention"
+        } else {
+          stuntingValue = "Low"
+          stuntingSub = "Safe"
+        }
+      }
+    }
+  }
+
+  return (
+    <div className={`w-full mb-8 grid gap-6 ${bp === 'mobile' ? 'grid-cols-1' : 'grid-cols-3'}`}>
+      <StatCard icon={<IconHeightSvg />} label="Current Height" value={height} unit="cm" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
+      <StatCard icon={<IconWeightSvg />} label="Current Weight" value={weight} unit="kg" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
+      <StuntingCard stuntingValue={stuntingValue} stuntingSub={stuntingSub} stuntingPct={stuntingPct} aiLabel={aiLabel} bp={bp} />
+    </div>
+  )
+}
 
 // ─── Chart Legend ─────────────────────────────────────────────────────────────
 const ChartLegend = ({ items }: { items: { color: string; dash?: boolean; isArea?: boolean; label: string }[] }) => (
@@ -1183,6 +1234,7 @@ const GrowthTracker = () => {
   const [dateError,   setDateError]   = useState<string | undefined>()
   const [editIndex, setEditIndex] = useState<number | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  const [saving, setSaving] = useState(false)
   const formRef = useRef<HTMLDivElement>(null)
 
   // ── Load children on mount ──
@@ -1219,7 +1271,7 @@ const GrowthTracker = () => {
       setBmiData(transformBmiChartData(bmi))
       setHeightData(transformToSubChartData(percentile, 'height'))
       setWeightData(transformToSubChartData(percentile, 'weight'))
-      setMeasurements(transformPercentileToMeasurements([...percentile].reverse()))
+      setMeasurements(transformPercentileToMeasurements(percentile))
     }).catch(() => {}).finally(() => { if (!cancelled) setChartsLoading(false) })
 
     return () => { cancelled = true }
@@ -1237,10 +1289,39 @@ const GrowthTracker = () => {
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50)
   }
 
-  const handleDelete = (index: number) => {
-    setMeasurements(prev => prev.filter((_, i) => i !== index))
-    if (editIndex === index) handleCancelEdit()
-    else if (editIndex !== null && index < editIndex) setEditIndex(editIndex - 1)
+  const handleDelete = async (index: number) => {
+    const recordId = measurements[index].id
+    if (!confirm('Are you sure you want to delete this measurement?')) return
+    
+    try {
+      await childrenService.deleteGrowthRecord(recordId)
+      setMeasurements(prev => prev.filter((_, i) => i !== index))
+      if (editIndex === index) handleCancelEdit()
+      else if (editIndex !== null && index < editIndex) setEditIndex(editIndex - 1)
+      
+      // Refresh charts after delete
+      if (selectedChildId) {
+        const [latest, bmi, percentile] = await Promise.all([
+          childrenService.getLatestGrowth(selectedChildId),
+          childrenService.getBmiChart(selectedChildId),
+          childrenService.getPercentile(selectedChildId),
+        ])
+        if (latest) {
+          setLatestHeight(parseFloat(String(latest.tinggiBadan)).toFixed(1))
+          setLatestWeight(parseFloat(String(latest.beratBadan)).toFixed(1))
+          const d = new Date(latest.tanggalCatat)
+          setLastUpdated(`Updated ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
+        } else {
+          setLatestHeight('—'); setLatestWeight('—'); setLastUpdated('No data yet')
+        }
+        setBmiData(transformBmiChartData(bmi))
+        setHeightData(transformToSubChartData(percentile, 'height'))
+        setWeightData(transformToSubChartData(percentile, 'weight'))
+        setMeasurements(transformPercentileToMeasurements(percentile))
+      }
+    } catch (err) {
+      alert('Failed to delete measurement')
+    }
   }
 
   const handleCancelEdit = () => {
@@ -1258,13 +1339,23 @@ const GrowthTracker = () => {
 
     const [dd, mm, yyyy] = dateVal.split('/')
     const isoDate = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`
-
+    
+    setSaving(true)
     try {
-      await childrenService.createGrowthRecord(selectedChildId, {
-        tinggiBadan: parseFloat(heightVal),
-        beratBadan:  parseFloat(weightVal),
-        tanggalCatat: isoDate,
-      })
+      if (editIndex !== null) {
+        const recordId = measurements[editIndex].id
+        await childrenService.updateGrowthRecord(recordId, {
+          tinggiBadan: parseFloat(heightVal),
+          beratBadan:  parseFloat(weightVal),
+          tanggalCatat: isoDate,
+        })
+      } else {
+        await childrenService.createGrowthRecord(selectedChildId, {
+          tinggiBadan: parseFloat(heightVal),
+          beratBadan:  parseFloat(weightVal),
+          tanggalCatat: isoDate,
+        })
+      }
 
       // Refresh charts
       const [latest, bmi, percentile] = await Promise.all([
@@ -1281,15 +1372,16 @@ const GrowthTracker = () => {
       setBmiData(transformBmiChartData(bmi))
       setHeightData(transformToSubChartData(percentile, 'height'))
       setWeightData(transformToSubChartData(percentile, 'weight'))
-      setMeasurements(transformPercentileToMeasurements([...percentile].reverse()))
+      setMeasurements(transformPercentileToMeasurements(percentile))
 
       setSaveStatus('success')
       setTimeout(() => setSaveStatus('idle'), 2500)
-      if (editIndex !== null) setEditIndex(null)
-      setHeightVal(''); setWeightVal('')
+      handleCancelEdit()
     } catch {
       setSaveStatus('error')
       setTimeout(() => setSaveStatus('idle'), 2500)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -1351,6 +1443,7 @@ const GrowthTracker = () => {
                 children={children}
                 selectedChildId={selectedChildId}
                 onSelectChild={setSelectedChildId}
+                saving={saving}
               />
             </div>
             {chartsLoading ? (
@@ -1364,7 +1457,7 @@ const GrowthTracker = () => {
                   bp={bp}
                   height={latestHeight}
                   weight={latestWeight}
-                  stuntingPct={measurements.length > 0 ? 17 : 0}
+                  measurements={measurements}
                   lastUpdated={lastUpdated}
                 />
                 <GrowthChartSection bp={bp} bmiData={bmiData} childName={childName} />

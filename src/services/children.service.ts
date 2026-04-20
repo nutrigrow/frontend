@@ -23,12 +23,15 @@ export interface ApiBmiChartItem {
 }
 
 export interface ApiPercentileItem {
+  id: number;
   tanggalCatat: string;
   usiaHari: number;
   tinggiBadan: number;
   beratBadan: number;
   persentilTinggi: string;
   persentilBerat: string;
+  risikoStuntingMl: string | null;
+  mlConfidence: number | null;
 }
 
 // ─── Transformers ─────────────────────────────────────────────────────────────
@@ -64,12 +67,15 @@ export const transformBmiChartData = (items: ApiBmiChartItem[]) =>
 
 export const transformPercentileToMeasurements = (items: ApiPercentileItem[]) =>
   items.map((item) => ({
-    date:      formatDateDisplay(item.tanggalCatat),
-    age:       formatAgeMonths(item.usiaHari),
-    height:    `${item.tinggiBadan.toFixed(1)} cm`,
-    weight:    `${item.beratBadan.toFixed(1)} kg`,
-    heightPct: item.persentilTinggi,
-    weightPct: item.persentilBerat,
+    id:               item.id,
+    date:             formatDateDisplay(item.tanggalCatat),
+    age:              formatAgeMonths(item.usiaHari),
+    height:           `${item.tinggiBadan.toFixed(1)} cm`,
+    weight:           `${item.beratBadan.toFixed(1)} kg`,
+    heightPct:        item.persentilTinggi,
+    weightPct:        item.persentilBerat,
+    risikoStuntingMl: item.risikoStuntingMl,
+    mlConfidence:     item.mlConfidence,
   }));
 
 export const transformToSubChartData = (
@@ -137,5 +143,17 @@ export const childrenService = {
   getPercentile: async (childId: number): Promise<ApiPercentileItem[]> => {
     const { data } = await apiClient.get(`/api/children/${childId}/growth/percentile`);
     return data.data as ApiPercentileItem[];
+  },
+  
+  updateGrowthRecord: async (
+    recordId: number,
+    payload: { tinggiBadan: number; beratBadan: number; tanggalCatat: string }
+  ) => {
+    const { data } = await apiClient.put(`/api/children/growth/${recordId}`, payload);
+    return data.data;
+  },
+
+  deleteGrowthRecord: async (recordId: number) => {
+    await apiClient.delete(`/api/children/growth/${recordId}`);
   },
 };
