@@ -119,6 +119,7 @@ export default function CartPage() {
   const [items, setItems] = useState<UiCartItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [cartError, setCartError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -184,23 +185,42 @@ export default function CartPage() {
     const current = items.find(i => i.id === id)
     if (!current) return
 
+    const previousQty = current.quantity
     setItems(prev => prev.map(i => (i.id === id ? { ...i, quantity: qty } : i)))
 
-    if (qty > current.quantity) {
-      try {
-        await shopService.addToCart(current.productId, qty - current.quantity)
-      } catch {
-        // Keep UI responsive even when incremental sync fails.
-      }
+    try {
+      await shopService.updateCartItemQuantity(id, qty)
+    } catch {
+      setItems(prev => prev.map(i => (i.id === id ? { ...i, quantity: previousQty } : i)))
+      setCartError('Gagal memperbarui kuantitas produk di keranjang')
     }
   }
 
-  const handleRemove = (id: number) => {
+  const handleRemove = async (id: number) => {
+    const previousItems = items
     setItems(prev => prev.filter(i => i.id !== id))
+
+    try {
+      await shopService.deleteCartItem(id)
+    } catch {
+      setItems(previousItems)
+      setCartError('Gagal menghapus produk dari keranjang')
+    }
   }
 
-  const handleDeleteChecked = () => {
+  const handleDeleteChecked = async () => {
+    const toDelete = items.filter(i => i.checked).map(i => i.id)
+    if (toDelete.length === 0) return
+
+    const previousItems = items
     setItems(prev => prev.filter(i => !i.checked))
+
+    try {
+      await Promise.all(toDelete.map((id) => shopService.deleteCartItem(id)))
+    } catch {
+      setItems(previousItems)
+      setCartError('Gagal menghapus beberapa item dari keranjang')
+    }
   }
 
   const handleCheckout = () => {
@@ -420,7 +440,9 @@ export default function CartPage() {
 
               {checkedCount > 0 && (
                 <button
-                  onClick={handleDeleteChecked}
+                  onClick={() => {
+                    void handleDeleteChecked()
+                  }}
                   style={{
                     background: 'none',
                     border: 'none',
@@ -524,7 +546,9 @@ export default function CartPage() {
                   quantity={item.quantity}
                   checked={item.checked}
                   onQuantityChange={handleQuantityChange}
-                  onRemove={handleRemove}
+                  onRemove={(id) => {
+                    void handleRemove(id)
+                  }}
                   onToggleCheck={handleToggleCheck}
                 />
               ))}
@@ -564,6 +588,23 @@ export default function CartPage() {
             >
               Ringkasan Belanja
             </h2>
+
+            {cartError && (
+              <p
+                style={{
+                  margin: 0,
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  background: '#FEF2F2',
+                  color: '#B91C1C',
+                  fontFamily: 'var(--font-heading), sans-serif',
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                {cartError}
+              </p>
+            )}
 
             <div
               style={{
