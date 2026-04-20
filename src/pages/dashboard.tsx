@@ -111,6 +111,17 @@ const formatAgeLabel = (days: number): string => {
   return `${years}y${months}m`;
 };
 
+const getStuntingStyle = (value: string) => {
+  const low = value.toLowerCase();
+  if (low.includes("high") || low.includes("stunting")) {
+    return { bg: "#FFEBEE", border: "#FFCDD2", text: "#B91C1C", label: "#E57373" };
+  }
+  if (low.includes("moderate") || low.includes("attention")) {
+    return { bg: "#FFF3E0", border: "#FFE0B2", text: "#E65100", label: "#FB8C00" };
+  }
+  return { bg: "#F1F8E9", border: "#C5E1A5", text: "#2E7D32", label: "#7CB342" };
+};
+
 // ── Sparkline ──────────────────────────────────────────────────────────────
 function Sparkline({ data }: { data: GrowthPoint[] }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -329,22 +340,31 @@ export default function Dashboard() {
           const hasAiPrediction = lastRec.risikoStuntingMl !== null;
 
           if (hasAiPrediction) {
-            setStuntingValue(lastRec.risikoStuntingMl ?? "Unknown");
-            setStuntingSub(lastRec.mlConfidence ? `${lastRec.mlConfidence.toFixed(1)}% confidence` : "Analyzing...");
+            const rawLabel = lastRec.risikoStuntingMl ?? "Unknown"
+            const lowAlpha = rawLabel.toLowerCase()
+            const conf = lastRec.mlConfidence ?? null
+            const isStunting = lowAlpha.includes('stunting')
+            const category = !isStunting ? 'low' : (conf != null && conf >= 65 ? 'high' : 'moderate')
+            setStuntingValue(category === 'high' ? 'High' : category === 'moderate' ? 'Moderate' : 'Low')
+            if (isStunting) {
+              setStuntingSub(conf != null ? `Stunting · ${conf.toFixed(1)}% confidence` : 'Stunting detected')
+            } else {
+              setStuntingSub(conf != null ? `Normal · ${conf.toFixed(1)}% confidence` : 'Normal growth')
+            }
           } else {
             const pNum = extractPercentileNumber(lastRec.persentilTinggi);
             if (pNum !== null && pNum <= 3) {
               setStuntingValue("High");
               setStuntingSub("Monitor closely");
-            } else if (pNum !== null && pNum <= 10) {
+            } else if (pNum !== null && pNum <= 15) {
               setStuntingValue("Moderate");
               setStuntingSub("Need attention");
             } else {
-              // fallback: covers pNum > 10 AND pNum === null (unparseable)
               setStuntingValue("Low");
-              setStuntingSub("Safe");
+              setStuntingSub("Normal growth");
             }
           }
+
         } else {
           // If no records, reset to "no data" state
           setGrowthData([]);
@@ -416,14 +436,21 @@ export default function Dashboard() {
               {[
                 { label: "Height", value: heightValue, sub: heightSub },
                 { label: "Weight", value: weightValue, sub: weightSub },
-                { label: "Stunting Risk", value: stuntingValue, sub: stuntingSub },
-              ].map(s => (
-                <div key={s.label} className="bg-gray-50 rounded-xl p-3 flex flex-col justify-between">
-                  <p className="text-[10px] font-bold tracking-wider text-slate-500">{s.label}</p>
-                  <p className="text-xl font-bold text-slate-900 mt-1">{s.value}</p>
-                  <p className="text-[11px] font-medium text-slate-400 mt-1 leading-tight">{s.sub}</p>
-                </div>
-              ))}
+                { label: "Stunting Risk", value: stuntingValue, sub: stuntingSub, isRisk: true },
+              ].map(s => {
+                const style = s.isRisk ? getStuntingStyle(s.value) : null;
+                return (
+                  <div 
+                    key={s.label} 
+                    className="rounded-xl p-3 flex flex-col justify-between transition-colors border border-transparent"
+                    style={style ? { backgroundColor: style.bg, borderColor: style.border } : { backgroundColor: '#f8fafc' }}
+                  >
+                    <p className="text-[10px] font-bold tracking-wider uppercase" style={{ color: style ? style.label : '#64748b' }}>{s.label}</p>
+                    <p className="text-xl font-bold mt-1" style={{ color: style ? style.text : '#0f172a' }}>{s.value}</p>
+                    <p className="text-[11px] font-medium mt-1 leading-tight" style={{ color: style ? style.text : '#94a3b8', opacity: style ? 0.7 : 1 }}>{s.sub}</p>
+                  </div>
+                );
+              })}
               <button
                 type="button"
                 onClick={() => {

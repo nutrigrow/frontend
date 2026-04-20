@@ -20,6 +20,8 @@ export interface ApiBmiChartItem {
   usiaHari: number;
   bmiAnak: number;
   bmiStandarWho: number | null;
+  bmiSd2Neg: number | null;
+  bmiSd2Pos: number | null;
 }
 
 export interface ApiPercentileItem {
@@ -60,9 +62,11 @@ const formatDateDisplay = (iso: string): string => {
 
 export const transformBmiChartData = (items: ApiBmiChartItem[]) =>
   (items || []).map((item) => ({
-    age:   formatAgeLabel(item.usiaHari || 0),
-    child: Number(item.bmiAnak) || 0,
-    p50:   item.bmiStandarWho ?? undefined,
+    age:    formatAgeLabel(item.usiaHari || 0),
+    child:  Number(item.bmiAnak) || 0,
+    p50:    item.bmiStandarWho ?? undefined,
+    sd2neg: item.bmiSd2Neg ?? undefined,
+    sd2pos: item.bmiSd2Pos ?? undefined,
   }));
 
 export const transformPercentileToMeasurements = (items: ApiPercentileItem[]) =>

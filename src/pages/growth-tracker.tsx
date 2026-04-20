@@ -119,12 +119,35 @@ const makeLineDot = (data: any[], _label: string) => (props: any) => {
 // ─── Custom Tooltips ──────────────────────────────────────────────────────────
 const BmiTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload || !payload.length) return null
-  const leo = payload.find((p: any) => p.dataKey === 'leo')
-  if (!leo) return null
+  
+  // Extract data from payload
+  // payload[0] might be areaBase, payload[1] might be areaBand, 
+  // payload[2] might be p50, payload[3] might be child
+  const child = payload.find((p: any) => p.dataKey === 'child')
+  const p50 = payload.find((p: any) => p.dataKey === 'p50')
+  const sd2neg = payload[0]?.payload?.sd2neg // Using raw payload from any item
+  const sd2pos = payload[0]?.payload?.sd2pos
+
   return (
-    <div className="bg-slate-900 text-white rounded-lg px-3 py-2 shadow-xl border border-slate-700 text-xs font-[Montserrat,sans-serif]">
-      <p className="font-bold text-slate-300 mb-0.5 text-[11px]">{label}</p>
-      <p className="font-bold text-[#86efac] text-[11px]">Your Child: <span className="text-white">{leo.value}</span></p>
+    <div className="bg-slate-900 text-white rounded-lg px-3 py-2 shadow-xl border border-slate-700 text-xs font-[Montserrat,sans-serif] min-w-[140px]">
+      <p className="font-bold text-slate-300 mb-1 text-[11px] uppercase tracking-wider">{label}</p>
+      <div className="space-y-1">
+        {child && (
+          <p className="font-bold text-[#86efac] text-[11px]">
+            BMI: <span className="text-white">{child.value.toFixed(1)}</span>
+          </p>
+        )}
+        {p50 && (
+          <p className="font-semibold text-slate-400 text-[10px]">
+            Median: <span className="text-slate-200">{p50.value.toFixed(1)}</span>
+          </p>
+        )}
+        {sd2neg && sd2pos && (
+          <p className="font-semibold text-slate-400 text-[10px]">
+            WHO Range: <span className="text-slate-200">{sd2neg.toFixed(1)} - {sd2pos.toFixed(1)}</span>
+          </p>
+        )}
+      </div>
     </div>
   )
 }
@@ -428,18 +451,29 @@ const LogNewGrowthSection = ({
 // ─── Stunting Category Helper ─────────────────────────────────────────────────
 type StuntingCategory = 'low' | 'moderate' | 'high'
 
-const getStuntingCategory = (pct: number, aiLabel?: string | null): StuntingCategory => {
-  if (aiLabel) {
-    const lowAlpha = String(aiLabel).toLowerCase()
-    if (lowAlpha.includes('high')) return 'high'
-    if (lowAlpha.includes('moderate')) return 'moderate'
-    if (lowAlpha.includes('low')) return 'low'
+const getStuntingCategory = (aiLabel?: string | null, confidence?: number | null): StuntingCategory => {
+  if (!aiLabel) return 'low' // no data = assume safe
+
+  const lowAlpha = String(aiLabel).toLowerCase()
+
+  // AI model only outputs: 'Normal' or 'Stunting'
+  if (lowAlpha === 'normal' || lowAlpha.includes('normal')) return 'low'
+
+  if (lowAlpha === 'stunting' || lowAlpha.includes('stunting') || lowAlpha.includes('high')) {
+    // Differentiate high vs moderate based on confidence
+    // confidence < 65%: borderline/moderate (uncertain), >= 65%: high (confident stunting)
+    const conf = confidence ?? 100
+    return conf >= 65 ? 'high' : 'moderate'
   }
-  
-  const p = Number(pct)
-  if (isNaN(p)) return 'low' // Default safest
-  if (p <= 3) return 'high'
-  if (p <= 10) return 'moderate'
+
+  // Fallback for any other string
+  return 'low'
+}
+
+// Percentile-based fallback (when no AI prediction available)
+const getStuntingCategoryFromPercentile = (pct: number): StuntingCategory => {
+  if (pct <= 3) return 'high'
+  if (pct <= 15) return 'moderate'
   return 'low'
 }
 
@@ -457,6 +491,7 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
   badgeBg: string
   badgeText: string
   badgeBorder: string
+  labelColor: string
   icon: string
   insights: {
     reason: string[]
@@ -465,12 +500,13 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
   }
 }> = {
   low: {
-    label: 'Low risk of stunting',
+    label: 'Low',
     bgColor: '#F1F8E9',
     borderColor: '#C5E1A5',
     badgeBg: '#E8F5E9',
     badgeText: '#2E7D32',
     badgeBorder: '#A5D6A7',
+    labelColor: '#7CB342',
     icon: '✅',
     insights: {
       reason: [
@@ -490,12 +526,13 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
     },
   },
   moderate: {
-    label: 'Moderate risk of stunting',
-    bgColor: '#FFFDE7',
-    borderColor: '#FFF176',
-    badgeBg: '#FFF9C4',
-    badgeText: '#F57F17',
-    badgeBorder: '#FFE082',
+    label: 'Moderate',
+    bgColor: '#FFF3E0',
+    borderColor: '#FFE0B2',
+    badgeBg: '#FFF3E0',
+    badgeText: '#E65100',
+    badgeBorder: '#FFE0B2',
+    labelColor: '#FB8C00',
     icon: '⚠️',
     insights: {
       reason: [
@@ -521,8 +558,9 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
     bgColor: '#FFEBEE',
     borderColor: '#FFCDD2',
     badgeBg: '#FFCDD2',
-    badgeText: '#C62828',
+    badgeText: '#B91C1C',
     badgeBorder: '#EF9A9A',
+    labelColor: '#E57373',
     icon: '🚨',
     insights: {
       reason: [
@@ -548,9 +586,9 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
 
 // ─── Stunting Insight Modal ───────────────────────────────────────────────────
 const StuntingInsightModal = ({
-  open, onClose, stuntingPct,
+  open, onClose, aiLabel, confidence,
 }: {
-  open: boolean; onClose: () => void; stuntingPct: number
+  open: boolean; onClose: () => void; aiLabel?: string | null; confidence?: number | null
 }) => {
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
@@ -559,19 +597,23 @@ const StuntingInsightModal = ({
 
   if (!open) return null
 
-  const category = getStuntingCategory(stuntingPct)
+  const category = getStuntingCategory(aiLabel, confidence)
   const config   = STUNTING_CONFIG[category] || STUNTING_CONFIG.low
 
   const SectionBlock = ({
-    title, items, dotColor,
-  }: { title: string; items: string[]; dotColor: string }) => (
+    title, items, color,
+  }: { title: string; items: string[]; color: string }) => (
     <div className="flex flex-col gap-2">
-      <span className="font-[Montserrat,sans-serif] font-bold text-sm text-slate-700 uppercase tracking-[0.6px]">{title}</span>
+      <span 
+        className="font-[Montserrat,sans-serif] font-bold text-[11px] uppercase tracking-[0.8px] text-slate-900"
+      >
+        {title}
+      </span>
       <ul className="flex flex-col gap-2 m-0 pl-0 list-none">
         {items.map((item, i) => (
           <li key={i} className="flex items-start gap-2.5">
-            <span className="flex-shrink-0 mt-1.5 w-2 h-2 rounded-full" style={{ background: dotColor }} />
-            <span className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-600 leading-[22px]">{item}</span>
+            <span className="flex-shrink-0 mt-1.5 w-2 h-2 rounded-full" style={{ background: color, opacity: 0.8 }} />
+            <span className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-900 leading-[22px]">{item}</span>
           </li>
         ))}
       </ul>
@@ -590,7 +632,7 @@ const StuntingInsightModal = ({
         {/* Modal Header */}
         <div
           className="flex items-start justify-between px-6 pt-6 pb-4 flex-shrink-0"
-          style={{ background: config.bgColor, borderBottom: `1px solid ${config.borderColor}` }}
+          style={{ background: config.badgeBg, borderBottom: `1px solid ${config.badgeBorder}` }}
         >
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
@@ -603,7 +645,7 @@ const StuntingInsightModal = ({
               className="self-start font-[Montserrat,sans-serif] font-bold text-xs px-2.5 py-1 rounded-full"
               style={{ background: config.badgeBg, color: config.badgeText, border: `1px solid ${config.badgeBorder}` }}
             >
-              {config.label} · {stuntingPct}%
+              {config.label}{confidence != null ? ` · ${confidence.toFixed(1)}%` : ''}
             </span>
           </div>
           <button
@@ -619,19 +661,19 @@ const StuntingInsightModal = ({
           <SectionBlock
             title="🔍 Mengapa kategori ini?"
             items={config.insights.reason}
-            dotColor="#628141"
+            color={config.badgeText}
           />
           <div className="border-t border-slate-100" />
           <SectionBlock
             title="⚡ Dampak jika tidak ditangani"
             items={config.insights.impact}
-            dotColor={category === 'low' ? '#059669' : category === 'moderate' ? '#d97706' : '#dc2626'}
+            color={config.badgeText}
           />
           <div className="border-t border-slate-100" />
           <SectionBlock
             title="🛡️ Langkah preventif"
             items={config.insights.prevention}
-            dotColor="#3b82f6"
+            color={config.badgeText}
           />
           <p className="font-[Montserrat,sans-serif] font-normal text-[11px] text-slate-400 leading-5 m-0 border-t border-slate-100 pt-4">
             * Informasi ini berdasarkan standar WHO Child Growth Standards. Konsultasikan dengan dokter anak untuk diagnosis dan penanganan medis yang tepat.
@@ -649,11 +691,11 @@ const StatCard = ({ icon, label, value, unit, delta, deltaUp, sub, bp }: {
 }) => {
   const isTablet = bp === 'tablet'
   return (
-    <div className="bg-white relative rounded-lg flex-1 min-w-0 border border-slate-100 shadow-sm">
+    <div className="bg-[#f8fafc] relative rounded-lg flex-1 min-w-0 border border-slate-100 shadow-sm">
       <div className="flex flex-col gap-3 items-start p-[25px] w-full box-border">
         <div className="flex items-center gap-2 w-full">
           <div className="flex-shrink-0">{icon}</div>
-          <span className={`font-[Montserrat,sans-serif] font-semibold uppercase text-slate-600 leading-5 ${isTablet ? 'text-[10px] tracking-[0.5px]' : 'text-sm tracking-[0.7px]'}`}>{label}</span>
+          <span className={`font-[Montserrat,sans-serif] font-bold uppercase text-slate-500 leading-5 ${isTablet ? 'text-[10px] tracking-[0.5px]' : 'text-xs tracking-[0.7px]'}`}>{label}</span>
         </div>
         <div className="relative w-full h-9">
           <span className={`font-[Montserrat,sans-serif] font-black text-slate-900 leading-9 absolute left-0 top-1/2 -translate-y-1/2 ${isTablet ? 'text-[24px]' : 'text-[30px]'}`}>
@@ -666,7 +708,7 @@ const StatCard = ({ icon, label, value, unit, delta, deltaUp, sub, bp }: {
             </span>
           )}
         </div>
-        <span className="font-[Montserrat,sans-serif] font-normal text-xs text-slate-400 leading-4">{sub}</span>
+        <span className="font-[Montserrat,sans-serif] font-medium text-xs text-slate-400 leading-4">{sub}</span>
       </div>
     </div>
   )
@@ -674,14 +716,15 @@ const StatCard = ({ icon, label, value, unit, delta, deltaUp, sub, bp }: {
 
 // ─── Stunting Card (clickable, pastel background by category) ─────────────────
 const StuntingCard = ({ 
-  stuntingValue, stuntingSub, stuntingPct, bp, aiLabel 
+  stuntingValue, stuntingSub, bp, aiLabel, confidence
 }: { 
-  stuntingValue: string; stuntingSub: string; stuntingPct: number; bp: 'mobile' | 'tablet' | 'desktop'; aiLabel?: string | null
+  stuntingValue: string; stuntingSub: string; bp: 'mobile' | 'tablet' | 'desktop'
+  aiLabel?: string | null; confidence?: number | null
 }) => {
   const [modalOpen, setModalOpen] = useState(false)
   const isTablet = bp === 'tablet'
 
-  const category = getStuntingCategory(stuntingPct, aiLabel)
+  const category = getStuntingCategory(aiLabel, confidence)
   const config    = STUNTING_CONFIG[category] || STUNTING_CONFIG.low
 
   return (
@@ -694,8 +737,11 @@ const StuntingCard = ({
           {/* Header row */}
           <div className="flex items-center gap-2 w-full">
             <div className="flex-shrink-0"><IconStuntingSvg /></div>
-            <span className={`font-[Montserrat,sans-serif] font-semibold uppercase text-slate-600 leading-5 ${isTablet ? 'text-[10px] tracking-[0.5px]' : 'text-sm tracking-[0.7px]'}`}>
-              Stunting Status
+            <span 
+              className={`font-[Montserrat,sans-serif] font-semibold uppercase leading-5 ${isTablet ? 'text-[10px] tracking-[0.5px]' : 'text-sm tracking-[0.7px]'}`}
+              style={{ color: config.labelColor }}
+            >
+              Stunting Risk
             </span>
           </div>
 
@@ -731,8 +777,8 @@ const StuntingCard = ({
 
           {/* Sub label */}
           <span
-            className="font-[Montserrat,sans-serif] font-semibold text-xs leading-4"
-            style={{ color: config.badgeText }}
+            className="font-[Montserrat,sans-serif] font-medium text-[11px] leading-tight"
+            style={{ color: config.badgeText, opacity: 0.7 }}
           >
             {config.icon} {stuntingSub}
           </span>
@@ -742,7 +788,8 @@ const StuntingCard = ({
       <StuntingInsightModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        stuntingPct={stuntingPct}
+        aiLabel={aiLabel}
+        confidence={confidence}
       />
     </>
   )
@@ -755,33 +802,33 @@ const KeyStatsSection = ({
   height: string; weight: string; lastUpdated: string; measurements: Measurement[]
 }) => {
   // Derive dynamic stunting risk from latest measurement
-  let stuntingValue = "Unknown"
+  let stuntingValue = "—"
   let stuntingSub = "No data yet"
-  let stuntingPct = 50 // default/neutral for modal
   let aiLabel: string | null = null
+  let confidence: number | null = null
 
   if (measurements.length > 0) {
     const last = measurements[0]
     aiLabel = last.risikoStuntingMl
-    if (last.risikoStuntingMl) {
-      stuntingValue = last.risikoStuntingMl
-      stuntingSub = last.mlConfidence ? `${last.mlConfidence.toFixed(1)}% confidence` : "Analyzing..."
-      stuntingPct = last.mlConfidence ?? 50
-    } else {
-      const pNum = extractPercentileNumber(last.heightPct)
-      stuntingPct = pNum ?? 50
-      if (pNum !== null) {
-        if (pNum <= 3) {
-          stuntingValue = "High"
-          stuntingSub = "Monitor closely"
-        } else if (pNum <= 10) {
-          stuntingValue = "Moderate"
-          stuntingSub = "Need attention"
-        } else {
-          stuntingValue = "Low"
-          stuntingSub = "Safe"
-        }
+    confidence = last.mlConfidence ?? null
+
+    if (aiLabel) {
+      // AI label is 'Normal' or 'Stunting'
+      // Category (Low/Moderate/High) is derived via getStuntingCategory using confidence
+      const cat = getStuntingCategory(aiLabel, confidence)
+      stuntingValue = cat === 'high' ? 'High' : cat === 'moderate' ? 'Moderate' : 'Low'
+      // Sub-label: show AI prediction + confidence for context
+      if (aiLabel.toLowerCase().includes('stunting')) {
+        stuntingSub = confidence != null ? `Stunting · ${confidence.toFixed(1)}% confidence` : 'Stunting detected'
+      } else {
+        stuntingSub = confidence != null ? `Normal · ${confidence.toFixed(1)}% confidence` : 'Normal growth'
       }
+    } else {
+      // Fallback: use percentile when no AI prediction
+      const pNum = extractPercentileNumber(last.heightPct)
+      const cat = pNum != null ? getStuntingCategoryFromPercentile(pNum) : 'low'
+      stuntingValue = cat === 'high' ? 'High' : cat === 'moderate' ? 'Moderate' : 'Low'
+      stuntingSub = cat === 'high' ? 'Monitor closely' : cat === 'moderate' ? 'Need attention' : 'Normal growth'
     }
   }
 
@@ -789,7 +836,7 @@ const KeyStatsSection = ({
     <div className={`w-full mb-8 grid gap-6 ${bp === 'mobile' ? 'grid-cols-1' : 'grid-cols-3'}`}>
       <StatCard icon={<IconHeightSvg />} label="Current Height" value={height} unit="cm" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
       <StatCard icon={<IconWeightSvg />} label="Current Weight" value={weight} unit="kg" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
-      <StuntingCard stuntingValue={stuntingValue} stuntingSub={stuntingSub} stuntingPct={stuntingPct} aiLabel={aiLabel} bp={bp} />
+      <StuntingCard stuntingValue={stuntingValue} stuntingSub={stuntingSub} aiLabel={aiLabel} confidence={confidence} bp={bp} />
     </div>
   )
 }
@@ -848,7 +895,7 @@ const BmiChart = ({
   bp, data, childName,
 }: {
   bp: 'mobile' | 'tablet' | 'desktop'
-  data: { age: string; child: number; p50?: number }[]
+  data: { age: string; child: number; p50?: number; sd2neg?: number; sd2pos?: number }[]
   childName: string
 }) => {
   const [modalOpen, setModalOpen] = useState(false)
@@ -860,20 +907,31 @@ const BmiChart = ({
     { color: '#cbd5e1', dash: true, label: 'WHO Median' },
     { color: 'rgba(98,129,65,0.2)', isArea: true, label: 'WHO Normal Range' },
   ]
-  const chartContent = (_height: number) => (
-    <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ top: 24, right: 42, left: 0, bottom: 10 }}>
-        <CartesianGrid vertical={false} stroke="#f1f5f9" strokeWidth={1} />
-        <XAxis dataKey="age" tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} domain={[11, 20]} />
-        <Tooltip content={<BmiTooltip />} cursor={{ stroke: '#628141', strokeWidth: 1, strokeDasharray: '4 4' }} />
-        <Area type="monotone" dataKey="p25" stackId="band" fill="transparent" stroke="none" dot={false} activeDot={false} />
-        <Area type="monotone" dataKey="band" stackId="band" fill="rgba(98,129,65,0.08)" stroke="none" dot={false} activeDot={false} />
-        <Line type="monotone" dataKey="p50" stroke="#cbd5e1" strokeDasharray="5 5" strokeWidth={2} dot={false} activeDot={false} />
-        <Line type="monotone" dataKey="leo" stroke="#3f6212" strokeWidth={3} dot={dotFn as any} activeDot={{ r: 6, fill: '#3f6212', stroke: 'white', strokeWidth: 2 }} />
-      </ComposedChart>
-    </ResponsiveContainer>
-  )
+  const chartContent = (_height: number) => {
+    // Transform data for the range area stacking trick
+    const areaData = data.map(d => ({
+      ...d,
+      areaBase: d.sd2neg ?? 10,
+      areaBand: (d.sd2pos ?? 10) - (d.sd2neg ?? 10)
+    }))
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart data={areaData} margin={{ top: 24, right: 42, left: 0, bottom: 10 }}>
+          <CartesianGrid vertical={false} stroke="#f1f5f9" strokeWidth={1} />
+          <XAxis dataKey="age" tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
+          <Tooltip content={<BmiTooltip />} cursor={{ stroke: '#628141', strokeWidth: 1, strokeDasharray: '4 4' }} />
+          {/* WHO Normal Range Area */}
+          <Area type="monotone" dataKey="areaBase" stackId="band" fill="transparent" stroke="none" dot={false} activeDot={false} />
+          <Area type="monotone" dataKey="areaBand" stackId="band" fill="rgba(98,129,65,0.15)" stroke="none" dot={false} activeDot={false} />
+          {/* Reference Lines */}
+          <Line type="monotone" dataKey="p50" stroke="#94a3b8" strokeDasharray="5 5" strokeWidth={2} dot={false} activeDot={false} />
+          <Line type="monotone" dataKey="child" stroke="#3f6212" strokeWidth={3} dot={dotFn as any} activeDot={{ r: 6, fill: '#3f6212', stroke: 'white', strokeWidth: 2 }} />
+        </ComposedChart>
+      </ResponsiveContainer>
+    )
+  }
   return (
     <>
       <div className="bg-white relative rounded-lg border border-slate-100 shadow-sm p-[25px] pb-[20px]">
@@ -913,6 +971,7 @@ const SmallChart = ({ title, data, lastLabel, bp, unit }: { title: string; data:
   const isMobile = bp === 'mobile'
   const legendItems = [
     { color: '#3f6212', label: 'Your Child' },
+    { color: '#cbd5e1', dash: true, label: 'WHO Median' },
   ]
   const chartContent = () => (
     <ResponsiveContainer width="100%" height="100%">
