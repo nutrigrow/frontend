@@ -1,9 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Header from './components/header'
 import Footer from './components/footer'
-import NutriShop from './pages/nutrishop'
-import ProductDetail from './pages/product-detail'
-import Cart from './pages/cart'
+import Artikel from './pages/artikel'
+import BacaArtikel from './pages/baca-artikel'
 
 // Mock user untuk Header
 const mockUser = {
@@ -102,9 +101,8 @@ function App() {
         <div className="flex-grow">
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/nutrishop" element={<NutriShop />} />
-            <Route path="/nutrishop/:id" element={<ProductDetail />} />
-            <Route path="/cart" element={<Cart />} />
+            <Route path="/artikel" element={<Artikel />} />
+            <Route path="/baca-artikel/:id" element={<BacaArtikel />} />
           </Routes>
         </div>
 
