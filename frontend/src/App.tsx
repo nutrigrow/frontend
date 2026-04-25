@@ -1,8 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Header from './components/header'
 import Footer from './components/footer'
-import Artikel from './pages/artikel'
-import BacaArtikel from './pages/baca-artikel'
+import TeleNutritionist from './pages/tele-nutritionist'
+import DetailSpesialis from './pages/detail-spesialis'
+import BookingKonsultasi from './pages/booking-konsultasi'
+import KonsultasiSaya from './pages/konsultasi-saya'
 
 // Mock user untuk Header
 const mockUser = {
@@ -101,8 +103,10 @@ function App() {
         <div className="flex-grow">
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/artikel" element={<Artikel />} />
-            <Route path="/baca-artikel/:id" element={<BacaArtikel />} />
+            <Route path="/tele-nutritionist" element={<TeleNutritionist />} />
+            <Route path="/detail-spesialis/:id" element={<DetailSpesialis />} />
+            <Route path="/booking-konsultasi/:id" element={<BookingKonsultasi />} />
+            <Route path="/konsultasi-saya" element={<KonsultasiSaya />} />
           </Routes>
         </div>
 
