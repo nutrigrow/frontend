@@ -18,6 +18,12 @@ import Checkout from './pages/checkout'
 import OrderDetail from './pages/order-detail'
 import Profile from './pages/profile'
 import Cart from './pages/cart'
+import Artikel from './pages/artikel'
+import BacaArtikel from './pages/baca-artikel'
+import TeleNutritionist from './pages/tele-nutritionist'
+import DetailSpesialis from './pages/detail-spesialis'
+import BookingKonsultasi from './pages/booking-konsultasi'
+import KonsultasiSaya from './pages/konsultasi-saya'
 import { ProtectedRoute, PublicOnlyRoute } from './components/ProtectedRoute'
 
 // ─── Main App Component (Routing + Layout) ──────────────────────────────────
@@ -39,6 +45,8 @@ function App() {
               <Route path="/nutrishop"     element={<NutriShop />} />
               <Route path="/product/:id"   element={<ProductDetail />} />
               <Route path="/checkout"      element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+              <Route path="/artikel" element={<Artikel />} />
+              <Route path="/baca-artikel/:id" element={<BacaArtikel />} />
 
               {/* ── Auth only: redirect ke /dashboard jika sudah login ── */}
               <Route path="/sign-in"        element={<PublicOnlyRoute><SignIn /></PublicOnlyRoute>} />
@@ -53,6 +61,10 @@ function App() {
               <Route path="/cart"           element={<ProtectedRoute><Cart /></ProtectedRoute>} />
               <Route path="/orders"         element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
               <Route path="/order/:id"      element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+              <Route path="/tele-nutritionist" element={<TeleNutritionist />} />
+              <Route path="/detail-spesialis/:id" element={<DetailSpesialis />} />
+              <Route path="/booking-konsultasi/:id" element={<BookingKonsultasi />} />
+              <Route path="/konsultasi-saya" element={<KonsultasiSaya />} />
             </Routes>
           </div>
 
