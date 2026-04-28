@@ -1113,7 +1113,7 @@ const SectionReady = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   }
 
   const handleExploreArticles = () => {
-    navigate('/article')
+    navigate('/artikel')
   }
 
   return (

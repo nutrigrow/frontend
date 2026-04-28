@@ -85,7 +85,7 @@ const Header = () => {
     { label: 'About Us',          href: '/',           active: false },
     { label: 'NutriShop',         href: '/nutrishop',          active: false },
     { label: 'Tele-Nutritionist', href: '/tele-nutritionist',  active: false },
-    { label: 'Article',           href: '/article',            active: false },
+    { label: 'Article',           href: '/artikel',            active: false },
   ]
   const dropdownItems = [
     { label: "Growth Tracker",  href: '/growth-tracker'  },
