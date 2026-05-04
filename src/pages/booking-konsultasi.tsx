@@ -11,7 +11,9 @@ import {
   Clock,
   CheckCircle2,
 } from 'lucide-react'
-import { DUMMY_SPESIALIS, formatHarga, type Spesialis } from '../data/spesialis'
+import { formatHarga } from '../data/spesialis'
+import { teleNutritionistService, type Spesialis } from '../services/teleNutritionist.service'
+import { loadMidtransSnapScript } from '../services/shop.service'
 
 // ─── Nutri-Green Palette ──────────────────────────────────────────────────────
 const NG = {
@@ -54,14 +56,21 @@ const DAY_NAMES = ['Ming', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
 // ─── Calendar Component ───────────────────────────────────────────────────────
 const CalendarPicker = ({
   selectedDate,
+  spesialis,
   onSelectDate,
 }: {
   selectedDate: Date | null
+  spesialis: Spesialis
   onSelectDate: (d: Date) => void
 }) => {
   const today = new Date()
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
+
+  const workingDays = spesialis.jadwal.hari // e.g. ['Senin', 'Rabu']
+  const DAY_NAME_MAP: Record<number, string> = {
+    0: 'Minggu', 1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat', 6: 'Sabtu'
+  }
 
   const firstDay = new Date(viewYear, viewMonth, 1).getDay()
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
@@ -100,7 +109,15 @@ const CalendarPicker = ({
     date.setHours(0, 0, 0, 0)
     const todayCopy = new Date()
     todayCopy.setHours(0, 0, 0, 0)
-    return date < todayCopy
+    
+    // Limit to 14 days ahead
+    const maxDate = new Date(todayCopy)
+    maxDate.setDate(maxDate.getDate() + 14)
+
+    const dayName = DAY_NAME_MAP[date.getDay()]
+    const isWorkingDay = workingDays.includes(dayName)
+
+    return date < todayCopy || date > maxDate || !isWorkingDay
   }
 
   return (
@@ -346,16 +363,109 @@ export default function BookingKonsultasi() {
   const isTablet = bp === 'tablet'
   const paddingInline = getPaddingInline(bp)
 
-  const spesialis: Spesialis | undefined = DUMMY_SPESIALIS.find(s => s.id === Number(id))
-
+  const [spesialis, setSpesialis] = useState<Spesialis | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
+  const [availableSlots, setAvailableSlots] = useState<{ time: string; isAvailable: boolean }[]>([])
   const [selectedMethod, setSelectedMethod] = useState<'video' | 'chat'>('video')
   const [showPopup, setShowPopup] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [isBooking, setIsBooking] = useState(false)
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
+    const fetchDetail = async () => {
+      if (!id) return
+      setLoading(true)
+      try {
+        const data = await teleNutritionistService.getSpecialistById(id)
+        setSpesialis(data)
+      } catch (error) {
+        console.error('Failed to fetch specialist:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDetail()
   }, [id])
+
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (!spesialis || !selectedDate) return
+      try {
+        // Use local date getters to avoid UTC date shift (e.g. midnight WIB = previous day UTC)
+        const y = selectedDate.getFullYear()
+        const m = String(selectedDate.getMonth() + 1).padStart(2, '0')
+        const d = String(selectedDate.getDate()).padStart(2, '0')
+        const dateStr = `${y}-${m}-${d}`
+        const slots = await teleNutritionistService.getAvailability(spesialis.id, dateStr)
+        setAvailableSlots(slots)
+      } catch (error) {
+        console.error('Failed to fetch availability:', error)
+      }
+    }
+    fetchSlots()
+  }, [selectedDate, spesialis])
+
+  const handleConfirm = async () => {
+    if (!spesialis || !selectedDate || !selectedTime) return
+    setIsBooking(true)
+    try {
+      const hours = parseInt(selectedTime.split(':')[0])
+      const minutes = parseInt(selectedTime.split(':')[1])
+      const jadwalSesi = new Date(selectedDate)
+      jadwalSesi.setHours(hours, minutes, 0, 0)
+
+      const result = await teleNutritionistService.bookConsultation({
+        ahliGiziId: spesialis.id,
+        jadwalSesi: jadwalSesi.toISOString(),
+        metode: selectedMethod === 'video' ? 'VIDEO_CALL' : 'CHAT'
+      })
+
+      if (result.snapToken) {
+        const clientKey = import.meta.env.VITE_MIDTRANS_CLIENT_KEY || 'Mid-client-GyD94WGg2nwb8eB1'
+        await loadMidtransSnapScript(clientKey, false) // assuming sandbox for now
+
+        if (window.snap) {
+          window.snap.pay(result.snapToken, {
+            onSuccess: async () => {
+              if (result.konsultasi?.id) {
+                try {
+                  await teleNutritionistService.confirmPayment(result.konsultasi.id)
+                } catch (err) {
+                  console.error('confirmPayment error:', err)
+                }
+              }
+              setShowPopup(true)
+            },
+            onPending: () => setShowPopup(true),
+            onError: () => alert('Pembayaran gagal. Silakan coba lagi dari riwayat konsultasi.'),
+            onClose: () => {
+              alert('Pembayaran dibatalkan. Anda dapat melanjutkan pembayaran nanti di halaman Riwayat Konsultasi.')
+              navigate('/konsultasi-saya')
+            }
+          })
+        } else {
+          setShowPopup(true)
+        }
+      } else {
+        setShowPopup(true)
+      }
+    } catch (error) {
+      console.error('Booking failed:', error)
+      alert('Gagal membuat pemesanan. Silakan coba lagi.')
+    } finally {
+      setIsBooking(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#78716C', fontFamily: 'var(--font-heading), sans-serif' }}>Memuat...</p>
+      </div>
+    )
+  }
 
   if (!spesialis) {
     return (
@@ -590,6 +700,7 @@ export default function BookingKonsultasi() {
                     Pilih Tanggal
                   </h3>
                   <CalendarPicker
+                    spesialis={spesialis}
                     selectedDate={selectedDate}
                     onSelectDate={d => {
                       setSelectedDate(d)
@@ -612,44 +723,53 @@ export default function BookingKonsultasi() {
                     Waktu Tersedia
                   </h3>
                   {selectedDate ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-                      {spesialis.jadwal.waktu.map((w, i) => {
-                        const isActive = selectedTime === w
-                        const unavailable = i === spesialis.jadwal.waktu.length - 1
-                        return (
-                          <button
-                            key={w}
-                            disabled={unavailable}
-                            onClick={() => setSelectedTime(w)}
-                            style={{
-                              padding: '10px 8px',
-                              borderRadius: 10,
-                              border: isActive
-                                ? `2px solid ${NG.primary}`
-                                : `1.5px solid ${unavailable ? '#F0EDE8' : '#E7E5E4'}`,
-                              background: isActive ? NG.primary : unavailable ? '#FAFAF9' : '#fff',
-                              color: isActive ? '#fff' : unavailable ? '#D6D3D1' : '#1C1917',
-                              fontFamily: 'var(--font-heading), sans-serif',
-                              fontSize: 13,
-                              fontWeight: isActive ? 700 : 500,
-                              cursor: unavailable ? 'not-allowed' : 'pointer',
-                              transition: 'all 0.15s',
-                              textDecoration: unavailable ? 'line-through' : 'none',
-                            }}
-                            onMouseEnter={e => {
-                              if (!isActive && !unavailable)
-                                (e.currentTarget as HTMLElement).style.background = NG.lighter
-                            }}
-                            onMouseLeave={e => {
-                              if (!isActive && !unavailable)
-                                (e.currentTarget as HTMLElement).style.background = '#fff'
-                            }}
-                          >
-                            {w}
-                          </button>
-                        )
-                      })}
-                    </div>
+                    availableSlots.length > 0 ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                        {availableSlots.map(({ time, isAvailable }) => {
+                          const isActive = selectedTime === time
+                          const unavailable = !isAvailable
+                          return (
+                            <button
+                              key={time}
+                              disabled={unavailable}
+                              onClick={() => setSelectedTime(time)}
+                              style={{
+                                padding: '10px 8px',
+                                borderRadius: 10,
+                                border: isActive
+                                  ? `2px solid ${NG.primary}`
+                                  : `1.5px solid ${unavailable ? '#F0EDE8' : '#E7E5E4'}`,
+                                background: isActive ? NG.primary : unavailable ? '#FAFAF9' : '#fff',
+                                color: isActive ? '#fff' : unavailable ? '#D6D3D1' : '#1C1917',
+                                fontFamily: 'var(--font-heading), sans-serif',
+                                fontSize: 13,
+                                fontWeight: isActive ? 700 : 500,
+                                cursor: unavailable ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.15s',
+                                textDecoration: unavailable ? 'line-through' : 'none',
+                              }}
+                              onMouseEnter={e => {
+                                if (!isActive && !unavailable)
+                                  (e.currentTarget as HTMLElement).style.background = NG.lighter
+                              }}
+                              onMouseLeave={e => {
+                                if (!isActive && !unavailable)
+                                  (e.currentTarget as HTMLElement).style.background = '#fff'
+                              }}
+                            >
+                              {time}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 16px', gap: 10, color: '#A8A29E' }}>
+                        <Clock size={28} color='#D6D3D1' />
+                        <p style={{ fontFamily: 'var(--font-heading), sans-serif', fontSize: 13, margin: 0, textAlign: 'center' }}>
+                          Tidak ada slot tersedia pada tanggal ini. Semua sesi sudah terisi atau ahli gizi tidak bertugas.
+                        </p>
+                      </div>
+                    )
                   ) : (
                     <div
                       style={{
@@ -757,8 +877,9 @@ export default function BookingKonsultasi() {
                   pajak={pajak}
                   total={total}
                   canConfirm={canConfirm}
+                  isBooking={isBooking}
                   formatDateDisplay={formatDateDisplay}
-                  onConfirm={() => setShowPopup(true)}
+                  onConfirm={handleConfirm}
                   sticky={false}
                 />
               )}
@@ -780,8 +901,9 @@ export default function BookingKonsultasi() {
                   pajak={pajak}
                   total={total}
                   canConfirm={canConfirm}
+                  isBooking={isBooking}
                   formatDateDisplay={formatDateDisplay}
-                  onConfirm={() => setShowPopup(true)}
+                  onConfirm={handleConfirm}
                   sticky={!isMobile}
                 />
               </motion.div>
@@ -815,6 +937,7 @@ function BookingSummary({
   pajak,
   total,
   canConfirm,
+  isBooking,
   formatDateDisplay,
   onConfirm,
   sticky,
@@ -827,6 +950,7 @@ function BookingSummary({
   pajak: number
   total: number
   canConfirm: boolean
+  isBooking: boolean
   formatDateDisplay: (d: Date | null) => string
   onConfirm: () => void
   sticky: boolean
@@ -977,27 +1101,27 @@ function BookingSummary({
 
       {/* Confirm Button */}
       <button
-        disabled={!canConfirm}
+        disabled={!canConfirm || isBooking}
         onClick={onConfirm}
         style={{
           width: '100%',
           marginTop: 20,
           padding: '15px',
-          background: canConfirm
+          background: canConfirm && !isBooking
             ? `linear-gradient(135deg, ${NG.primary} 0%, ${NG.dark} 100%)`
             : '#E7E5E4',
-          color: canConfirm ? '#fff' : '#A8A29E',
+          color: canConfirm && !isBooking ? '#fff' : '#A8A29E',
           border: 'none',
           borderRadius: 14,
           fontFamily: 'Montserrat, sans-serif',
           fontSize: 15,
           fontWeight: 700,
-          cursor: canConfirm ? 'pointer' : 'not-allowed',
+          cursor: canConfirm && !isBooking ? 'pointer' : 'not-allowed',
           transition: 'all 0.2s',
-          boxShadow: canConfirm ? '0 4px 16px rgba(98,129,65,0.35)' : 'none',
+          boxShadow: canConfirm && !isBooking ? '0 4px 16px rgba(98,129,65,0.35)' : 'none',
         }}
       >
-        Konfirmasi Pemesanan →
+        {isBooking ? 'Memproses...' : 'Konfirmasi Pemesanan →'}
       </button>
 
       <p

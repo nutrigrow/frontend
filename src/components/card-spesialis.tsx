@@ -263,7 +263,7 @@ export const CardSpesialis = ({ spesialis, onClick }: CardSpesialisProps) => {
               color: '#16A34A',
             }}
           >
-            Tersedia: {nextAvailable}
+            {nextAvailable ? `Tersedia: ${nextAvailable}` : 'Jadwal tidak tersedia'}
           </span>
         </div>
       </div>

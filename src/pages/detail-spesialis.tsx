@@ -13,7 +13,8 @@ import {
   Calendar,
   ChevronRight,
 } from 'lucide-react'
-import { DUMMY_SPESIALIS, formatHarga, type Spesialis } from '../data/spesialis'
+import { formatHarga } from '../data/spesialis'
+import { teleNutritionistService, type Spesialis } from '../services/teleNutritionist.service'
 
 // ─── Nutri-Green Palette ──────────────────────────────────────────────────────
 const NG = {
@@ -204,11 +205,36 @@ export default function DetailSpesialis() {
   const isTablet = bp === 'tablet'
   const paddingInline = getPaddingInline(bp)
 
+  const [spesialis, setSpesialis] = useState<Spesialis | null>(null)
+  const [loading, setLoading] = useState(true)
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
+    
+    const fetchDetail = async () => {
+      if (!id) return
+      setLoading(true)
+      try {
+        const data = await teleNutritionistService.getSpecialistById(id)
+        setSpesialis(data)
+      } catch (error) {
+        console.error('Failed to fetch specialist detail:', error)
+        setSpesialis(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDetail()
   }, [id])
 
-  const spesialis: Spesialis | undefined = DUMMY_SPESIALIS.find(s => s.id === Number(id))
+  if (loading) {
+    return (
+      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#78716C', fontFamily: 'var(--font-heading), sans-serif' }}>Memuat profil spesialis...</p>
+      </div>
+    )
+  }
 
   if (!spesialis) return <SpesialisNotFound />
 
@@ -549,7 +575,7 @@ export default function DetailSpesialis() {
                     fontWeight: 600,
                   }}
                 >
-                  Tersedia: {spesialis.nextAvailable}
+                  {spesialis.nextAvailable ? `Tersedia: ${spesialis.nextAvailable}` : 'Jadwal tidak tersedia'}
                 </span>
               </div>
             </div>

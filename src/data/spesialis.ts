@@ -21,7 +21,7 @@ export interface Spesialis {
   tentang: string
   bidangKeahlian: string[]
   jadwal: JadwalSpesialis
-  nextAvailable: string
+  nextAvailable?: string
 }
 
 // ─── Categories ───────────────────────────────────────────────────────────────

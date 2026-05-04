@@ -1,9 +1,10 @@
-import { useEffect, useState, useMemo, useRef, type CSSProperties } from 'react'
+import { useEffect, useState, useRef, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router'
 import { motion, AnimatePresence } from 'motion/react'
 import { Search, ChevronLeft, ChevronRight, ChevronDown, ClipboardList, X } from 'lucide-react'
 import { CardSpesialis } from '../components/card-spesialis'
-import { DUMMY_SPESIALIS, SPESIALIS_CATEGORIES } from '../data/spesialis'
+import { SPESIALIS_CATEGORIES } from '../data/spesialis'
+import { teleNutritionistService, type Spesialis } from '../services/teleNutritionist.service'
 
 // ─── Nutri-Green ──────────────────────────────────────────────────────────────
 const NUTRI_GREEN = '#628141'
@@ -29,7 +30,7 @@ const getPaddingInline = (bp: 'mobile' | 'tablet' | 'desktop'): string => {
   return 'clamp(16px, 4.8vw, 61px)'
 }
 
-const ITEMS_PER_PAGE = 9
+
 
 // ─── Pagination ───────────────────────────────────────────────────────────────
 const Pagination = ({
@@ -479,27 +480,36 @@ export default function TeleNutritionist() {
   const [selectedCategory, setSelectedCategory] = useState('Semua')
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [specialists, setSpecialists] = useState<Spesialis[]>([])
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  const fetchSpecialists = async () => {
+    setLoading(true)
+    try {
+      const result = await teleNutritionistService.getSpecialists({
+        search: searchQuery,
+        category: selectedCategory,
+        page: currentPage,
+      })
+      setSpecialists(result.specialists)
+      setTotalPages(result.pagination.totalPages)
+      setTotalCount(result.pagination.total)
+    } catch (error) {
+      console.error('Failed to fetch specialists:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchSpecialists()
+  }, [selectedCategory, searchQuery, currentPage])
 
   const handleSpesialisClick = (id: number) => {
     navigate(`/detail-spesialis/${id}`)
   }
-
-  const filtered = useMemo(() => {
-    return DUMMY_SPESIALIS.filter(sp => {
-      const catMatch = selectedCategory === 'Semua' || sp.spesialisasi === selectedCategory
-      const q = searchQuery.trim().toLowerCase()
-      const searchMatch =
-        !q ||
-        sp.nama.toLowerCase().includes(q) ||
-        sp.spesialisasi.toLowerCase().includes(q) ||
-        sp.gelar.toLowerCase().includes(q) ||
-        sp.bidangKeahlian.some(b => b.toLowerCase().includes(q))
-      return catMatch && searchMatch
-    })
-  }, [selectedCategory, searchQuery])
-
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
-  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -669,12 +679,16 @@ export default function TeleNutritionist() {
             }}
           >
             Menampilkan{' '}
-            <strong style={{ color: NUTRI_GREEN }}>{filtered.length}</strong> profesional bersertifikat
+            <strong style={{ color: NUTRI_GREEN }}>{totalCount}</strong> profesional bersertifikat
           </p>
         </motion.div>
 
         {/* ── Specialist Grid ── */}
-        {paginated.length > 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <p style={{ color: '#78716C' }}>Memuat spesialis...</p>
+          </div>
+        ) : specialists.length > 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -685,7 +699,7 @@ export default function TeleNutritionist() {
               gap: isMobile ? 16 : 20,
             }}
           >
-            {paginated.map(sp => (
+            {specialists.map(sp => (
               <CardSpesialis key={sp.id} spesialis={sp} onClick={handleSpesialisClick} />
             ))}
           </motion.div>

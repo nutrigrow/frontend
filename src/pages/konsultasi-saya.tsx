@@ -16,6 +16,24 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
+import { teleNutritionistService } from '../services/teleNutritionist.service'
+import { loadMidtransSnapScript } from '../services/shop.service'
+
+interface Konsultasi {
+  id: string
+  rawId?: number
+  status: StatusType
+  spesialis: { nama: string; spesialisasi: string; foto: string }
+  tanggal: string
+  waktu: string
+  metode: 'Video Call' | 'Text Chat'
+  catatan?: string
+  transaksi?: {
+    id: number;
+    statusBayar: string;
+    snapToken: string | null;
+  }
+}
 
 // ─── Nutri-Green Palette ──────────────────────────────────────────────────────
 const NG = {
@@ -72,52 +90,52 @@ const STATUS_CONFIG: Record<
   },
 }
 
-// ─── Dummy Consultation Data ──────────────────────────────────────────────────
-interface Konsultasi {
-  id: string
-  status: StatusType
-  spesialis: { nama: string; spesialisasi: string; foto: string }
-  tanggal: string
-  waktu: string
-  metode: 'Video Call' | 'Text Chat'
-  catatan?: string
-}
+// ─── Status Mapping ───
+const mapBackendStatus = (status: string, jadwalSesi: string): StatusType => {
+  // If session has passed and wasn't explicitly completed/cancelled, treat as done
+  const sessionTime = new Date(jadwalSesi)
+  const isPast = sessionTime < new Date()
 
-const INIT_KONSULTASI: Konsultasi[] = [
-  {
-    id: 'LM-8492', status: 'Akan Datang',
-    spesialis: { nama: 'Dr. Sarah Jenkins', spesialisasi: 'Spesialis Anak', foto: 'https://images.unsplash.com/photo-1675270690434-aa99f4871e8a?w=100&q=80' },
-    tanggal: '15 Oktober 2025', waktu: '10:00 AM - 11:00 AM WIB', metode: 'Video Call',
+  switch (status) {
+    case 'DONE':
+      return 'Selesai';
+    case 'CANCELLED':
+      return 'Canceled';
+    case 'BOOKED':
+    case 'CONFIRMED':
+    case 'IN_PROGRESS':
+      return isPast ? 'Selesai' : 'Akan Datang';
+    default:
+      return isPast ? 'Selesai' : 'Akan Datang';
+  }
+};
+
+const mapConsultation = (c: any): Konsultasi => ({
+  id: `LM-${c.id}`,
+  rawId: c.id,
+  status: mapBackendStatus(c.status, c.jadwalSesi),
+  spesialis: {
+    nama: c.ahliGizi.user.nama,
+    spesialisasi: c.ahliGizi.spesialisasi,
+    foto: c.ahliGizi.fotoUrl || c.ahliGizi.user.avatarUrl,
   },
-  {
-    id: 'LM-8501', status: 'Akan Datang',
-    spesialis: { nama: 'Dr. Michael Chen', spesialisasi: 'Ibu Menyusui', foto: 'https://images.unsplash.com/photo-1758691463605-f4a3a92d6d37?w=100&q=80' },
-    tanggal: '22 Oktober 2025', waktu: '2:00 PM - 2:45 PM WIB', metode: 'Text Chat',
-    catatan: 'Chat dibuka 5 menit sebelum sesi dimulai',
-  },
-  {
-    id: 'LM-8355', status: 'Selesai',
-    spesialis: { nama: 'Elena Rodriguez', spesialisasi: 'Spesialis Anak', foto: 'https://images.unsplash.com/photo-1612944095914-33fd0a85fcfc?w=100&q=80' },
-    tanggal: '3 September 2025', waktu: '09:00 AM - 10:00 AM WIB', metode: 'Video Call',
-  },
-  {
-    id: 'LM-8201', status: 'Selesai',
-    spesialis: { nama: 'Marcus Thorne', spesialisasi: 'Nutrisi Olahraga', foto: 'https://images.unsplash.com/photo-1756699279298-c89cdef354ab?w=100&q=80' },
-    tanggal: '12 Agustus 2025', waktu: '14:00 PM - 15:00 PM WIB', metode: 'Video Call',
-  },
-  {
-    id: 'LM-8410', status: 'Rescheduled',
-    spesialis: { nama: 'Dr. Fatimah Azzahra', spesialisasi: 'Kehamilan', foto: 'https://images.unsplash.com/photo-1737792837727-fd46ff71acf2?w=100&q=80' },
-    tanggal: '28 September 2025', waktu: '11:00 AM - 12:00 PM WIB', metode: 'Text Chat',
-    catatan: 'Dijadwalkan ulang ke 5 November 2025',
-  },
-  {
-    id: 'LM-8099', status: 'Canceled',
-    spesialis: { nama: 'Dr. Andi Wijaya', spesialisasi: 'Tumbuh Kembang', foto: 'https://images.unsplash.com/photo-1746813628081-0c8c1611aace?w=100&q=80' },
-    tanggal: '18 Juli 2025', waktu: '16:00 PM - 17:00 PM WIB', metode: 'Video Call',
-    catatan: 'Dibatalkan oleh pasien',
-  },
-]
+  tanggal: new Date(c.jadwalSesi).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }),
+  waktu: new Date(c.jadwalSesi).toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }) + ' WIB',
+  metode: c.metode === 'VIDEO_CALL' ? 'Video Call' : 'Text Chat',
+  catatan: c.status === 'CANCELLED' ? 'Dibatalkan' : undefined,
+  transaksi: c.transaksi ? {
+    id: c.transaksi.id,
+    statusBayar: c.transaksi.statusBayar,
+    snapToken: c.transaksi.snapToken,
+  } : undefined,
+});
 
 const STATUS_TABS: StatusType[] = ['Akan Datang', 'Selesai', 'Rescheduled', 'Canceled']
 
@@ -494,16 +512,19 @@ const KonsultasiCard = ({
   isMobile,
   onReschedule,
   onCancel,
+  onPay,
 }: {
   konsultasi: Konsultasi
   isMobile: boolean
-  isTablet: boolean
   onReschedule: (k: Konsultasi) => void
   onCancel: (k: Konsultasi) => void
+  onPay: (k: Konsultasi) => void
 }) => {
   const statusCfg = STATUS_CONFIG[konsultasi.status]
   const StatusIcon = statusCfg.icon
   const isAkanDatang = konsultasi.status === 'Akan Datang'
+  const isPendingPayment = isAkanDatang && konsultasi.transaksi?.statusBayar === 'PENDING'
+  const isConfirmed = isAkanDatang && konsultasi.transaksi?.statusBayar === 'SUCCESS'
 
   return (
     <motion.div
@@ -692,23 +713,47 @@ const KonsultasiCard = ({
             gap: 10,
           }}
         >
-          {/* Hubungi */}
-          <button
-            style={{
-              width: '100%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: 8, padding: '12px 16px',
-              background: `linear-gradient(135deg, ${NG.primary} 0%, ${NG.dark} 100%)`,
-              color: '#fff', border: 'none', borderRadius: 10,
-              fontFamily: 'Montserrat, sans-serif', fontSize: 13, fontWeight: 700,
-              cursor: 'pointer', boxShadow: '0 2px 8px rgba(98,129,65,0.25)',
-            }}
-          >
-            <Phone size={14} strokeWidth={2.5} />
-            Hubungi Nutritionist
-          </button>
+          {/* Bayar Sekarang — hanya jika belum bayar */}
+          {isPendingPayment && (
+            <button
+              onClick={() => onPay(konsultasi)}
+              style={{
+                width: '100%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 8, padding: '12px 16px',
+                background: '#FFC107',
+                color: '#1C1917', border: 'none', borderRadius: 10,
+                fontFamily: 'Montserrat, sans-serif', fontSize: 13, fontWeight: 700,
+                cursor: 'pointer', boxShadow: '0 2px 8px rgba(255,193,7,0.25)',
+              }}
+            >
+              <Calendar size={14} strokeWidth={2.5} />
+              Bayar Sekarang
+            </button>
+          )}
 
-          {/* Reschedule & Batalkan */}
+          {/* Link Sesi — hanya jika sudah bayar (CONFIRMED) */}
+          {isConfirmed && (
+            <button
+              disabled
+              style={{
+                width: '100%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 8, padding: '12px 16px',
+                background: `linear-gradient(135deg, ${NG.primary} 0%, ${NG.dark} 100%)`,
+                color: '#fff', border: 'none', borderRadius: 10,
+                fontFamily: 'Montserrat, sans-serif', fontSize: 13, fontWeight: 700,
+                cursor: 'not-allowed', opacity: 0.8,
+                boxShadow: '0 2px 8px rgba(98,129,65,0.25)',
+              }}
+            >
+              <Video size={14} strokeWidth={2.5} />
+              Link Sesi (Segera Tersedia)
+            </button>
+          )}
+
+          {/* Reschedule & Batalkan — hanya jika belum bayar */}
+          {isPendingPayment && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {/* Reschedule */}
             <button
@@ -750,6 +795,7 @@ const KonsultasiCard = ({
               Batalkan
             </button>
           </div>
+          )}
         </div>
       )}
 
@@ -832,47 +878,85 @@ export default function KonsultasiSaya() {
   const paddingInline = getPaddingInline(bp)
 
   const [activeStatus, setActiveStatus] = useState<StatusType>('Akan Datang')
-  const [konsultasiList, setKonsultasiList] = useState<Konsultasi[]>(INIT_KONSULTASI)
+  const [konsultasiList, setKonsultasiList] = useState<Konsultasi[]>([])
+  const [loading, setLoading] = useState(true)
 
   const [rescheduleTarget, setRescheduleTarget] = useState<Konsultasi | null>(null)
   const [cancelTarget, setCancelTarget] = useState<Konsultasi | null>(null)
 
+  const fetchConsultations = async () => {
+    setLoading(true)
+    try {
+      const data = await teleNutritionistService.getMyConsultations()
+      setKonsultasiList(data.map(mapConsultation))
+    } catch (error) {
+      console.error('Failed to fetch consultations:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' })
+    fetchConsultations()
   }, [])
 
   const filteredKonsultasi = konsultasiList.filter(k => k.status === activeStatus)
-  const countByStatus = (status: StatusType) => konsultasiList.filter(k => k.status === status).length
 
-  const handleRescheduleConfirm = (newDate: string, newTime: string) => {
-    setKonsultasiList(prev =>
-      prev.map(k =>
-        k.id === rescheduleTarget?.id
-          ? {
-              ...k,
-              status: 'Rescheduled' as StatusType,
-              tanggal: newDate,
-              waktu: `${newTime} WIB`,
-              catatan: `Dijadwalkan ulang ke ${newDate}`,
+  const handleRescheduleConfirm = async (newDate: string, newTime: string) => {
+    if (!rescheduleTarget) return
+    try {
+      alert(`Jadwal ulang untuk ${rescheduleTarget.id} ke ${newDate} jam ${newTime} berhasil (simulasi).`)
+      setRescheduleTarget(null)
+      fetchConsultations()
+    } catch (error) {
+      alert('Gagal menjadwalkan ulang.')
+    }
+  }
+
+  const handlePay = async (konsultasi: Konsultasi) => {
+    if (!konsultasi.transaksi?.snapToken) {
+      alert('Token pembayaran tidak ditemukan. Silakan hubungi admin.')
+      return
+    }
+
+    const clientKey = import.meta.env.VITE_MIDTRANS_CLIENT_KEY || 'Mid-client-GyD94WGg2nwb8eB1'
+    await loadMidtransSnapScript(clientKey, false)
+
+    if (window.snap) {
+      window.snap.pay(konsultasi.transaksi.snapToken, {
+        onSuccess: async () => {
+          if (konsultasi.rawId) {
+            try {
+              await teleNutritionistService.confirmPayment(konsultasi.rawId)
+            } catch (err) {
+              console.error('confirmPayment error:', err)
             }
-          : k
-      )
-    )
-    setRescheduleTarget(null)
-    setActiveStatus('Rescheduled')
+          }
+          fetchConsultations()
+        },
+        onPending: () => fetchConsultations(),
+        onError: () => alert('Pembayaran gagal.'),
+        onClose: () => {
+          // User closed without paying, refresh to show latest state
+          fetchConsultations()
+        }
+      })
+    }
   }
 
-  const handleCancelConfirm = () => {
-    setKonsultasiList(prev =>
-      prev.map(k =>
-        k.id === cancelTarget?.id
-          ? { ...k, status: 'Canceled' as StatusType, catatan: 'Dibatalkan oleh pasien' }
-          : k
-      )
-    )
-    setCancelTarget(null)
-    setActiveStatus('Canceled')
+  const handleCancelConfirm = async () => {
+    if (!cancelTarget) return
+    try {
+      const id = parseInt(cancelTarget.id.replace('LM-', ''))
+      await teleNutritionistService.cancel(id)
+      setCancelTarget(null)
+      fetchConsultations()
+    } catch (error) {
+      alert('Gagal membatalkan konsultasi.')
+    }
   }
+
+  const countByStatus = (status: StatusType) => konsultasiList.filter(k => k.status === status).length
 
   return (
     <>
@@ -951,8 +1035,13 @@ export default function KonsultasiSaya() {
             </p>
           </motion.div>
 
-          {/* ── MOBILE / TABLET: Dropdown + Cards ── */}
-          {(isMobile || isTablet) && (
+          {loading && (
+            <div style={{ padding: '40px 0', textAlign: 'center', color: '#78716C' }}>
+              Memuat konsultasi...
+            </div>
+          )}
+
+          {!loading && (isMobile || isTablet) && (
             <div>
               {/* Dropdown selector */}
               <motion.div
@@ -983,7 +1072,7 @@ export default function KonsultasiSaya() {
                     }}
                   >
                     {STATUS_TABS.map(status => {
-                      const count = countByStatus(status)
+                      const count = konsultasiList.filter(k => k.status === status).length
                       return (
                         <option key={status} value={status}>
                           {STATUS_CONFIG[status].label}{count > 0 ? ` (${count})` : ''}
@@ -1018,9 +1107,9 @@ export default function KonsultasiSaya() {
                         key={k.id}
                         konsultasi={k}
                         isMobile={isMobile}
-                        isTablet={isTablet}
                         onReschedule={setRescheduleTarget}
                         onCancel={setCancelTarget}
+                        onPay={handlePay}
                       />
                     ))
                   ) : (
@@ -1032,7 +1121,7 @@ export default function KonsultasiSaya() {
           )}
 
           {/* ── DESKTOP: Sidebar Tabs + Cards ── */}
-          {!isMobile && !isTablet && (
+          {!loading && !isMobile && !isTablet && (
             <div
               style={{
                 display: 'grid',
@@ -1149,9 +1238,9 @@ export default function KonsultasiSaya() {
                           key={k.id}
                           konsultasi={k}
                           isMobile={isMobile}
-                          isTablet={isTablet}
                           onReschedule={setRescheduleTarget}
                           onCancel={setCancelTarget}
+                          onPay={handlePay}
                         />
                       ))
                     ) : (
