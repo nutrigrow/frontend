@@ -441,7 +441,6 @@ export default function BookingKonsultasi() {
             onPending: () => setShowPopup(true),
             onError: () => alert('Pembayaran gagal. Silakan coba lagi dari riwayat konsultasi.'),
             onClose: () => {
-              alert('Pembayaran dibatalkan. Anda dapat melanjutkan pembayaran nanti di halaman Riwayat Konsultasi.')
               navigate('/konsultasi-saya')
             }
           })

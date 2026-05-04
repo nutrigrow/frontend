@@ -28,6 +28,9 @@ interface Konsultasi {
   waktu: string
   metode: 'Video Call' | 'Text Chat'
   catatan?: string
+  ahliGiziId: number
+  rawJadwalSesi: string
+  durasiMenit: number
   transaksi?: {
     id: number;
     statusBayar: string;
@@ -130,6 +133,9 @@ const mapConsultation = (c: any): Konsultasi => ({
   }) + ' WIB',
   metode: c.metode === 'VIDEO_CALL' ? 'Video Call' : 'Text Chat',
   catatan: c.status === 'CANCELLED' ? 'Dibatalkan' : undefined,
+  ahliGiziId: c.ahliGiziId,
+  rawJadwalSesi: c.jadwalSesi,
+  durasiMenit: c.durasiMenit || 30,
   transaksi: c.transaksi ? {
     id: c.transaksi.id,
     statusBayar: c.transaksi.statusBayar,
@@ -150,13 +156,19 @@ const DAY_NAMES_SHORT = ['Ming','Sen','Sel','Rab','Kam','Jum','Sab']
 const MiniCalendar = ({
   selected,
   onSelect,
+  workingDays = [],
 }: {
   selected: Date | null
   onSelect: (d: Date) => void
+  workingDays?: string[]
 }) => {
   const today = new Date()
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
+
+  const DAY_NAME_MAP: Record<number, string> = {
+    0: 'Minggu', 1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat', 6: 'Sabtu'
+  }
 
   const firstDay = new Date(viewYear, viewMonth, 1).getDay()
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
@@ -168,9 +180,18 @@ const MiniCalendar = ({
   while (cells.length < 42) cells.push({ day: cells.length - daysInMonth - firstDay + 2, current: false })
 
   const isPast = (d: number) => {
-    const dt = new Date(viewYear, viewMonth, d); dt.setHours(0,0,0,0)
-    const t = new Date(); t.setHours(0,0,0,0)
-    return dt < t
+    const date = new Date(viewYear, viewMonth, d)
+    date.setHours(0, 0, 0, 0)
+    const todayCopy = new Date()
+    todayCopy.setHours(0, 0, 0, 0)
+
+    const maxDate = new Date(todayCopy)
+    maxDate.setDate(maxDate.getDate() + 14)
+
+    const dayName = DAY_NAME_MAP[date.getDay()]
+    const isWorkingDay = workingDays.length === 0 || workingDays.includes(dayName)
+
+    return date < todayCopy || date > maxDate || !isWorkingDay
   }
   const isSelected = (d: number) =>
     selected !== null && d === selected.getDate() &&
@@ -224,8 +245,6 @@ const MiniCalendar = ({
 }
 
 // ─── Reschedule Modal ─────────────────────────────────────────────────────────
-const TIME_SLOTS = ['09:00 - 10:00','10:00 - 11:00','11:30 - 12:30','13:00 - 14:00','14:30 - 15:30','16:00 - 17:00']
-
 const RescheduleModal = ({
   konsultasi,
   onClose,
@@ -237,9 +256,49 @@ const RescheduleModal = ({
 }) => {
   const [pickedDate, setPickedDate] = useState<Date | null>(null)
   const [pickedTime, setPickedTime] = useState<string | null>(null)
+  const [workingDays, setWorkingDays] = useState<string[]>([])
+  const [availableSlots, setAvailableSlots] = useState<{ time: string; isAvailable: boolean }[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const formatDate = (d: Date) => `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`
+  const formatDate = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
+  const formatDateDisplay = (d: Date) => `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`
   const canConfirm = pickedDate !== null && pickedTime !== null
+
+  // Fetch specialist schedule on mount
+  useEffect(() => {
+    const fetchSpecialist = async () => {
+      try {
+        const data = await teleNutritionistService.getSpecialistById(konsultasi.ahliGiziId)
+        setWorkingDays(data.jadwal.hari)
+      } catch (err) {
+        console.error('Failed to fetch specialist schedule:', err)
+      }
+    }
+    fetchSpecialist()
+  }, [konsultasi.ahliGiziId])
+
+  // Fetch available slots when date changes
+  useEffect(() => {
+    if (!pickedDate) return
+    const fetchSlots = async () => {
+      setLoading(true)
+      try {
+        const slots = await teleNutritionistService.getAvailability(konsultasi.ahliGiziId, formatDate(pickedDate))
+        setAvailableSlots(slots)
+      } catch (err) {
+        console.error('Failed to fetch availability:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchSlots()
+  }, [pickedDate, konsultasi.ahliGiziId])
 
   return (
     <div
@@ -303,6 +362,7 @@ const RescheduleModal = ({
           <MiniCalendar
             selected={pickedDate}
             onSelect={d => { setPickedDate(d); setPickedTime(null) }}
+            workingDays={workingDays}
           />
         </div>
 
@@ -312,34 +372,45 @@ const RescheduleModal = ({
             Pilih Waktu Baru
           </p>
           {pickedDate ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {TIME_SLOTS.map(slot => {
-                const isActive = pickedTime === slot
-                return (
-                  <button
-                    key={slot}
-                    onClick={() => setPickedTime(slot)}
-                    style={{
-                      padding: '9px 6px',
-                      borderRadius: 8,
-                      border: isActive ? `2px solid ${NG.primary}` : '1.5px solid #E7E5E4',
-                      background: isActive ? NG.primary : '#fff',
-                      color: isActive ? '#fff' : '#1C1917',
-                      fontFamily: 'var(--font-heading), sans-serif',
-                      fontSize: 12,
-                      fontWeight: isActive ? 700 : 500,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                      textAlign: 'center',
-                    }}
-                    onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = NG.lighter }}
-                    onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = '#fff' }}
-                  >
-                    {slot}
-                  </button>
-                )
-              })}
-            </div>
+            loading ? (
+              <p style={{ textAlign: 'center', fontSize: 13, color: '#78716C', padding: '16px 0' }}>Memuat slot...</p>
+            ) : availableSlots.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {availableSlots.map(({ time, isAvailable }) => {
+                  const isActive = pickedTime === time
+                  const unavailable = !isAvailable
+                  return (
+                    <button
+                      key={time}
+                      disabled={unavailable}
+                      onClick={() => setPickedTime(time)}
+                      style={{
+                        padding: '9px 6px',
+                        borderRadius: 8,
+                        border: isActive ? `2px solid ${NG.primary}` : `1.5px solid ${unavailable ? '#F0EDE8' : '#E7E5E4'}`,
+                        background: isActive ? NG.primary : unavailable ? '#FAFAF9' : '#fff',
+                        color: isActive ? '#fff' : unavailable ? '#D6D3D1' : '#1C1917',
+                        fontFamily: 'var(--font-heading), sans-serif',
+                        fontSize: 12,
+                        fontWeight: isActive ? 700 : 500,
+                        cursor: unavailable ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.15s',
+                        textAlign: 'center',
+                        textDecoration: unavailable ? 'line-through' : 'none',
+                      }}
+                      onMouseEnter={e => { if (!isActive && !unavailable) (e.currentTarget as HTMLElement).style.background = NG.lighter }}
+                      onMouseLeave={e => { if (!isActive && !unavailable) (e.currentTarget as HTMLElement).style.background = '#fff' }}
+                    >
+                      {time}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <p style={{ margin: 0, fontFamily: 'var(--font-heading), sans-serif', fontSize: 13, color: '#A8A29E', textAlign: 'center', padding: '16px 0' }}>
+                Tidak ada slot tersedia
+              </p>
+            )
           ) : (
             <p style={{ margin: 0, fontFamily: 'var(--font-heading), sans-serif', fontSize: 13, color: '#A8A29E', textAlign: 'center', padding: '16px 0' }}>
               Pilih tanggal dahulu
@@ -362,7 +433,7 @@ const RescheduleModal = ({
           </button>
           <button
             disabled={!canConfirm}
-            onClick={() => canConfirm && onConfirm(formatDate(pickedDate!), pickedTime!)}
+            onClick={() => canConfirm && onConfirm(formatDateDisplay(pickedDate!), pickedTime!)}
             style={{
               flex: 1, padding: '12px',
               background: canConfirm ? `linear-gradient(135deg, ${NG.primary} 0%, ${NG.dark} 100%)` : '#E7E5E4',
@@ -520,11 +591,46 @@ const KonsultasiCard = ({
   onCancel: (k: Konsultasi) => void
   onPay: (k: Konsultasi) => void
 }) => {
+  const [now, setNow] = useState(new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 10000)
+    return () => clearInterval(timer)
+  }, [])
+
   const statusCfg = STATUS_CONFIG[konsultasi.status]
   const StatusIcon = statusCfg.icon
   const isAkanDatang = konsultasi.status === 'Akan Datang'
   const isPendingPayment = isAkanDatang && konsultasi.transaksi?.statusBayar === 'PENDING'
   const isConfirmed = isAkanDatang && konsultasi.transaksi?.statusBayar === 'SUCCESS'
+
+  // Window calculations
+  const startTime = new Date(konsultasi.rawJadwalSesi)
+  const endTime = new Date(startTime.getTime() + konsultasi.durasiMenit * 60000)
+  const bufferTime = new Date(startTime.getTime() - 10 * 60000) // 10 mins before
+
+  const isTooEarly = now < bufferTime
+  const isOngoing = now >= bufferTime && now <= endTime
+  const isEnded = now > endTime
+
+  const formatCountdown = (target: Date) => {
+    const diff = target.getTime() - now.getTime()
+    if (diff <= 0) return ''
+    const h = Math.floor(diff / 3600000)
+    const m = Math.floor((diff % 3600000) / 60000)
+    if (h > 0) return `${h} jam ${m} mnt lagi`
+    return `${m} mnt lagi`
+  }
+
+  const handleOpenLink = () => {
+    if (konsultasi.metode === 'Video Call') {
+      window.open(`https://meet.jit.si/NutriGrow-Consultation-${konsultasi.rawId}`, '_blank')
+    } else {
+      const waNumber = '6281234567890' // Static number as requested
+      const message = `Halo, saya pasien NutriGrow dengan ID Sesi: ${konsultasi.id}. Saya ingin memulai sesi konsultasi Chat.`
+      window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank')
+    }
+  }
 
   return (
     <motion.div
@@ -544,16 +650,14 @@ const KonsultasiCard = ({
       {/* ── Card Header ── */}
       <div
         style={{
+          padding: '14px 20px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '14px 20px',
           borderBottom: '1px solid #F0EDE8',
           gap: 8,
-          minWidth: 0,
         }}
       >
-        {/* Status Badge */}
         <div
           style={{
             display: 'inline-flex',
@@ -566,189 +670,94 @@ const KonsultasiCard = ({
           }}
         >
           <StatusIcon size={13} color={statusCfg.text} strokeWidth={2.5} />
-          <span
-            style={{
-              fontFamily: 'Montserrat, sans-serif',
-              fontSize: 12,
-              fontWeight: 700,
-              color: statusCfg.text,
-            }}
-          >
+          <span style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 12, fontWeight: 700, color: statusCfg.text }}>
             {statusCfg.label}
           </span>
         </div>
-
-        {/* ID */}
-        <span
-          style={{
-            fontFamily: 'var(--font-heading), sans-serif',
-            fontSize: 12,
-            color: '#A8A29E',
-            flexShrink: 0,
-          }}
-        >
+        <span style={{ fontFamily: 'var(--font-heading), sans-serif', fontSize: 12, color: '#A8A29E' }}>
           ID: {konsultasi.id}
         </span>
       </div>
 
       {/* ── Specialist Info ── */}
       <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div
-          style={{
-            width: 52, height: 52, borderRadius: '50%',
-            overflow: 'hidden', flexShrink: 0,
-            border: `2px solid ${NG.border}`,
-          }}
-        >
+        <div style={{ width: 52, height: 52, borderRadius: '50%', overflow: 'hidden', border: `2px solid ${NG.border}`, flexShrink: 0 }}>
           <img
             src={konsultasi.spesialis.foto}
             alt={konsultasi.spesialis.nama}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            onError={e => {
-              ;(e.currentTarget as HTMLImageElement).src =
-                'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=100&q=80'
-            }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={e => { (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=100&q=80' }}
           />
         </div>
         <div>
-          <p style={{ margin: 0, fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 16, color: '#1C1917' }}>
-            {konsultasi.spesialis.nama}
-          </p>
-          <p style={{ margin: '3px 0 0', fontFamily: 'var(--font-heading), sans-serif', fontSize: 13, color: NG.primary, fontWeight: 600 }}>
-            {konsultasi.spesialis.spesialisasi}
-          </p>
+          <p style={{ margin: 0, fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 16, color: '#1C1917' }}>{konsultasi.spesialis.nama}</p>
+          <p style={{ margin: '3px 0 0', fontFamily: 'var(--font-heading), sans-serif', fontSize: 13, color: NG.primary, fontWeight: 600 }}>{konsultasi.spesialis.spesialisasi}</p>
         </div>
       </div>
 
-      {/* ── Appointment Details ── */}
-      <div
-        style={{
-          margin: '0 20px 16px',
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-          gap: isMobile ? 8 : 10,
-        }}
-      >
-        {/* Card Tanggal */}
-        <div
-          style={{
-            background: '#F5F5F4',
-            border: '1px solid #E7E5E4',
-            borderRadius: 12,
-            padding: '12px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-        >
-          <Calendar size={16} color={NG.primary} strokeWidth={2} style={{ flexShrink: 0 }} />
+      {/* ── Details ── */}
+      <div style={{ margin: '0 20px 16px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 10 }}>
+        <div style={{ background: '#F5F5F4', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Calendar size={16} color={NG.primary} />
           <div>
-            <p style={{ margin: 0, fontFamily: 'var(--font-heading), sans-serif', fontSize: 11, color: '#78716C', fontWeight: 600 }}>Tanggal</p>
-            <p style={{ margin: '2px 0 0', fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: isMobile ? 13 : 14, color: '#1C1917' }}>
-              {konsultasi.tanggal}
-            </p>
+            <p style={{ margin: 0, fontSize: 11, color: '#78716C', fontWeight: 600 }}>Tanggal</p>
+            <p style={{ margin: '2px 0 0', fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 14 }}>{konsultasi.tanggal}</p>
           </div>
         </div>
-
-        {/* Card Waktu */}
-        <div
-          style={{
-            background: '#F5F5F4',
-            border: '1px solid #E7E5E4',
-            borderRadius: 12,
-            padding: '12px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-        >
-          <Clock size={16} color={NG.primary} strokeWidth={2} style={{ flexShrink: 0 }} />
+        <div style={{ background: '#F5F5F4', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Clock size={16} color={NG.primary} />
           <div>
-            <p style={{ margin: 0, fontFamily: 'var(--font-heading), sans-serif', fontSize: 11, color: '#78716C', fontWeight: 600 }}>Waktu</p>
-            <p style={{ margin: '2px 0 0', fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: isMobile ? 13 : 14, color: '#1C1917' }}>
-              {konsultasi.waktu}
-            </p>
+            <p style={{ margin: 0, fontSize: 11, color: '#78716C', fontWeight: 600 }}>Waktu</p>
+            <p style={{ margin: '2px 0 0', fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 14 }}>{konsultasi.waktu}</p>
           </div>
         </div>
-
-        {/* Card Metode */}
-        <div
-          style={{
-            background: '#F5F5F4',
-            border: '1px solid #E7E5E4',
-            borderRadius: 12,
-            padding: '12px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-        >
-          {konsultasi.metode === 'Video Call'
-            ? <Video size={16} color={NG.primary} strokeWidth={2} style={{ flexShrink: 0 }} />
-            : <MessageSquare size={16} color={NG.primary} strokeWidth={2} style={{ flexShrink: 0 }} />
-          }
+        <div style={{ background: '#F5F5F4', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          {konsultasi.metode === 'Video Call' ? <Video size={16} color={NG.primary} /> : <MessageSquare size={16} color={NG.primary} />}
           <div>
-            <p style={{ margin: 0, fontFamily: 'var(--font-heading), sans-serif', fontSize: 11, color: '#78716C', fontWeight: 600 }}>Metode</p>
-            <p style={{ margin: '2px 0 0', fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: isMobile ? 13 : 14, color: '#1C1917' }}>
-              {konsultasi.metode}
-            </p>
+            <p style={{ margin: 0, fontSize: 11, color: '#78716C', fontWeight: 600 }}>Metode</p>
+            <p style={{ margin: '2px 0 0', fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 14 }}>{konsultasi.metode}</p>
           </div>
         </div>
       </div>
 
-      {/* Notes */}
-      {konsultasi.catatan && (
-        <p style={{ margin: '0 20px 14px', fontFamily: 'var(--font-heading), sans-serif', fontSize: 12, color: '#78716C', fontStyle: 'italic' }}>
-          *{konsultasi.catatan}
-        </p>
-      )}
-
-      {/* ── Action Buttons ── */}
+      {/* ── Actions ── */}
       {isAkanDatang && (
-        <div
-          style={{
-            padding: '14px 20px 20px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-          }}
-        >
-          {/* Bayar Sekarang — hanya jika belum bayar */}
+        <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Link Sesi Logic */}
+          {isConfirmed && !isEnded && (
+            <button
+              disabled={isTooEarly}
+              onClick={handleOpenLink}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 16px',
+                background: isTooEarly ? '#F5F5F4' : `linear-gradient(135deg, ${NG.primary} 0%, ${NG.dark} 100%)`,
+                color: isTooEarly ? '#A8A29E' : '#fff', border: 'none', borderRadius: 10,
+                fontFamily: 'Montserrat, sans-serif', fontSize: 13, fontWeight: 700,
+                cursor: isTooEarly ? 'default' : 'pointer', transition: 'all 0.2s',
+                boxShadow: isTooEarly ? 'none' : '0 4px 12px rgba(98,129,65,0.2)',
+              }}
+            >
+              {konsultasi.metode === 'Video Call' ? <Video size={16} /> : <MessageSquare size={16} />}
+              {isTooEarly ? `Mulai dalam ${formatCountdown(bufferTime)}` : `Masuk Sesi ${konsultasi.metode === 'Video Call' ? 'Video' : 'Chat'}`}
+            </button>
+          )}
+
+          {isConfirmed && isEnded && (
+            <div style={{ textAlign: 'center', padding: '10px', background: '#F9FAFB', borderRadius: 10 }}>
+              <p style={{ margin: 0, fontSize: 13, color: '#9CA3AF', fontWeight: 600 }}>Sesi telah berakhir</p>
+            </div>
+          )}
+
           {isPendingPayment && (
             <button
               onClick={() => onPay(konsultasi)}
               style={{
-                width: '100%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: 8, padding: '12px 16px',
-                background: '#FFC107',
-                color: '#1C1917', border: 'none', borderRadius: 10,
-                fontFamily: 'Montserrat, sans-serif', fontSize: 13, fontWeight: 700,
-                cursor: 'pointer', boxShadow: '0 2px 8px rgba(255,193,7,0.25)',
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 16px',
+                background: '#FFC107', color: '#1C1917', border: 'none', borderRadius: 10,
+                fontFamily: 'Montserrat, sans-serif', fontSize: 13, fontWeight: 700, cursor: 'pointer',
               }}
             >
-              <Calendar size={14} strokeWidth={2.5} />
-              Bayar Sekarang
-            </button>
-          )}
-
-          {/* Link Sesi — hanya jika sudah bayar (CONFIRMED) */}
-          {isConfirmed && (
-            <button
-              disabled
-              style={{
-                width: '100%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: 8, padding: '12px 16px',
-                background: `linear-gradient(135deg, ${NG.primary} 0%, ${NG.dark} 100%)`,
-                color: '#fff', border: 'none', borderRadius: 10,
-                fontFamily: 'Montserrat, sans-serif', fontSize: 13, fontWeight: 700,
-                cursor: 'not-allowed', opacity: 0.8,
-                boxShadow: '0 2px 8px rgba(98,129,65,0.25)',
-              }}
-            >
-              <Video size={14} strokeWidth={2.5} />
-              Link Sesi (Segera Tersedia)
+              <Calendar size={14} /> Bayar Sekarang
             </button>
           )}
 
@@ -927,6 +936,7 @@ export default function KonsultasiSaya() {
         onSuccess: async () => {
           if (konsultasi.rawId) {
             try {
+              // Manual confirmation to speed up UI update
               await teleNutritionistService.confirmPayment(konsultasi.rawId)
             } catch (err) {
               console.error('confirmPayment error:', err)
@@ -934,10 +944,11 @@ export default function KonsultasiSaya() {
           }
           fetchConsultations()
         },
-        onPending: () => fetchConsultations(),
+        onPending: () => {
+          fetchConsultations()
+        },
         onError: () => alert('Pembayaran gagal.'),
         onClose: () => {
-          // User closed without paying, refresh to show latest state
           fetchConsultations()
         }
       })

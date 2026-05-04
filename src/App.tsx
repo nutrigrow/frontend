@@ -25,11 +25,13 @@ import DetailSpesialis from './pages/detail-spesialis'
 import BookingKonsultasi from './pages/booking-konsultasi'
 import KonsultasiSaya from './pages/konsultasi-saya'
 import { ProtectedRoute, PublicOnlyRoute } from './components/ProtectedRoute'
+import ScrollToTop from './components/scroll-to-top'
 
 // ─── Main App Component (Routing + Layout) ──────────────────────────────────
 function App() {
   return (
     <Router>
+      <ScrollToTop />
       <AuthProvider>
         <div className='min-h-screen bg-white flex flex-col'>
           {/* Header */}
