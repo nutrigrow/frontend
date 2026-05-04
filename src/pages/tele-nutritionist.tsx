@@ -444,12 +444,14 @@ const KonsultasiButton = ({ onClick }: { onClick: () => void }) => (
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      width: 42,
+      gap: 6,
       height: 42,
+      padding: '0 12px',
       borderRadius: 10,
       border: '1.5px solid #E7E5E4',
       background: '#fff',
       cursor: 'pointer',
+      fontSize: 13,
       flexShrink: 0,
       transition: 'all 0.2s',
       position: 'relative',
@@ -466,6 +468,7 @@ const KonsultasiButton = ({ onClick }: { onClick: () => void }) => (
     }}
   >
     <ClipboardList size={18} color={NUTRI_GREEN} strokeWidth={2} />
+    Konsultasi Saya
   </button>
 )
 

@@ -371,10 +371,10 @@ const LogNewGrowthSection = ({
           </p>
           <ChildSelectDropdown />
           <div className="grid grid-cols-2 gap-3">
-            <InputField label="Height (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" error={heightError} />
-            <InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" error={weightError} />
+            <InputField label="Tinggi Badan (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" error={heightError} />
+            <InputField label="Berat Badan (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" error={weightError} />
           </div>
-          <DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} error={dateError} />
+          <DateInputField label="Tanggal Pengukuran" value={dateVal} onChange={setDateVal} error={dateError} />
           <button onClick={onSave} disabled={saving} className={`flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[50px] w-full font-[Montserrat,sans-serif] font-black text-lg text-white cursor-pointer ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}>
             {saving ? 'Saving...' : saveLabel}
           </button>
@@ -834,8 +834,8 @@ const KeyStatsSection = ({
 
   return (
     <div className={`w-full mb-8 grid gap-6 ${bp === 'mobile' ? 'grid-cols-1' : 'grid-cols-3'}`}>
-      <StatCard icon={<IconHeightSvg />} label="Current Height" value={height} unit="cm" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
-      <StatCard icon={<IconWeightSvg />} label="Current Weight" value={weight} unit="kg" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
+      <StatCard icon={<IconHeightSvg />} label="Tinggi Badan Sekarang" value={height} unit="cm" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
+      <StatCard icon={<IconWeightSvg />} label="Berat Badan Sekarang" value={weight} unit="kg" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
       <StuntingCard stuntingValue={stuntingValue} stuntingSub={stuntingSub} aiLabel={aiLabel} confidence={confidence} bp={bp} />
     </div>
   )
@@ -903,9 +903,9 @@ const BmiChart = ({
   const dotFn = makeLineDot(data, lastLabel)
   const isMobile = bp === 'mobile'
   const legendItems = [
-    { color: '#3f6212', label: `${childName}'s BMI` },
-    { color: '#cbd5e1', dash: true, label: 'WHO Median' },
-    { color: 'rgba(98,129,65,0.2)', isArea: true, label: 'WHO Normal Range' },
+    { color: '#3f6212', label: `BMI ${childName}` },
+    { color: '#cbd5e1', dash: true, label: 'Median WHO' },
+    { color: 'rgba(98,129,65,0.2)', isArea: true, label: 'Rentang Normal WHO' },
   ]
   const chartContent = (_height: number) => {
     // Transform data for the range area stacking trick
@@ -938,7 +938,7 @@ const BmiChart = ({
         <div className={`flex items-start w-full mb-4 ${isMobile ? 'flex-col gap-3' : 'flex-row justify-between'}`}>
           <div className="flex flex-col gap-0.5">
             <span className="font-[Montserrat,sans-serif] font-bold text-lg text-slate-900 leading-7">Pemantau Pertumbuhan (BMI)</span>
-            <span className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-500 leading-5">World Health Organization Standard Reference</span>
+            <span className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-500 leading-5">Referensi Standar World Health Organization</span>
           </div>
           <button className={`w-8 h-8 flex items-center justify-center cursor-pointer rounded-lg transition-colors hover:bg-slate-100 bg-transparent border-none flex-shrink-0 ${isMobile ? 'self-end' : ''}`} onClick={() => setModalOpen(true)} title="Expand chart"><IconExpand /></button>
         </div>
@@ -947,7 +947,7 @@ const BmiChart = ({
         </div>
         <ChartLegend items={legendItems} />
       </div>
-      <ChartModal open={modalOpen} onClose={() => setModalOpen(false)} title="Growth Tracker (BMI)" subtitle="World Health Organization Standard Reference" legendItems={legendItems}>
+      <ChartModal open={modalOpen} onClose={() => setModalOpen(false)} title="Growth Tracker (BMI)" subtitle="Referensi Standar World Health Organization" legendItems={legendItems}>
         {chartContent(420)}
       </ChartModal>
     </>
@@ -970,8 +970,8 @@ const SmallChart = ({ title, data, lastLabel, bp, unit }: { title: string; data:
   const dotFn = makeLineDot(data, lastLabel)
   const isMobile = bp === 'mobile'
   const legendItems = [
-    { color: '#3f6212', label: 'Your Child' },
-    { color: '#cbd5e1', dash: true, label: 'WHO Median' },
+    { color: '#3f6212', label: 'Anak Kamu' },
+    { color: '#cbd5e1', dash: true, label: 'Median WHO' },
   ]
   const chartContent = () => (
     <ResponsiveContainer width="100%" height="100%">
@@ -1010,8 +1010,8 @@ const SubChartsSection = ({
   weightData: { age: string; child: number }[]
 }) => (
   <div className={`w-full mb-8 grid gap-6 ${bp === 'mobile' ? 'grid-cols-1' : 'grid-cols-2'}`}>
-    <SmallChart title="Height for Age" data={heightData} lastLabel={heightData.length > 0 ? String(heightData[heightData.length-1].child) : ''} bp={bp} unit="cm" />
-    <SmallChart title="Weight for Age" data={weightData} lastLabel={weightData.length > 0 ? String(weightData[weightData.length-1].child) : ''} bp={bp} unit="kg" />
+    <SmallChart title="Tinggi Badan sesuai Usia" data={heightData} lastLabel={heightData.length > 0 ? String(heightData[heightData.length-1].child) : ''} bp={bp} unit="cm" />
+    <SmallChart title="Berat Badan sesuai Usia" data={weightData} lastLabel={weightData.length > 0 ? String(weightData[weightData.length-1].child) : ''} bp={bp} unit="kg" />
   </div>
 )
 
@@ -1028,7 +1028,7 @@ const MeasurementsTable = ({
     <table className="w-full border-collapse" style={{ minWidth: onEdit ? '560px' : '480px' }}>
       <thead>
         <tr className="border-b border-slate-100">
-          {['Date', 'Age', 'Height', 'Weight', 'Percentile (H)', 'Percentile (W)', ...(onEdit ? ['Actions'] : [])].map(col => (
+          {['Tanggal', 'Angka', 'Tinggi Badan', 'Berat Badan', 'Persentil (T)', 'Persentil (B)', ...(onEdit ? ['Aksi'] : [])].map(col => (
             <th key={col} className="font-[Montserrat,sans-serif] font-bold text-[10px] uppercase tracking-[0.5px] text-slate-500 pb-3 whitespace-nowrap text-center px-2">
               {col}
             </th>
@@ -1137,7 +1137,7 @@ const RecentMeasurementsSection = ({
     <>
       <div className={`bg-white relative rounded-lg w-full border border-slate-100 shadow-sm ${isMobile ? 'px-4 py-5' : 'p-[25px]'}`}>
         <div className="flex items-center justify-between mb-5">
-          <span className="font-[Montserrat,sans-serif] font-bold text-lg text-slate-900 leading-7">Recent Measurements</span>
+          <span className="font-[Montserrat,sans-serif] font-bold text-lg text-slate-900 leading-7">Pengukuran Terbaru</span>
           <button className="font-[Montserrat,sans-serif] font-semibold text-sm text-[#628141] hover:text-[#3f6212] bg-transparent border-none cursor-pointer p-0 transition-colors" onClick={() => setModalOpen(true)}>
             Lihat Semua
           </button>
@@ -1328,7 +1328,7 @@ const GrowthTracker = () => {
         const d = new Date(latest.tanggalCatat)
         setLastUpdated(`Diperbarui ${d.toLocaleDateString('id-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
       } else {
-        setLatestHeight('—'); setLatestWeight('—'); setLastUpdated('No data yet')
+        setLatestHeight('—'); setLatestWeight('—'); setLastUpdated('Data belum tersedia')
       }
       setBmiData(transformBmiChartData(bmi))
       setHeightData(transformToSubChartData(percentile, 'height'))

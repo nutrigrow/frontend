@@ -534,7 +534,7 @@ const InsightModal = ({
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
           {safe.sections.length === 0 ? (
-            <p className="font-[Montserrat,sans-serif] text-sm text-slate-500 text-center py-6">Log hari ini untuk melihat insight.</p>
+            <p className="font-[Montserrat,sans-serif] text-sm text-slate-500 text-center py-6">Catatan hari ini untuk melihat analisis lebih lanjut.</p>
           ) : safe.sections.map((sec, si) => (
             <div key={si} className="flex flex-col gap-2">
               <span className="font-[Montserrat,sans-serif] font-bold text-sm text-slate-700 uppercase tracking-[0.5px]">{sec.heading}</span>
@@ -625,7 +625,7 @@ const FluidStatCard = ({ category, value }: { category: CategoryType; value: num
   const insight = value !== null ? getFluidInsight(value, target) : undefined
   return (
     <StatCardBase icon={<FluidIconSvg />} iconBg="#eff6ff" label="CAIRAN" insight={insight}
-      sub={value !== null ? <>{target - value > 0 ? `${target - value} gelas lagi!` : 'Target tercapai!'}</> : <>Log hari ini</>}
+      sub={value !== null ? <>{target - value > 0 ? `${target - value} gelas lagi!` : 'Target tercapai!'}</> : <>Catatan hari ini</>}
     >
       {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
         <div className="flex flex-col gap-1">
@@ -648,7 +648,7 @@ const RestStatCard = ({ category, value }: { category: CategoryType; value: numb
   const insight = value !== null ? getRestInsight(value, category) : undefined
   return (
     <StatCardBase icon={<MoonIconSvg />} iconBg="#f5f3ff" label="ISTIRAHAT" insight={insight}
-      sub={value !== null ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Kualitas bagus</span></span> : <>Log hari ini</>}
+      sub={value !== null ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Kualitas bagus</span></span> : <>Catatan hari ini</>}
     >
       {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
         <div className="flex items-baseline gap-1">
@@ -673,7 +673,7 @@ const MoodStatCard = ({ category, value }: { category: CategoryType; value: numb
   const insight  = value !== null ? getMoodInsight(moodVal, category) : undefined
   return (
     <StatCardBase icon={<SmileIconSvg />} iconBg="#f0fdf4" label="SUASANA HATI" insight={insight}
-      sub={value !== null ? 'Stability high' : 'Log hari ini'}
+      sub={value !== null ? 'Stability high' : 'Catatan hari ini'}
     >
       {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
         <div className="flex items-baseline gap-1.5">
@@ -690,7 +690,7 @@ const CycleStatCard = ({ value }: { value: string | null }) => {
   const insight = value !== null ? getCycleInsight(isMenstruating) : undefined
   return (
     <StatCardBase icon={<CalendarIconSvg />} iconBg="#fdf2f8" label="PEMANTAU SIKLUS" insight={insight}
-      sub={value !== null ? 'Siklus teratur' : 'Log hari ini'}
+      sub={value !== null ? 'Siklus teratur' : 'Catatan hari ini'}
     >
       {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
         <span className="font-black text-[20px] text-[#1c1917] font-[Inter,sans-serif] leading-none">{value}</span>
@@ -703,7 +703,7 @@ const MomWeightCard = ({ value }: { value: number | null }) => {
   const insight = value !== null ? getMomWeightInsight(value, value, 2) : undefined
   return (
     <StatCardBase icon={<WeightIconSvg />} iconBg="#fdf2f8" label="BERAT BADAN IBU" insight={insight}
-      sub={value !== null ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Terpantau</span></span> : <>Log hari ini</>}
+      sub={value !== null ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Terpantau</span></span> : <>Catatan hari ini</>}
     >
       {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
         <div className="flex items-baseline gap-1">
@@ -719,7 +719,7 @@ const PumpingStatCard = ({ value }: { value: number | null }) => {
   const insight = value !== null ? getPumpingInsight(value) : undefined
   return (
     <StatCardBase icon={<DropIconSvg />} iconBg="#fdf2f8" label="MENYUSUI & MEMOMPA ASI" insight={insight}
-      sub={value !== null ? (value >= 8 ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Jadwal stabil</span></span> : 'Target: 8 sesi/hari') : <>Log hari ini</>}
+      sub={value !== null ? (value >= 8 ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Jadwal stabil</span></span> : 'Target: 8 sesi/hari') : <>Catatan hari ini</>}
     >
       {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
         <div className="flex items-baseline gap-1">
@@ -865,7 +865,7 @@ const LogsTable = ({
           {data.length === 0 && (
             <tr>
               <td colSpan={showActions ? 8 : 7} className="py-8 text-center font-[Montserrat,sans-serif] text-sm text-slate-400">
-                Belum ada log tercatat.
+                Belum ada data tercatat.
               </td>
             </tr>
           )}

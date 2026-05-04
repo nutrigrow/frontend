@@ -82,14 +82,14 @@ const Header = () => {
 
   // ─── Nav data ──────────────────────────────────────────────────────────────
   const navItems = [
-    { label: 'About Us',          href: '/',           active: false },
+    { label: 'Tentang Kami',          href: '/',           active: false },
     { label: 'NutriShop',         href: '/nutrishop',          active: false },
     { label: 'Tele-Nutritionist', href: '/tele-nutritionist',  active: false },
-    { label: 'Article',           href: '/artikel',            active: false },
+    { label: 'Artikel',           href: '/artikel',            active: false },
   ]
   const dropdownItems = [
-    { label: "Growth Tracker",  href: '/growth-tracker'  },
-    { label: "Health Log", href: '/health-log' },
+    { label: "Pemantau Pertumbuhan",  href: '/growth-tracker'  },
+    { label: "Catatan Kesehatan", href: '/health-log' },
   ]
   const logoHref = isLoggedIn ? '/dashboard' : '/'
 

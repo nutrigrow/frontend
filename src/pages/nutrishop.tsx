@@ -437,7 +437,7 @@ const SidebarFilter = ({
             marginBottom: 14,
           }}
         >
-          Price Range
+          Rentang Harga
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <input
@@ -821,7 +821,7 @@ export default function NutriShop() {
                     margin: 0,
                   }}
                 >
-                  Nutritious Essentials
+                  Nutrisi Esensial
                 </h2>
                 
                 {isMobile && (
@@ -938,7 +938,7 @@ export default function NutriShop() {
                       aria-label="Buka keranjang"
                     >
                       <ShoppingBasket size={17} />
-                      Cart
+                      Keranjang
                     </button>
                   </>
                 )}
@@ -952,7 +952,7 @@ export default function NutriShop() {
                   />
                   <input
                     type="text"
-                    placeholder="Search healthy products..."
+                    placeholder="Cari Produk Sehat..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     style={{
