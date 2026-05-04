@@ -1,7 +1,7 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { Search, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react'
 import { CardArtikel } from '../components/card-artikel'
-import { DUMMY_ARTICLES } from '../data/articles'
+import { articleService, type ArticleCard } from '../services/article.service'
 
 // ─── Breakpoint helper ────────────────────────────────────────────────────────
 const useBreakpoint = () => {
@@ -336,31 +336,44 @@ export default function Artikel() {
   const [currentPage, setCurrentPage] = useState(1)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
 
+  const [articles, setArticles] = useState<ArticleCard[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchArticles = async () => {
+      setLoading(true)
+      try {
+        const result = await articleService.getArticles({
+          kategori: selectedCategory,
+          search: searchQuery,
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+        })
+        setArticles(result.articles)
+        setTotalCount(result.total)
+        setTotalPages(result.totalPages)
+      } catch (err) {
+        console.error('Failed to fetch articles:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchArticles()
+  }, [selectedCategory, searchQuery, currentPage])
+
+  // Reset to page 1 when filter/search changes
+  useEffect(() => { setCurrentPage(1) }, [searchQuery, selectedCategory])
+
   const handleArticleClick = (id: number) => {
     window.location.href = `/baca-artikel/${id}`
   }
-
-  const filteredArticles = useMemo(() => {
-    return DUMMY_ARTICLES.filter(article => {
-      const catMatch = selectedCategory === 'Semua' || article.category === selectedCategory
-      const searchMatch =
-        !searchQuery.trim() ||
-        article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        article.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        article.category.toLowerCase().includes(searchQuery.toLowerCase())
-      return catMatch && searchMatch
-    })
-  }, [selectedCategory, searchQuery])
-
-  const totalPages = Math.ceil(filteredArticles.length / ITEMS_PER_PAGE)
-  const paginatedArticles = filteredArticles.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
-
-  useEffect(() => { setCurrentPage(1) }, [searchQuery, selectedCategory])
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAFAF9', fontFamily: 'var(--font-heading), sans-serif' }}>
@@ -570,12 +583,12 @@ export default function Artikel() {
             Artikel Terbaru
           </h2>
           <p style={{ fontFamily: 'var(--font-heading), sans-serif', fontSize: 13, color: '#78716C', margin: '3px 0 0' }}>
-            Menampilkan <strong style={{ color: '#628141' }}>{filteredArticles.length}</strong> artikel
+            Menampilkan <strong style={{ color: '#628141' }}>{totalCount}</strong> artikel
           </p>
         </div>
 
         {/* ── Articles Grid ── */}
-        {paginatedArticles.length > 0 ? (
+        {loading ? (
           <div
             style={{
               display: 'grid',
@@ -583,11 +596,31 @@ export default function Artikel() {
               gap: isMobile ? 16 : 20,
             }}
           >
-            {paginatedArticles.map(article => (
+            {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  background: '#F5F5F4',
+                  borderRadius: 16,
+                  height: 320,
+                  animation: 'pulse 1.5s ease-in-out infinite',
+                }}
+              />
+            ))}
+          </div>
+        ) : articles.length > 0 ? (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+              gap: isMobile ? 16 : 20,
+            }}
+          >
+            {articles.map(article => (
               <CardArtikel
                 key={article.id}
                 id={article.id}
-                image={article.image}
+                image={article.image ?? undefined}
                 title={article.title}
                 description={article.description}
                 category={article.category}

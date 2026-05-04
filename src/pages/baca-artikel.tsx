@@ -10,7 +10,8 @@ import {
   ChevronRight,
   CheckCircle2,
 } from 'lucide-react'
-import { DUMMY_ARTICLES, getArticleContent, type Article, type ArticleSection } from '../data/articles'
+import { type ArticleSection } from '../data/articles'
+import { articleService, type ArticleDetail, type ArticleCard } from '../services/article.service'
 import { CardArtikel } from '../components/card-artikel'
 
 // ─── Breakpoint Hook ──────────────────────────────────────────────────────────
@@ -305,17 +306,31 @@ export default function BacaArtikel() {
 
   const paddingInline = isMobile ? '20px' : isTablet ? '36px' : 'clamp(16px, 4.8vw, 80px)'
 
+  const [article, setArticle] = useState<ArticleDetail | null>(null)
+  const [relatedArticles, setRelatedArticles] = useState<ArticleCard[]>([])
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
+    if (!id) return
+
+    const fetchArticle = async () => {
+      setLoading(true)
+      setNotFound(false)
+      try {
+        const data = await articleService.getArticleById(id)
+        setArticle(data)
+        const related = await articleService.getRelatedArticles(id)
+        setRelatedArticles(related)
+      } catch {
+        setNotFound(true)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchArticle()
   }, [id])
-
-  const article: Article | undefined = DUMMY_ARTICLES.find(a => a.id === Number(id))
-
-  const relatedArticles = article
-    ? DUMMY_ARTICLES.filter(a => a.category === article.category && a.id !== article.id)
-    : []
-
-  const articleContent = article ? getArticleContent(article) : null
 
   const categoryColor = article
     ? (CATEGORY_COLOR[article.category] ?? CATEGORY_COLOR['MPASI'])
@@ -331,13 +346,15 @@ export default function BacaArtikel() {
   const fallbackImage = 'https://images.unsplash.com/photo-1490818387583-1baba5e638af?w=1200&q=80'
   const heroSrc = article?.image && article.image.trim() !== '' ? article.image : fallbackImage
 
-  if (!article) {
-    return <div style={{ padding: 100 }}>Error: Artikel dengan ID {id} tidak ada di data.</div>;
+  if (loading) {
+    return (
+      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ fontFamily: 'var(--font-heading), sans-serif', color: '#78716C', fontSize: 15 }}>Memuat artikel...</p>
+      </div>
+    )
   }
 
-  if (!articleContent) {
-    return <div style={{ padding: 100 }}>Error: Konten untuk kategori {article.category} tidak ditemukan.</div>;
-  }
+  if (notFound || !article) return <ArticleNotFound />
 
   return (
     <div
@@ -459,7 +476,7 @@ export default function BacaArtikel() {
         {!article && <ArticleNotFound />}
 
         {/* ── Article Detail ─────────────────────────────────── */}
-        {article && articleContent && (
+        {article && (
           <>
             {/* ── Article Header (Centered) ── */}
             <motion.div
@@ -650,7 +667,7 @@ export default function BacaArtikel() {
                   margin: '0 0 24px',
                 }}
               >
-                {articleContent.intro}
+                {article.content.intro}
               </p>
 
               {/* Divider */}
@@ -663,7 +680,7 @@ export default function BacaArtikel() {
               />
 
               {/* Sections */}
-              {articleContent.sections.map((section, idx) => (
+              {article.content.sections.map((section: ArticleSection, idx: number) => (
                 <RenderSection key={idx} section={section} isMobile={isMobile} />
               ))}
             </motion.div>
@@ -781,13 +798,13 @@ export default function BacaArtikel() {
                         flex: `0 0 ${isMobile ? '82%' : isTablet ? '46%' : '30%'}`,
                         maxWidth: isMobile ? 300 : isTablet ? 360 : 340,
                         scrollSnapAlign: 'start',
-                        display: 'flex', 
-                        alignItems: 'stretch' 
+                        display: 'flex',
+                        alignItems: 'stretch'
                       }}
                     >
                       <CardArtikel
                         id={a.id}
-                        image={a.image}
+                        image={a.image ?? undefined}
                         title={a.title}
                         description={a.description}
                         category={a.category}
