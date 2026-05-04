@@ -65,7 +65,7 @@ const AvatarBubbles = () => (
   </div>
 )
 
-// ─── Section 1: OUR ROOTS ─────────────────────────────────────────────────────
+// ─── Section 1: Awal Perjalanan Kami ─────────────────────────────────────────────────────
 const SectionOurRoots = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const isMobile = bp === 'mobile'
   const paddingInline = getPaddingInline(bp)
@@ -151,7 +151,7 @@ const SectionOurRoots = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
                 textTransform: 'uppercase',
               }}
             >
-              Our Roots
+              Awal Perjalanan Kami
             </span>
           </div>
 
@@ -227,7 +227,7 @@ const SectionOurRoots = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   )
 }
 
-// ─── Section 2: OUR MISSION ───────────────────────────────────────────────────
+// ─── Section 2: Alasan Kami Hadir ───────────────────────────────────────────────────
 const SectionOurMission = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const isMobile = bp === 'mobile'
   const isTablet = bp === 'tablet'
@@ -267,7 +267,7 @@ const SectionOurMission = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
             textTransform: 'uppercase',
           }}
         >
-          Our Mission
+          Alasan Kami Hadir
         </span>
 
         {/* Heading */}
@@ -384,7 +384,7 @@ const SectionOurMission = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   )
 }
 
-// ─── Section 3: THE PURPOSE ───────────────────────────────────────────────────
+// ─── Section 3: TUJUAN KAMI ───────────────────────────────────────────────────
 const SectionThePurpose = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const isMobile = bp === 'mobile'
   const isTablet = bp === 'tablet'
@@ -426,7 +426,7 @@ const SectionThePurpose = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               textTransform: 'uppercase',
             }}
           >
-            The Purpose
+            Tujuan Kami
           </span>
 
           {/* Heading + description row — desktop: row, mobile & tablet: column */}
@@ -751,7 +751,7 @@ const SectionThePurpose = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
                     lineHeight: '20px',
                   }}
                 >
-                  Joined by 50k+ Mothers
+                  Dipercaya oleh 50.000+ Ibu
                 </span>
               </div>
             </div>
@@ -772,7 +772,7 @@ const SectionThePurpose = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   )
 }
 
-// ─── Section 4: THEIR JOURNEY (OUR STORY) ────────────────────────────────────
+// ─── Section 4: PERJALANAN MEREKA ────────────────────────────────────
 const SectionOurStory = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const isMobile = bp === 'mobile'
   const isTablet = bp === 'tablet'
@@ -782,17 +782,17 @@ const SectionOurStory = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const testimonials = [
     {
       img: Member1Img,
-      name: 'User 1',
+      name: 'Pengguna 1',
       text: '"Fitur growth tracker-nya mudah digunakan dan penjelasannya juga mudah dipahami. Saya juga suka karena ada rekomendasi makanan bergizi."',
     },
     {
       img: Member2Img,
-      name: 'User 2',
+      name: 'Pengguna 2',
       text: '"NutriGrow bagus banget untuk ibu yang ingin lebih aware dengan nutrisi anak. Saya paling sering pakai fitur Health Log untuk tracking zat besi."',
     },
     {
       img: Member3Img,
-      name: 'User 3',
+      name: 'Pengguna 3',
       text: '"Saya suka dengan NutriGrow karena tampilannya simpel dan nyaman dipakai. Fitur konsultasi dan NutriShop juga memudahkan saya mendapatkan informasi dan produk nutrisi dalam satu aplikasi."',
     },
   ]
@@ -865,7 +865,7 @@ const SectionOurStory = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               textTransform: 'uppercase',
             }}
           >
-            Their Journey
+            Perjalanan Mereka
           </span>
 
           <h2
@@ -933,7 +933,7 @@ const SectionOurStory = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   )
 }
 
-// ─── Section 5: THE TEAM ──────────────────────────────────────────────────────
+// ─── Section 5: TIM PENGEMBANG ──────────────────────────────────────────────────────
 const SectionTheTeam = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const isMobile = bp === 'mobile'
   const paddingInline = getPaddingInline(bp)
@@ -982,7 +982,7 @@ const SectionTheTeam = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               textAlign: 'center',
             }}
           >
-            The Team
+            Tim Pengembang
           </span>
           <h2
             style={{
@@ -1096,7 +1096,7 @@ const SectionTheTeam = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   )
 }
 
-// ─── Section 6: READY ─────────────────────────────────────────────────────────
+// ─── Section 6: KATA AJAKAN ─────────────────────────────────────────────────────────
 const SectionReady = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const isMobile = bp === 'mobile'
   const isTablet = bp === 'tablet'
@@ -1142,7 +1142,7 @@ const SectionReady = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           margin: 0,
         }}
       >
-        Ready to grow with us?
+        Mari tumbuh bersama kami !
       </h2>
       <p
         style={{
@@ -1156,7 +1156,7 @@ const SectionReady = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           maxWidth: 1280,
         }}
       >
-        Join thousands of families making informed nutritional choices every day.
+        Bergabunglah menjadi bagian dari ribuan keluarga yang peduli pada pilihan nutrisi setiap hari.
       </p>
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
         {/* Start Tracker */}
@@ -1193,11 +1193,11 @@ const SectionReady = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               whiteSpace: 'nowrap',
             }}
           >
-            Start Tracker
+            Mulai Pemantauan
           </span>
         </button>
 
-        {/* Explore Articles */}
+        {/* Jelajahi Artikel */}
         <button
           onClick={() => {
             window.scrollTo(0, 0);
@@ -1230,7 +1230,7 @@ const SectionReady = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               whiteSpace: 'nowrap',
             }}
           >
-            Explore Articles
+            Jelajahi Artikel
           </span>
         </button>
       </div>

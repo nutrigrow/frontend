@@ -32,11 +32,11 @@ interface ContactItemProps {
 const ContactItem = ({ icon, label, href, underline, bp }: ContactItemProps & { bp: string }) => {
   const [hovered, setHovered] = useState(false)
   return (
-    <li style={{ display: 'flex', alignItems: 'center', gap: bp === 'mobile' ? '10px' : 'clamp(8px, 0.94vw, 12px)' }}>
+    <li style={{ display: 'flex', alignItems: 'center', gap: bp === 'mobile' ? '8px' : 'clamp(6px, 0.7vw, 10px)' }}>
       <div style={{
         flexShrink:     0,
-        width:          bp === 'mobile' ? '36px' : 'clamp(32px, 3vw, 44px)',
-        height:         bp === 'mobile' ? '36px' : 'clamp(32px, 3vw, 44px)',
+        width:          bp === 'mobile' ? '28px' : 'clamp(24px, 2.2vw, 34px)',
+        height:         bp === 'mobile' ? '28px' : 'clamp(24px, 2.2vw, 34px)',
         borderRadius:   '50%',
         background:     '#3F6212',
         display:        'flex',
@@ -45,7 +45,7 @@ const ContactItem = ({ icon, label, href, underline, bp }: ContactItemProps & { 
         overflow:       'hidden',
       }}>
         <img src={icon} alt="" style={{
-          width:     '100%', 
+          width:     '100%',
           height:    '100%',
           objectFit: 'contain',
         }} />
@@ -59,7 +59,7 @@ const ContactItem = ({ icon, label, href, underline, bp }: ContactItemProps & { 
         style={{
           fontFamily:          'var(--font-heading)',
           fontWeight:          400,
-          fontSize:            bp === 'mobile' ? '15px' : bp === 'tablet' ? '17px' : 'clamp(12px, 1.56vw, 20px)',
+          fontSize:            bp === 'mobile' ? '12px' : bp === 'tablet' ? '13px' : 'clamp(10px, 1.2vw, 15px)',
           color:               hovered ? '#3F6212' : 'rgba(0,0,0,0.698)',
           textDecoration:      underline ? 'underline' : 'none',
           textDecorationColor: 'rgba(0,0,0,0.5)',
@@ -99,12 +99,11 @@ const Footer = () => {
         alignItems: 'stretch',
       }}>
 
-        {/* Ellipse blur blob */}
         <img src={EllipseAsset} alt="" aria-hidden="true" style={{
           position:      'absolute',
           bottom:        0,
           right:         0,
-          width:         'clamp(280px, 47.6vw, 609px)',
+          width:         'clamp(200px, 35vw, 450px)',
           height:        'auto',
           filter:        'blur(60px)',
           opacity:       0.75,
@@ -114,7 +113,6 @@ const Footer = () => {
           transform:     'translate(5%, 10%)',
         }} />
 
-        {/* Grid utama */}
         <div style={{
           position:            'relative',
           zIndex:              1,
@@ -125,24 +123,23 @@ const Footer = () => {
           gridTemplateAreas:   '"left divider contact logo"',
           alignItems:          'stretch',
           paddingInline:       'clamp(16px, 4.8vw, 61px)',
-          paddingTop:          'clamp(5px, 1.5vw, 18px)',
-          paddingBottom:       'clamp(5px, 1.5vw, 18px)',
+          paddingTop:          'clamp(4px, 1vw, 14px)',
+          paddingBottom:       'clamp(4px, 1vw, 14px)',
         }}>
 
-          {/* Kiri: Brand + Tagline + Copyright */}
           <div style={{
             gridArea:       'left',
             display:        'flex',
             flexDirection:  'column',
             justifyContent: 'space-between',
             paddingRight:   'clamp(16px, 3vw, 40px)',
-            paddingBlock:   'clamp(0px, 1vw, 10px)',
+            paddingBlock:   'clamp(0px, 0.8vw, 8px)',
           }}>
             <a href="#" aria-label="NutriGrow" style={{ textDecoration: 'none', display: 'inline-block', lineHeight: 1 }}>
               <span style={{
                 fontFamily: 'var(--font-quicksand)',
                 fontWeight: 700,
-                fontSize:   'clamp(24px, 4vw, 48px)',
+                fontSize:   'clamp(18px, 3vw, 36px)',
                 lineHeight: 1,
                 display:    'inline-flex',
               }}>
@@ -154,11 +151,11 @@ const Footer = () => {
             <p style={{
               fontFamily: 'var(--font-heading)',
               fontWeight: 400,
-              fontSize:   'clamp(12px, 1.25vw, 16px)',
+              fontSize:   'clamp(10px, 1vw, 13px)',
               lineHeight: 1.5,
               color:      'rgba(0,0,0,0.698)',
               margin:     0,
-              marginTop:  'clamp(8px, 1.5vw, 16px)',
+              marginTop:  'clamp(6px, 1vw, 12px)',
             }}>
               Tumbuh Kembang Optimal, Bebas Stunting Bersama NutriGrow.
             </p>
@@ -166,18 +163,17 @@ const Footer = () => {
             <p style={{
               fontFamily:    'var(--font-heading)',
               fontWeight:    400,
-              fontSize:      'clamp(12px, 1.56vw, 20px)',
+              fontSize:      'clamp(9px, 0.8vw, 11px)',
               color:         'rgba(0,0,0,0.749)',
               margin:        0,
               marginTop:     'auto',
-              paddingTop:    'clamp(16px, 4vw, 48px)',
-              paddingBottom: 'clamp(16px, 2vw, 24px)',
+              paddingTop:    'clamp(12px, 3vw, 36px)',
+              paddingBottom: 'clamp(12px, 1.5vw, 18px)',
             }}>
               @2026 All Rights Reserved
             </p>
           </div>
 
-          {/* Garis vertikal pembatas */}
           <div aria-hidden="true" style={{
             gridArea:    'divider',
             width:       '0.8px',
@@ -186,7 +182,6 @@ const Footer = () => {
             marginBlock: 'clamp(0px, 1vw, 10px)',
           }} />
 
-          {/* Contact Us */}
           <div style={{
             gridArea:      'contact',
             display:       'flex',
@@ -198,10 +193,10 @@ const Footer = () => {
             <h2 style={{
               fontFamily:   'var(--font-heading)',
               fontWeight:   600,
-              fontSize:     'clamp(18px, 2.35vw, 30px)',
+              fontSize:     'clamp(14px, 1.8vw, 24px)',
               color:        '#E48029',
               margin:       0,
-              marginBottom: 'clamp(10px, 1.5vw, 20px)',
+              marginBottom: 'clamp(8px, 1.2vw, 16px)',
               lineHeight:   1,
             }}>
               Contact Us
@@ -212,13 +207,12 @@ const Footer = () => {
               padding:       0,
               display:       'flex',
               flexDirection: 'column',
-              gap:           'clamp(10px, 1.5vw, 20px)',
+              gap:           'clamp(8px, 1.2vw, 16px)',
             }}>
               {contacts.map((c) => <ContactItem key={c.href} {...c} bp={bp} />)}
             </ul>
           </div>
 
-          {/* Logo */}
           <div style={{
             gridArea:       'logo',
             display:        'flex',
@@ -227,10 +221,10 @@ const Footer = () => {
             overflow:       'visible',
           }}>
             <img src={NutriGrowLogo2} alt="NutriGrow Ilustrasi" style={{
-              width:        'clamp(140px, 28vw, 358px)',
+              width:        'clamp(100px, 20vw, 260px)',
               height:       'auto',
               objectFit:    'contain',
-              marginBottom: 'clamp(-20px, -2vw, -30px)',
+              marginBottom: 'clamp(-16px, -1.5vw, -24px)',
               marginRight:  'clamp(-8px, -0.5vw, -10px)',
               position:     'relative',
               zIndex:       1,
@@ -250,20 +244,17 @@ const Footer = () => {
         background: '#F0F1F5',
         overflow:   'hidden',
       }}>
-
-        {/* Baris Utama: Grid 2 Kolom */}
         <div style={{
           display:             'grid',
           gridTemplateColumns: '0.7fr 1px 1.3fr',
           alignItems:          'stretch',
           paddingInline:       '36px',
-          paddingTop:          '22px',
-          paddingBottom:       '22px', 
+          paddingTop:          '18px',
+          paddingBottom:       '18px',
           position:            'relative',
           zIndex:              1,
         }}>
 
-          {/* Kiri: Brand + Tagline + Copyright */}
           <div style={{
             display:        'flex',
             flexDirection:  'column',
@@ -275,7 +266,7 @@ const Footer = () => {
                 <span style={{
                   fontFamily: 'var(--font-quicksand)',
                   fontWeight: 700,
-                  fontSize:   '42px',
+                  fontSize:   '32px',
                   lineHeight: 1,
                   display:    'inline-flex',
                 }}>
@@ -287,10 +278,10 @@ const Footer = () => {
               <p style={{
                 fontFamily: 'var(--font-heading)',
                 fontWeight: 400,
-                fontSize:   '15px',
+                fontSize:   '13px',
                 lineHeight: 1.6,
                 color:      'rgba(0,0,0,0.698)',
-                marginTop:  '15px',
+                marginTop:  '12px',
               }}>
                 Tumbuh Kembang Optimal, Bebas Stunting Bersama NutriGrow.
               </p>
@@ -299,39 +290,37 @@ const Footer = () => {
             <p style={{
               fontFamily:   'var(--font-heading)',
               fontWeight:   400,
-              fontSize:     '16px',
+              fontSize:     '11px',
               color:        'rgba(0,0,0,0.749)',
               margin:       0,
-              marginTop:    '50px',
-              marginBottom: '20px',
+              marginTop:    '40px',
+              marginBottom: '16px',
             }}>
               @2026 All Rights Reserved
             </p>
           </div>
 
-          {/* Garis vertikal pembatas */}
           <div aria-hidden="true" style={{
-            width:       '0.8px',
-            background:  '#000000',
-            alignSelf:   'stretch',
+            width:      '0.8px',
+            background: '#000000',
+            alignSelf:  'stretch',
           }} />
 
-          {/* Kanan: Contact Us + Logo & Ellipse  */}
           <div style={{
             display:       'flex',
             flexDirection: 'column',
             paddingLeft:   '40px',
-            position:      'relative', 
-            minHeight:     '250px',    
+            position:      'relative',
+            minHeight:     '200px',
           }}>
             <h2 style={{
               fontFamily:   'var(--font-heading)',
               fontWeight:   600,
-              fontSize:     '26px',
+              fontSize:     '20px',
               color:        '#E48029',
               margin:       0,
               marginTop:    '5px',
-              marginBottom: '20px',
+              marginBottom: '16px',
               lineHeight:   1,
               position:     'relative',
               zIndex:       2,
@@ -344,37 +333,35 @@ const Footer = () => {
               padding:       0,
               display:       'flex',
               flexDirection: 'column',
-              gap:           '16px',
+              gap:           '13px',
               position:      'relative',
               zIndex:        2,
             }}>
               {contacts.map((c) => <ContactItem key={c.href} {...c} bp={bp} />)}
             </ul>
 
-            {/* Ellipse blur blob */}
             <img src={EllipseAsset} alt="" aria-hidden="true" style={{
               position:      'absolute',
               bottom:        '-36px',
               right:         '-40px',
-              width:         'clamp(250px, 50vw, 700px)', 
+              width:         'clamp(180px, 35vw, 500px)',
               height:        'auto',
-              filter:        'blur(60px)', 
+              filter:        'blur(60px)',
               opacity:       0.7,
               pointerEvents: 'none',
               userSelect:    'none',
-              transform:     'translate(15%, 20%)', 
+              transform:     'translate(15%, 20%)',
               zIndex:        0,
             }} />
 
-            {/* Logo */}
             <img src={NutriGrowLogo2} alt="NutriGrow Ilustrasi" style={{
-              position:     'absolute',
-              bottom:       '-36px',
-              right:        '-40px',
-              width:        'clamp(150px, 25vw, 350px)', 
-              height:       'auto',
-              objectFit:    'contain',
-              zIndex:       1,
+              position:  'absolute',
+              bottom:    '-36px',
+              right:     '-40px',
+              width:     'clamp(120px, 18vw, 260px)',
+              height:    'auto',
+              objectFit: 'contain',
+              zIndex:    1,
             }} />
           </div>
         </div>
@@ -391,11 +378,10 @@ const Footer = () => {
       overflow:   'hidden',
     }}>
 
-      {/* Container 1: NutriGrow */}
       <div style={{
         paddingInline: '24px',
-        paddingTop:    '20px',
-        paddingBottom: '20px',
+        paddingTop:    '16px',
+        paddingBottom: '16px',
         position:      'relative',
         zIndex:        1,
       }}>
@@ -403,7 +389,7 @@ const Footer = () => {
           <span style={{
             fontFamily: 'var(--font-quicksand)',
             fontWeight: 700,
-            fontSize:   '36px',
+            fontSize:   '28px',
             lineHeight: 1,
             display:    'inline-flex',
           }}>
@@ -415,11 +401,11 @@ const Footer = () => {
         <p style={{
           fontFamily: 'var(--font-heading)',
           fontWeight: 400,
-          fontSize:   '14px',
+          fontSize:   '12px',
           lineHeight: 1.6,
           color:      'rgba(0,0,0,0.698)',
           margin:     0,
-          marginTop:  '10px',
+          marginTop:  '8px',
         }}>
           Tumbuh Kembang Optimal, Bebas Stunting Bersama NutriGrow.
         </p>
@@ -427,40 +413,38 @@ const Footer = () => {
         <p style={{
           fontFamily: 'var(--font-heading)',
           fontWeight: 400,
-          fontSize:   '14px',
+          fontSize:   '10px',
           color:      'rgba(0,0,0,0.749)',
           margin:     0,
-          marginTop:  '20px',
+          marginTop:  '16px',
         }}>
           @2026 All Rights Reserved
         </p>
       </div>
 
-      {/* Garis horizontal pembatas */}
       <div aria-hidden="true" style={{
-        height:       '1px',            
-        width:        'calc(100% - 120px)', 
-        background:   '#000000', 
-        marginInline: '28px',          
+        height:       '1px',
+        width:        'calc(100% - 120px)',
+        background:   '#000000',
+        marginInline: '28px',
       }} />
 
-      {/* Container 2: Contact Us + Logo + Ellipse */}
       <div style={{
         paddingInline: '24px',
-        paddingTop:    '24px',
+        paddingTop:    '20px',
         paddingBottom: '0',
         position:      'relative',
         zIndex:        1,
         overflow:      'hidden',
-        minHeight:     '180px',
+        minHeight:     '150px',
       }}>
         <h2 style={{
           fontFamily:   'var(--font-heading)',
           fontWeight:   600,
-          fontSize:     '22px',
+          fontSize:     '18px',
           color:        '#E48029',
           margin:       0,
-          marginBottom: '16px',
+          marginBottom: '13px',
           lineHeight:   1,
           position:     'relative',
           zIndex:       2,
@@ -473,35 +457,33 @@ const Footer = () => {
           padding:       0,
           display:       'flex',
           flexDirection: 'column',
-          gap:           '14px',
-          paddingBottom: '24px',
+          gap:           '11px',
+          paddingBottom: '20px',
           position:      'relative',
           zIndex:        2,
         }}>
           {contacts.map((c) => <ContactItem key={c.href} {...c} bp={bp} />)}
         </ul>
 
-        {/* Ellipse blur blob */}
         <img src={EllipseAsset} alt="" aria-hidden="true" style={{
           position:      'absolute',
           bottom:        0,
           right:         0,
-          width:         'clamp(250px, 75vw, 600px)', 
+          width:         'clamp(180px, 55vw, 450px)',
           height:        'auto',
-          filter:        'blur(45px)', 
+          filter:        'blur(45px)',
           opacity:       0.7,
           pointerEvents: 'none',
           userSelect:    'none',
-          transform:     'translate(15%, 20%)', 
+          transform:     'translate(15%, 20%)',
           zIndex:        0,
         }} />
 
-        {/* Logo */}
         <img src={NutriGrowLogo2} alt="NutriGrow Ilustrasi" style={{
           position:     'absolute',
           bottom:       0,
           right:        0,
-          width:        'clamp(160px, 45vw, 320px)', 
+          width:        'clamp(120px, 35vw, 240px)',
           height:       'auto',
           objectFit:    'contain',
           marginBottom: '-10px',

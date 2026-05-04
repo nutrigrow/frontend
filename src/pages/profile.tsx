@@ -426,7 +426,7 @@ export default function EditProfile() {
     }
   };
 
-  const strengthLabel = ["", "Weak", "Fair", "Good", "Strong"][pwStrength];
+  const strengthLabel = ["", "Lemah", "Cukup", "Bagus", "Kuat"][pwStrength];
   const strengthColor = ["", "#ef4444", "#f97316", "#eab308", "#22c55e"][pwStrength];
 
   const editingAddress = addressModal.editId !== null ? addresses.find(a => a.id === addressModal.editId) : null;
@@ -557,7 +557,7 @@ export default function EditProfile() {
                       </div>
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email Address</p>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Alamat Email</p>
                       <p className="text-sm text-gray-500 font-medium">{user?.email || "—"}</p>
                       <p className="text-[10px] text-gray-400 mt-1 italic">* Email tidak dapat diubah (terhubung ke akun Google/Login)</p>
                     </div>
@@ -648,19 +648,19 @@ export default function EditProfile() {
             {activeMenu === "reset-password" && (
               <div className="bg-[#fff7ed] rounded-2xl p-6 shadow-sm">
                 <h2 className="text-lg font-bold text-gray-900 mb-1">Security &amp; Password</h2>
-                <p className="text-sm text-gray-500 mb-6">Keep your account secure by using a strong password.</p>
+                <p className="text-sm text-gray-500 mb-6">Jaga keamanan akun Anda dengan menggunakan kata sandi yang kuat.</p>
                 {pwError   && <p className="text-xs text-red-500 mb-4 bg-red-50 rounded-lg px-3 py-2">{pwError}</p>}
                 {pwSuccess && <p className="text-xs text-green-600 mb-4 bg-green-50 rounded-lg px-3 py-2">{pwSuccess}</p>}
                 <div className="space-y-5">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Current Password</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Password Saat Ini</label>
                     <input type="password" placeholder="Enter Current Password"
                       className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
                       value={passwords.current}
                       onChange={e => setPasswords(p => ({ ...p, current: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">New Password</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Kata Sandi Baru</label>
                     <input type="password" placeholder="Enter new password"
                       className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
                       value={passwords.newPass}
@@ -674,13 +674,13 @@ export default function EditProfile() {
                           ))}
                         </div>
                         <p className="text-xs" style={{ color: strengthColor }}>
-                          Password strength: {strengthLabel}. Use 8+ characters with symbols.
+                          Kekuatan kata sandi: {strengthLabel}. Gunakan minimal 8 karakter dengan simbol.
                         </p>
                       </div>
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Confirm New Password</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Konfirmasi Kata Sandi Baru</label>
                     <input type="password" placeholder="Repeat new password"
                       className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
                       value={passwords.confirm}

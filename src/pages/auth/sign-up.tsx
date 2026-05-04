@@ -153,8 +153,7 @@ const LeftPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               color: '#FFFFFF',
             }}
           >
-            Over 10k+ active health{' '}
-            <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>journeys</span>
+            10.000+ perjalanan kesehatan aktif{' '}
           </span>
         </div>
       </div>
@@ -268,7 +267,7 @@ const [loading, setLoading] = useState(false)
     >
       <div style={{ width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column' }}>
 
-        {/* Welcome to NutriGrow! */}
+        {/* Selamat datang di NutriGrow! */}
         <h2
           style={{
             fontFamily: 'Montserrat, sans-serif',
@@ -280,7 +279,7 @@ const [loading, setLoading] = useState(false)
             marginBottom: 6,
           }}
         >
-          Welcome to NutriGrow!
+          Selamat datang di NutriGrow!
         </h2>
         <p
           style={{
@@ -293,7 +292,7 @@ const [loading, setLoading] = useState(false)
             marginBottom: 24,
           }}
         >
-          Please enter your details to sign up.
+          Silakan masukkan data Anda untuk mendaftar.
         </p>
 
         {/* Sign In / Sign Up toggle */}
@@ -318,7 +317,7 @@ const [loading, setLoading] = useState(false)
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#0F172A' }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#475569' }}
           >
-            Sign In
+            Masuk
           </button>
           <button
             style={{
@@ -329,7 +328,7 @@ const [loading, setLoading] = useState(false)
               color: '#628141', background: '#FFFFFF', boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
             }}
           >
-            Sign Up
+            Daftar
           </button>
         </div>
 
@@ -344,10 +343,10 @@ const [loading, setLoading] = useState(false)
           </div>
         )}
 
-        {/* Email Address */}
+        {/* Alamat Email */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
           <label style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#334155' }}>
-            Email Address
+            Alamat Email
           </label>
           <div
             style={{
@@ -360,7 +359,7 @@ const [loading, setLoading] = useState(false)
               <path d="M1.66667 13.3333C1.20833 13.3333 0.815972 13.1701 0.489583 12.8438C0.163194 12.5174 0 12.125 0 11.6667V1.66667C0 1.20833 0.163194 0.815972 0.489583 0.489583C0.815972 0.163194 1.20833 0 1.66667 0H15C15.4583 0 15.8507 0.163194 16.1771 0.489583C16.5035 0.815972 16.6667 1.20833 16.6667 1.66667V11.6667C16.6667 12.125 16.5035 12.5174 16.1771 12.8438C15.8507 13.1701 15.4583 13.3333 15 13.3333H1.66667ZM8.33333 7.5L1.66667 3.33333V11.6667H15V3.33333L8.33333 7.5ZM8.33333 5.83333L15 1.66667H1.66667L8.33333 5.83333ZM1.66667 3.33333V1.66667V3.33333V11.6667V3.33333Z" fill="#94A3B8"/>
             </svg>
             <input
-              type="email" placeholder="you@example.com" value={email}
+              type="email" placeholder="nama@email.com" value={email}
               onChange={e => setEmail(e.target.value)}
               onFocus={() => setEmailFocused(true)} onBlur={() => setEmailFocused(false)}
               style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, fontFamily: 'Inter, sans-serif', fontSize: isMobile ? '13px' : '14px', color: '#0F172A', lineHeight: '20px' }}
@@ -369,10 +368,10 @@ const [loading, setLoading] = useState(false)
           {errors.email && <span style={{ color: '#DC2626', fontSize: '12px', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>{errors.email}</span>}
         </div>
 
-        {/* Enter Your Name */}
+        {/* Masukkan Nama Anda */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
           <label style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#334155' }}>
-            Enter Your Name
+            Masukkan Nama Anda
           </label>
           <div
             style={{
@@ -385,7 +384,7 @@ const [loading, setLoading] = useState(false)
               <path d="M1.66667 13.3333H2.85417L11 5.1875L9.8125 4L1.66667 12.1458V13.3333ZM0 15V11.4583L11 0.479167C11.1667 0.326389 11.3507 0.208333 11.5521 0.125C11.7535 0.0416667 11.9653 0 12.1875 0C12.4097 0 12.625 0.0416667 12.8333 0.125C13.0417 0.208333 13.2222 0.333333 13.375 0.5L14.5208 1.66667C14.6875 1.81944 14.809 2 14.8854 2.20833C14.9618 2.41667 15 2.625 15 2.83333C15 3.05556 14.9618 3.26736 14.8854 3.46875C14.809 3.67014 14.6875 3.85417 14.5208 4.02083L3.54167 15H0ZM13.3333 2.83333L12.1667 1.66667L13.3333 2.83333ZM10.3958 4.60417L9.8125 4L11 5.1875L10.3958 4.60417Z" fill="#94A3B8"/>
             </svg>
             <input
-              type="text" placeholder="your name" value={name}
+              type="text" placeholder="nama Anda" value={name}
               onChange={e => setName(e.target.value)}
               onFocus={() => setNameFocused(true)} onBlur={() => setNameFocused(false)}
               style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, fontFamily: 'Inter, sans-serif', fontSize: isMobile ? '13px' : '14px', color: '#0F172A', lineHeight: '20px' }}
@@ -394,10 +393,10 @@ const [loading, setLoading] = useState(false)
           {errors.name && <span style={{ color: '#DC2626', fontSize: '12px', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>{errors.name}</span>}
         </div>
 
-        {/* Create Your Password */}
+        {/* Buat Kata Sandi */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
           <label style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#334155' }}>
-            Create Your Password
+            Buat Kata Sandi
           </label>
           <div
             style={{
@@ -424,10 +423,10 @@ const [loading, setLoading] = useState(false)
           {errors.password && <span style={{ color: '#DC2626', fontSize: '12px', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>{errors.password}</span>}
         </div>
 
-        {/* Confirm Your Password */}
+        {/* Konfirmasi Kata Sandi */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
           <label style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#334155' }}>
-            Confirm Your Password
+            Konfirmasi Kata Sandi
           </label>
           <div
             style={{
@@ -454,7 +453,7 @@ const [loading, setLoading] = useState(false)
           {errors.confirmPassword && <span style={{ color: '#DC2626', fontSize: '12px', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>{errors.confirmPassword}</span>}
         </div>
 
-        {/* Keep me signed in */}
+        {/* Ingat saya selama 30 hari */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
           <div
             onClick={() => setKeepSigned(p => !p)}
@@ -473,7 +472,7 @@ const [loading, setLoading] = useState(false)
             )}
           </div>
           <span onClick={() => setKeepSigned(p => !p)} style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
-            Keep me signed in for 30 days
+            Ingat saya selama 30 hari
           </span>
         </div>
 
@@ -492,15 +491,15 @@ const [loading, setLoading] = useState(false)
           onMouseLeave={e => { if(!loading) (e.currentTarget as HTMLElement).style.background = '#628141' }}
         >
           <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#FFF' }}>
-            {loading ? 'Signing Up...' : 'Sign Up to NutriGrow'}
+            {loading ? 'Mendaftarkan...' : 'Daftar NutriGrow'}
           </span>
         </button>
 
-        {/* Or continue with */}
+        {/* Atau lanjutkan dengan */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <div style={{ height: 1, flex: 1, borderTop: '1px solid #E2E8F0' }} />
           <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#64748B', whiteSpace: 'nowrap' }}>
-            Or continue with
+            Atau lanjutkan dengan
           </span>
           <div style={{ height: 1, flex: 1, borderTop: '1px solid #E2E8F0' }} />
         </div>
@@ -519,21 +518,21 @@ const [loading, setLoading] = useState(false)
           </span>
         </button>
 
-        {/* Need help */}
+        {/* Butuh bantuan */}
         <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#64748B', textAlign: 'center', margin: 0, marginBottom: 32 }}>
-          Need help?{' '}
+          Butuh bantuan?{' '}
           <a href="#" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, color: '#628141', textDecoration: 'none' }}>
-            Contact Support
+            Hubungi Tim Kami
           </a>
         </p>
 
         {/* Footer links */}
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16 }}>
           <a href="#" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '12px', lineHeight: '16px', color: '#94A3B8', textDecoration: 'none' }}>
-            Privacy Policy
+            Kebijakan Privasi
           </a>
           <a href="#" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '12px', lineHeight: '16px', color: '#94A3B8', textDecoration: 'none' }}>
-            Terms of Service
+            Syarat & Ketentuan
           </a>
         </div>
 

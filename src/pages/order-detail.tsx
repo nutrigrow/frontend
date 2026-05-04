@@ -11,19 +11,19 @@ type StatusFilter = 'all' | OrderStatusBayar;
 
 const statusTabs: { key: StatusFilter; label: string }[] = [
   { key: 'all', label: 'Semua' },
-  { key: 'PENDING', label: 'Pending' },
-  { key: 'SUCCESS', label: 'Sukses' },
+  { key: 'PENDING', label: 'Menunggu' },
+  { key: 'SUCCESS', label: 'Berhasil' },
   { key: 'FAILED', label: 'Gagal' },
-  { key: 'EXPIRED', label: 'Expired' },
-  { key: 'REFUND', label: 'Refund' },
+  { key: 'EXPIRED', label: 'Kedaluwarsa' },
+  { key: 'REFUND', label: 'Dikembalikan' },
 ];
 
 const statusConfig: Record<OrderStatusBayar, { label: string; color: string; bg: string }> = {
-  PENDING: { label: 'Pending', color: '#B45309', bg: '#FFFBEB' },
+  PENDING: { label: 'Menunggu', color: '#B45309', bg: '#FFFBEB' },
   SUCCESS: { label: 'Berhasil', color: '#166534', bg: '#F0FDF4' },
   FAILED: { label: 'Gagal', color: '#B91C1C', bg: '#FEF2F2' },
-  EXPIRED: { label: 'Expired', color: '#334155', bg: '#F1F5F9' },
-  REFUND: { label: 'Refund', color: '#6D28D9', bg: '#F5F3FF' },
+  EXPIRED: { label: 'Kedaluwarsa', color: '#334155', bg: '#F1F5F9' },
+  REFUND: { label: 'Dikembalikan', color: '#6D28D9', bg: '#F5F3FF' },
 };
 
 const paymentQueryFeedback: Record<string, string> = {

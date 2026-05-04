@@ -15,10 +15,10 @@ import { CardNutrishop } from '../components/card-nutrishop'
 
 // ─── Category label map ───────────────────────────────────────────────────────
 const CATEGORY_LABELS: Record<string, string> = {
-  mpasi: 'MPASI / Baby Food',
-  snacks: 'Healthy Snacks',
-  supplements: 'Supplements',
-  cooking: 'Cooking Basics',
+  mpasi: 'MPASI / Makanan Bayi',
+  snacks: 'Camilan Sehat',
+  supplements: 'Suplemen',
+  cooking: 'Bahan Masak',
 }
 
 // ─── Stock Indicator ──────────────────────────────────────────────────────────
@@ -557,7 +557,7 @@ export default function ProductDetail() {
                       ) : (
                         <>
                           <ShoppingCart size={17} />
-                          Add to Cart
+                          Tambahkan ke Keranjang
                         </>
                       )}
                     </motion.button>
@@ -590,7 +590,7 @@ export default function ProductDetail() {
                     onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = '#2D4A18')}
                     onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#3F6212')}
                   >
-                    Buy Now
+                    Beli Sekarang
                   </motion.button>
                 </div>
 
@@ -646,7 +646,7 @@ export default function ProductDetail() {
                       margin: 0,
                     }}
                   >
-                    Similar Products
+                    Produk Serupa
                   </h2>
 
                   {/* Prev / Next arrows */}

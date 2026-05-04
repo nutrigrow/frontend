@@ -64,31 +64,31 @@ interface ShopItem {
 
 // ── Static data ────────────────────────────────────────────────────────────
 const defaultHealthItems: HealthItem[] = [
-  { icon: iconHydration, label: "Hydration", value: "0%", percent: 0, color: "#f97316" },
-  { icon: iconSleep, label: "Sleep Quality", value: "0 hrs", percent: 0, color: "#3b82f6" },
-  { icon: iconSupplement, label: "Supplement Intake", value: "Pending", percent: 0, color: "#22c55e" },
+  { icon: iconHydration, label: "Hidrasi", value: "0%", percent: 0, color: "#f97316" },
+  { icon: iconSleep, label: "Kualitas Tidur", value: "0 hrs", percent: 0, color: "#3b82f6" },
+  { icon: iconSupplement, label: "Asupan Suplemen", value: "Memuat", percent: 0, color: "#22c55e" },
 ];
 
 const articles: Article[] = [
-  { tag: "TODDLER NUTRITION", tagColor: "#22c55e", title: "Hidden Veggies: 10 Recipes for Picky Eaters", excerpt: "Struggling with mealtime? These creative recipes ensure your toddler gets the nutrients they need.", readTime: "5 min read", image: img1 },
-  { tag: "POSTNATAL CARE", tagColor: "#f97316", title: "Superfoods for Energy and Recovery", excerpt: "Reclaim your vitality with these powerhouse ingredients packed with essential vitamins.", readTime: "8 min read", image: img2 },
-  { tag: "MILESTONES", tagColor: "#3b82f6", title: "Starting Solids: A Month-by-Month Guide", excerpt: "When and how to introduce new textures and flavors safely to your growing baby.", readTime: "12 min read", image: img3 },
+  { tag: "NUTRISI BALITA", tagColor: "#22c55e", title: "Sayur Tersembunyi: 10 Resep untuk Si Kecil yang Susah Makan", excerpt: "Kesulitan saat waktu makan? Resep kreatif ini membantu memastikan si kecil mendapatkan nutrisi yang dibutuhkan.", readTime: "5 menit baca", image: img1 },
+  { tag: "PERAWATAN PASCAPERSALINAN", tagColor: "#f97316", title: "Makanan Super untuk Menambah Energi dan Pemulihan", excerpt: "Tingkatkan kembali energi Anda dengan bahan bernutrisi tinggi yang kaya vitamin penting.", readTime: "8 menit baca", image: img2 },
+  { tag: "PENCAPAIAN PERKEMBANGAN", tagColor: "#3b82f6", title: "Memulai MPASI: Panduan Bulan demi Bulan", excerpt: "Panduan aman memperkenalkan tekstur dan rasa baru untuk bayi yang sedang tumbuh.", readTime: "12 menit baca", image: img3 },
 ];
 
 const defaultGrowthData: GrowthPoint[] = [
-  { label: "6 MONTHS", val: 30, height: 30, weight: 5.2 },
-  { label: "8 MONTHS", val: 38, height: 38, weight: 6.1 },
-  { label: "10 MONTHS", val: 52, height: 52, weight: 7.3 },
-  { label: "12 MONTHS", val: 61, height: 61, weight: 8.2 },
-  { label: "CURRENT", val: 82, height: 82, weight: 9.4 },
+  { label: "6 BULAN", val: 30, height: 30, weight: 5.2 },
+  { label: "8 BULAN", val: 38, height: 38, weight: 6.1 },
+  { label: "10 BULAN", val: 52, height: 52, weight: 7.3 },
+  { label: "12 BULAN", val: 61, height: 61, weight: 8.2 },
+  { label: "SEKARANG", val: 82, height: 82, weight: 9.4 },
 ];
 
 // Produk NutriShop — label ditampilkan di atas gambar (overlay)
 const defaultShopItems: ShopItem[] = [
   { label: "Suplemen Vit A", image: shopImg1 },
   { label: "Camilan Organik", image: shopImg2 },
-  { label: "Kids Multivitamin", image: shopImg3 },
-  { label: "Vegetable Puree", image: shopImg4 },
+  { label: "Multivitamin Anak", image: shopImg3 },
+  { label: "Puree Sayuran", image: shopImg4 },
 ];
 
 
@@ -113,7 +113,7 @@ const formatAgeLabel = (days: number): string => {
 
 const getStuntingStyle = (value: string) => {
   const low = value.toLowerCase();
-  if (low.includes("high") || low.includes("stunting")) {
+  if (low.includes("tinggi") || low.includes("stunting")) {
     return { bg: "#FFEBEE", border: "#FFCDD2", text: "#B91C1C", label: "#E57373" };
   }
   if (low.includes("moderate") || low.includes("attention")) {
@@ -201,10 +201,10 @@ export default function Dashboard() {
   const [growthData, setGrowthData] = useState<GrowthPoint[]>([]);
   const [heightValue, setHeightValue] = useState("—");
   const [weightValue, setWeightValue] = useState("—");
-  const [heightSub, setHeightSub] = useState("Loading...");
-  const [weightSub, setWeightSub] = useState("Loading...");
+  const [heightSub, setHeightSub] = useState("Memuat...");
+  const [weightSub, setWeightSub] = useState("Memuat...");
   const [stuntingValue, setStuntingValue] = useState("—");
-  const [stuntingSub, setStuntingSub] = useState("Loading...");
+  const [stuntingSub, setStuntingSub] = useState("Memuat...");
 
   const [healthItems, setHealthItems] = useState<HealthItem[]>(defaultHealthItems);
   const [shopItems, setShopItems] = useState<ShopItem[]>(defaultShopItems);
@@ -226,27 +226,27 @@ export default function Dashboard() {
           setSelectedChild(`${rows[0].namaDepan}${rows[0].namaAkhir ? ` ${rows[0].namaAkhir}` : ""}`);
         } else {
           setSelectedChildId(null);
-          setSelectedChild("No child listed");
+          setSelectedChild("Belum ada data anak");
           setGrowthData([]);
           setHeightValue("—");
           setWeightValue("—");
-          setHeightSub("Add a child first");
-          setWeightSub("Add a child first");
+          setHeightSub("Tambahkan data anak terlebih dahulu");
+          setWeightSub("Tambahkan data anak terlebih dahulu");
           setStuntingValue("—");
-          setStuntingSub("No data");
+          setStuntingSub("Tidak ada data");
         }
       })
       .catch(() => {
         if (cancelled) return;
         setSelectedChildId(null);
-        setSelectedChild("No child listed");
+        setSelectedChild("Belum ada data anak");
         setGrowthData([]);
         setHeightValue("—");
         setWeightValue("—");
-        setHeightSub("Error loading data");
-        setWeightSub("Error loading data");
+        setHeightSub("Gagal memuat data");
+        setWeightSub("Gagal memuat data");
         setStuntingValue("—");
-        setStuntingSub("Error");
+        setStuntingSub("Terjadi kesalahan");
       });
 
     healthLogService.getTodayLog()
@@ -260,22 +260,22 @@ export default function Dashboard() {
         setHealthItems([
           {
             icon: iconHydration,
-            label: "Hydration",
+            label: "Hidrasi",
             value: `${hydrationPct}%`,
             percent: hydrationPct,
             color: "#f97316",
           },
           {
             icon: iconSleep,
-            label: "Sleep Quality",
-            value: `${log.sleep_hours} hrs`,
+            label: "Kualitas Tidur",
+            value: `${log.sleep_hours} jam`,
             percent: sleepPct,
             color: "#3b82f6",
           },
           {
             icon: iconSupplement,
-            label: "Supplement Intake",
-            value: log.took_supplement ? "Took" : "Pending",
+            label: "Asupan Suplemen",
+            value: log.took_supplement ? "Sudah dikonsumsi" : "Menunggu",
             percent: supplementPct,
             color: "#22c55e",
           },
@@ -333,35 +333,35 @@ export default function Dashboard() {
           setHeightValue(`${(Number(current.height) || 0).toFixed(1)} cm`);
           setWeightValue(`${(Number(current.weight) || 0).toFixed(1)} kg`);
 
-          setHeightSub(hDelta === null ? "No previous data" : `${hDelta >= 0 ? "+" : ""}${hDelta.toFixed(1)} cm ${hDelta >= 0 ? "↑" : "↓"}`);
-          setWeightSub(wDelta === null ? "No previous data" : `${wDelta >= 0 ? "+" : ""}${wDelta.toFixed(1)} kg ${wDelta >= 0 ? "↑" : "↓"}`);
+          setHeightSub(hDelta === null ? "Belum ada data sebelumnya" : `${hDelta >= 0 ? "+" : ""}${hDelta.toFixed(1)} cm ${hDelta >= 0 ? "↑" : "↓"}`);
+          setWeightSub(wDelta === null ? "Belum ada data sebelumnya" : `${wDelta >= 0 ? "+" : ""}${wDelta.toFixed(1)} kg ${wDelta >= 0 ? "↑" : "↓"}`);
 
           const lastRec = recent[recent.length - 1];
           const hasAiPrediction = lastRec.risikoStuntingMl !== null;
 
           if (hasAiPrediction) {
-            const rawLabel = lastRec.risikoStuntingMl ?? "Unknown"
+            const rawLabel = lastRec.risikoStuntingMl ?? "Tidak diketahui"
             const lowAlpha = rawLabel.toLowerCase()
             const conf = lastRec.mlConfidence ?? null
             const isStunting = lowAlpha.includes('stunting')
             const category = !isStunting ? 'low' : (conf != null && conf >= 65 ? 'high' : 'moderate')
-            setStuntingValue(category === 'high' ? 'High' : category === 'moderate' ? 'Moderate' : 'Low')
+            setStuntingValue(category === 'high' ? 'Tinggi' : category === 'moderate' ? 'Sedang' : 'Rendah')
             if (isStunting) {
-              setStuntingSub(conf != null ? `Stunting · ${conf.toFixed(1)}% confidence` : 'Stunting detected')
+              setStuntingSub(conf != null ? `Stunting · ${conf.toFixed(1)}% tingkat kepercayaan` : 'Stunting terdeteksi')
             } else {
-              setStuntingSub(conf != null ? `Normal · ${conf.toFixed(1)}% confidence` : 'Normal growth')
+              setStuntingSub(conf != null ? `Normal · ${conf.toFixed(1)}% tingkat kepercayaan` : 'Pertumbuhan normal')
             }
           } else {
             const pNum = extractPercentileNumber(lastRec.persentilTinggi);
             if (pNum !== null && pNum <= 3) {
-              setStuntingValue("High");
-              setStuntingSub("Monitor closely");
+              setStuntingValue("Tinggi");
+              setStuntingSub("Pantau secara rutin");
             } else if (pNum !== null && pNum <= 15) {
-              setStuntingValue("Moderate");
-              setStuntingSub("Need attention");
+              setStuntingValue("Sedang");
+              setStuntingSub("Butuh perhatian");
             } else {
-              setStuntingValue("Low");
-              setStuntingSub("Normal growth");
+              setStuntingValue("Rendah");
+              setStuntingSub("Pertumbuhan normal");
             }
           }
 
@@ -370,10 +370,10 @@ export default function Dashboard() {
           setGrowthData([]);
           setHeightValue("—");
           setWeightValue("—");
-          setHeightSub("No data yet");
-          setWeightSub("No data yet");
+          setHeightSub("Data belum tersedia");
+          setWeightSub("Data belum tersedia");
           setStuntingValue("—");
-          setStuntingSub("Record measurement first");
+          setStuntingSub("Catat pengukuran terlebih dahulu");
         }
 
         if (latest) {
@@ -398,7 +398,7 @@ export default function Dashboard() {
 
         {/* Greeting */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <h1 className="text-3xl font-extrabold text-gray-900">Good morning, {userName}!</h1>
+          <h1 className="text-3xl font-extrabold text-gray-900">Selamat Pagi, {userName}!</h1>
           <p className="text-gray-500 mt-1 text-sm">Mari lanjutkan perjalanan nutrisi optimal untuk si kecil bersama NutriGrow.</p>
         </div>
 
@@ -409,7 +409,7 @@ export default function Dashboard() {
           <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm">
             <div className="flex items-start justify-between mb-3 gap-4">
               <div className="flex-1">
-                <p className="text-xs font-bold tracking-widest text-[#4d7c0f] uppercase">Smart Growth Tracker</p>
+                <p className="text-xs font-bold tracking-widest text-[#4d7c0f] uppercase">Pemantau Pertumbuhan Cerdas</p>
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                   <select
                     value={selectedChildId ?? ""}
@@ -426,7 +426,7 @@ export default function Dashboard() {
                       </option>
                     ))}
                   </select>
-                  <h2 className="text-xl font-bold text-gray-900">{selectedChildName}'s Height & Weight</h2>
+                  <h2 className="text-xl font-bold text-gray-900">Tinggi & Berat Badan {selectedChildName}</h2>
                 </div>
                 <p className="text-xs text-gray-400 mt-1 max-w-sm">Pantau perkembangan bayi Anda melalui grafik pertumbuhan kami yang komprehensif. Lacak tinggi, berat badan, dan risiko stunting untuk memastikan ia mencapai target perkembangan dengan akurat.</p>
               </div>
@@ -434,9 +434,9 @@ export default function Dashboard() {
             </div>
             <div className="grid grid-cols-4 gap-3 mt-4">
               {[
-                { label: "Height", value: heightValue, sub: heightSub },
-                { label: "Weight", value: weightValue, sub: weightSub },
-                { label: "Stunting Risk", value: stuntingValue, sub: stuntingSub, isRisk: true },
+                { label: "Tinggi Badan", value: heightValue, sub: heightSub },
+                { label: "Berat Badan", value: weightValue, sub: weightSub },
+                { label: "Risiko Stunting", value: stuntingValue, sub: stuntingSub, isRisk: true },
               ].map(s => {
                 const style = s.isRisk ? getStuntingStyle(s.value) : null;
                 return (
@@ -460,8 +460,8 @@ export default function Dashboard() {
                 }
                 className="bg-[#4d7c0f] rounded-xl p-3 flex flex-col justify-between cursor-pointer hover:bg-[#3a5a00] transition text-left border-none w-full"
               >
-                <p className="text-xs text-green-200">Explore more!</p>
-                <p className="text-sm font-bold text-white leading-tight">See full tracker here</p>
+                <p className="text-xs text-green-200">Jelajahi lebih lanjut!</p>
+                <p className="text-sm font-bold text-white leading-tight">Lihat selengkapnya di sini</p>
                 <span className="text-white text-lg">›</span>
               </button>
             </div>
@@ -476,7 +476,7 @@ export default function Dashboard() {
           {/* Health Log card */}
           <div className="bg-white rounded-2xl p-6 shadow-sm flex flex-col gap-4">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Health Log</h2>
+              <h2 className="text-lg font-bold text-gray-900">Catatan Kesehatan</h2>
               <p className="text-xs text-gray-400 mt-1">Catat metrik kesehatan vital Anda termasuk pola tidur, tingkat hidrasi, dan asupan nutrisi untuk memastikan Anda tetap sehat mendampingi si kecil.</p>
             </div>
 
@@ -509,7 +509,7 @@ export default function Dashboard() {
                 }
                 className="bg-[#4d7c0f] text-white font-semibold rounded-xl py-3 px-8 text-sm hover:bg-[#3a5a00] transition"
               >
-                More log data
+                Data catatan lainnya
               </button>
             </div>
           </div>
@@ -589,7 +589,7 @@ export default function Dashboard() {
               <h2 className="text-xl font-bold text-gray-900">Rekomendasi Artikel</h2>
               <p className="text-sm text-gray-500">Panduan nutrisi dan kesehatan yang dipersonalisasi untuk Anda.</p>
             </div>
-            <a href="#" className="text-sm font-medium text-[#4d7c0f] hover:underline">View All Articles ›</a>
+            <a href="#" className="text-sm font-medium text-[#4d7c0f] hover:underline">Lihat Semua Artikel ›</a>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {articles.map(a => (
