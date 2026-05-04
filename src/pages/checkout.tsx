@@ -211,7 +211,7 @@ export default function Checkout() {
               id: product.id,
               productId: product.id,
               name: product.title,
-              subtitle: "Direct Purchase",
+              subtitle: "Beli Langsung",
               price: product.price,
               qty,
               emoji: "🛍️",
@@ -227,7 +227,7 @@ export default function Checkout() {
             id: row.id,
             productId: row.produk?.id ?? row.produkId,
             name: row.produk?.namaProduk ?? "Produk",
-            subtitle: "Cart Item",
+            subtitle: "Item Keranjang",
             price: row.produk?.harga ?? 0,
             qty: row.kuantitas,
             emoji: "🛒",
@@ -322,7 +322,7 @@ export default function Checkout() {
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-8">
         <div className="text-sm text-gray-400 mb-1">NutriShop</div>
         <h1 className="text-3xl font-extrabold text-gray-900 mb-1">Checkout</h1>
-        <p className="text-gray-500 mb-8 text-sm">Review your items and complete your purchase securely.</p>
+        <p className="text-gray-500 mb-8 text-sm">Periksa kembali pesanan Anda dan selesaikan pembelian.</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
           {/* LEFT */}
@@ -331,7 +331,7 @@ export default function Checkout() {
             {/* Shipping Address */}
             <section className="bg-white rounded-2xl p-6 shadow-sm">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <span className="text-[#4d7c0f]">🚚</span> Shipping Address
+                <span className="text-[#4d7c0f]">🚚</span> Alamat Pengiriman
               </h2>
               <div className="border-2 border-[#4d7c0f] rounded-xl p-4 bg-green-50">
                 <p className="font-bold text-gray-900">{selectedAddress?.nama ?? "Alamat belum tersedia"}</p>
@@ -351,7 +351,7 @@ export default function Checkout() {
             {/* Shipping Method */}
             <section className="bg-white rounded-2xl p-6 shadow-sm">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <span className="text-[#4d7c0f]">📦</span> Shipping Method
+                <span className="text-[#4d7c0f]">📦</span> Metode Pengiriman
               </h2>
               <div className="space-y-3">
                 {shippingOptions.map(opt => (
@@ -377,7 +377,7 @@ export default function Checkout() {
           {/* RIGHT */}
           <div className="lg:col-span-2">
             <div className="bg-gray-900 rounded-2xl p-6 text-white shadow-lg sticky top-20">
-              <h2 className="text-lg font-bold mb-5">Order Summary</h2>
+              <h2 className="text-lg font-bold mb-5">Detail Pesanan</h2>
               {loading && <p className="text-xs text-gray-400 mb-4">Memuat data checkout...</p>}
               <div className="space-y-4 mb-6">
                 {cart.map(item => (
@@ -406,7 +406,7 @@ export default function Checkout() {
                 <span className="text-lg font-bold">Total</span>
                 <span className="text-2xl font-extrabold text-[#a3e635]">{formatRp(total)}</span>
               </div>
-              <p className="text-center text-[10px] text-gray-500 tracking-widest mb-5">🔒 SSL SECURED CHECKOUT</p>
+              <p className="text-center text-[10px] text-gray-500 tracking-widest mb-5">🔒 Checkout Aman dengan SSL</p>
             </div>
           </div>
         </div>
@@ -417,7 +417,7 @@ export default function Checkout() {
             disabled={placingOrder || loading || cart.length === 0 || !selectedAddressId}
             className="w-full bg-[#4d7c0f] hover:bg-[#3a5a00] disabled:bg-gray-400 text-white font-extrabold text-lg tracking-widest py-5 rounded-2xl transition flex items-center justify-center gap-3"
           >
-            {placingOrder ? "PROCESSING..." : "PLACE ORDER →"}
+            {placingOrder ? "MEMPROSES..." : "PESAN SEKARANG →"}
           </button>
           {errorMessage && (
             <p className="mt-3 text-sm text-red-600 font-semibold">{errorMessage}</p>

@@ -76,9 +76,9 @@ const NeedAdviceIcon = () => (
 // ─── Categories Data ──────────────────────────────────────────────────────────
 // Static category definitions — counts are computed dynamically from products
 const CATEGORY_DEFS = [
-  { id: 'all',         label: 'All Products',   IconComp: LayoutGrid },
+  { id: 'all',         label: 'Semua Produk',   IconComp: LayoutGrid },
   { id: 'mpasi',       label: 'MPASI',          IconComp: Milk       },
-  { id: 'supplements', label: 'Supplements',    IconComp: Pill       },
+  { id: 'supplements', label: 'Suplemen',       IconComp: Pill       },
   { id: 'alat',        label: 'Alat',           IconComp: ChefHat   },
   { id: 'paket',       label: 'Paket',          IconComp: Apple      },
 ]
@@ -354,7 +354,7 @@ const SidebarFilter = ({
               color: '#1C1917',
             }}
           >
-            Categories
+            Kategori
           </span>
         </div>
 
@@ -464,7 +464,7 @@ const SidebarFilter = ({
           <input
             type="text"
             inputMode="numeric"
-            placeholder="max"
+            placeholder="maks"
             value={maxPrice}
             onChange={e => handleNumericInput(e.target.value, onMaxChange)}
             style={{
@@ -502,7 +502,7 @@ const SidebarFilter = ({
           onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = '#4d6632')}
           onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#628141')}
         >
-          Apply
+          Terapkan
         </button>
       </div>
 
@@ -542,7 +542,7 @@ const SidebarFilter = ({
             color: '#1C1917',
           }}
         >
-          Need advice?
+          Butuh bantuan?
         </span>
         <p
           style={{
@@ -553,7 +553,7 @@ const SidebarFilter = ({
             lineHeight: '20px',
           }}
         >
-          Our nutritionists are here to help you choose the best for your baby.
+          Ahli gizi kami siap membantu Anda memilih yang terbaik untuk bayi Anda.
         </p>
         <button
           onClick={() => navigate('/tele-nutritionist')}
@@ -572,7 +572,7 @@ const SidebarFilter = ({
           onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = '#3F6212')}
           onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = '#628141')}
         >
-          BOOK NOW →
+          Jadwalkan sekarang →
         </button>
       </div>
     </div>

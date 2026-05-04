@@ -154,8 +154,7 @@ const LeftPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               color: '#FFFFFF',
             }}
           >
-            Over 10k+ active health{' '}
-            <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>journeys</span>
+            10.000+ perjalanan kesehatan aktif{' '}
           </span>
         </div>
       </div>
@@ -226,7 +225,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
     >
       <div style={{ width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column' }}>
 
-        {/* Welcome back */}
+        {/* Selamat Datang Kembali! */}
         <h2
           style={{
             fontFamily: 'Montserrat, sans-serif',
@@ -238,7 +237,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
             marginBottom: 6,
           }}
         >
-          Welcome back
+          Selamat Datang Kembali!
         </h2>
         <p
           style={{
@@ -251,7 +250,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
             marginBottom: 24,
           }}
         >
-          Please enter your details to sign in.
+          Silakan masukkan data Anda untuk masuk.
         </p>
 
         {/* Sign In / Sign Up toggle */}
@@ -283,7 +282,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
             }}
           >
-            Sign In
+            Masuk
           </button>
           <button
             onClick={() => navigate('/sign-up')}
@@ -307,7 +306,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#0F172A' }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#475569' }}
           >
-            Sign Up
+            Daftar
           </button>
         </div>
 
@@ -317,10 +316,10 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           </div>
         )}
 
-        {/* Email Address */}
+        {/* Alamat Email */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
           <label style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#334155' }}>
-            Email Address
+            Alamat Email
           </label>
           <div
             style={{
@@ -334,7 +333,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               <path d="M1.66667 13.3333C1.20833 13.3333 0.815972 13.1701 0.489583 12.8438C0.163194 12.5174 0 12.125 0 11.6667V1.66667C0 1.20833 0.163194 0.815972 0.489583 0.489583C0.815972 0.163194 1.20833 0 1.66667 0H15C15.4583 0 15.8507 0.163194 16.1771 0.489583C16.5035 0.815972 16.6667 1.20833 16.6667 1.66667V11.6667C16.6667 12.125 16.5035 12.5174 16.1771 12.8438C15.8507 13.1701 15.4583 13.3333 15 13.3333H1.66667ZM8.33333 7.5L1.66667 3.33333V11.6667H15V3.33333L8.33333 7.5ZM8.33333 5.83333L15 1.66667H1.66667L8.33333 5.83333ZM1.66667 3.33333V1.66667V3.33333V11.6667V3.33333Z" fill="#94A3B8"/>
             </svg>
             <input
-              type="email" placeholder="you@example.com" value={email}
+              type="email" placeholder="nama@email.com" value={email}
               onChange={e => { setEmail(e.target.value); setEmailTouched(true); }}
               onFocus={() => setEmailFocused(true)} onBlur={() => setEmailFocused(false)}
               style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, fontFamily: 'Inter, sans-serif', fontSize: isMobile ? '13px' : '14px', color: '#0F172A', lineHeight: '20px' }}
@@ -347,11 +346,11 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           )}
         </div>
 
-        {/* Password */}
+        {/* Kata Sandi */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <label style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#334155' }}>
-              Password
+              Kata Sandi
             </label>
             <a href="/reset-password" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', lineHeight: '16px', color: '#628141', textDecoration: 'none' }}>
               Forgot password?
@@ -387,7 +386,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           )}
         </div>
 
-        {/* Keep me signed in */}
+        {/* Ingat saya selama 30 hari */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
           <div
             onClick={() => setKeepSigned(p => !p)}
@@ -406,7 +405,7 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
             )}
           </div>
           <span onClick={() => setKeepSigned(p => !p)} style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
-            Keep me signed in for 30 days
+            Ingat saya selama 30 hari
           </span>
         </div>
 
@@ -425,15 +424,15 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           onMouseLeave={e => { if (!loading) (e.currentTarget as HTMLElement).style.background = '#628141' }}
         >
           <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#FFF' }}>
-            {loading ? 'Signing In...' : 'Sign In to NutriGrow'}
+            {loading ? 'Masuk...' : 'Masuk ke NutriGrow'}
           </span>
         </button>
 
-        {/* Or continue with */}
+        {/* Atau lanjutkan dengan */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <div style={{ height: 1, flex: 1, borderTop: '1px solid #E2E8F0' }} />
           <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#64748B', whiteSpace: 'nowrap' }}>
-            Or continue with
+            Atau lanjutkan dengan
           </span>
           <div style={{ height: 1, flex: 1, borderTop: '1px solid #E2E8F0' }} />
         </div>
@@ -453,21 +452,21 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           </span>
         </button>
 
-        {/* Need help */}
+        {/* Butuh bantuan */}
         <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: isMobile ? '13px' : '14px', lineHeight: '20px', color: '#64748B', textAlign: 'center', margin: 0, marginBottom: 32 }}>
-          Need help?{' '}
+          Butuh bantuan?{' '}
           <a href="#" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, color: '#628141', textDecoration: 'none' }}>
-            Contact Support
+            Hubungi Tim Kami
           </a>
         </p>
 
         {/* Footer links */}
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16 }}>
           <a href="#" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '12px', lineHeight: '16px', color: '#94A3B8', textDecoration: 'none' }}>
-            Privacy Policy
+            Kebijakan Privasi
           </a>
           <a href="#" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '12px', lineHeight: '16px', color: '#94A3B8', textDecoration: 'none' }}>
-            Terms of Service
+            Syarat & Ketentuan
           </a>
         </div>
 

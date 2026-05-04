@@ -159,7 +159,7 @@ const ChildTooltip = ({ active, payload, label, unit }: any) => {
   return (
     <div className="bg-slate-900 text-white rounded-lg px-3 py-2 shadow-xl border border-slate-700 text-xs font-[Montserrat,sans-serif]">
       <p className="font-bold text-slate-300 mb-0.5 text-[11px]">{label}</p>
-      <p className="font-bold text-[#86efac] text-[11px]">Your Child: <span className="text-white">{child.value} {unit}</span></p>
+      <p className="font-bold text-[#86efac] text-[11px]">Anak Kamu: <span className="text-white">{child.value} {unit}</span></p>
     </div>
   )
 }
@@ -180,8 +180,8 @@ const CalendarPicker = ({ value, onChange, onClose }: { value: string; onChange:
   const [viewMonth, setViewMonth] = useState(initial.getMonth())
   const [selected, setSelected] = useState<Date>(initial)
 
-  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
-  const dayNames = ['Su','Mo','Tu','We','Th','Fr','Sa']
+  const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
+  const dayNames = ['Min','Sen','Sel','Rab','Kam','Jum','Sab']
   const firstDay = new Date(viewYear, viewMonth, 1).getDay()
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
 
@@ -281,20 +281,20 @@ const DateInputField = ({
 const validateInputs = (height: string, weight: string, date: string) => {
   const errors: { height?: string; weight?: string; date?: string } = {}
   const h = parseFloat(height)
-  if (!height.trim()) errors.height = 'Height is required.'
-  else if (isNaN(h) || h <= 0) errors.height = 'Please enter a valid height (e.g. 75.5).'
-  else if (h < 30 || h > 250) errors.height = 'Height must be between 30 and 250 cm.'
+  if (!height.trim()) errors.height = 'Tinggi badan wajib diisi.'
+  else if (isNaN(h) || h <= 0) errors.height = 'Masukkan tinggi badan yang valid (misalnya 75.5).'
+  else if (h < 30 || h > 250) errors.height = 'Tinggi badan harus antara 30 hingga 250 cm.'
 
   const w = parseFloat(weight)
-  if (!weight.trim()) errors.weight = 'Weight is required.'
-  else if (isNaN(w) || w <= 0) errors.weight = 'Please enter a valid weight (e.g. 10.5).'
-  else if (w < 0.5 || w > 300) errors.weight = 'Weight must be between 0.5 and 300 kg.'
+  if (!weight.trim()) errors.weight = 'Berat badan wajib diisi.'
+  else if (isNaN(w) || w <= 0) errors.weight = 'Masukkan berat badan yang valid (misalnya 10.5).'
+  else if (w < 0.5 || w > 300) errors.weight = 'Berat badan harus antara 0.5 hingga 300 kg.'
 
-  if (!date.trim()) errors.date = 'Date is required.'
+  if (!date.trim()) errors.date = 'Tanggal wajib diisi.'
   else {
     const parts = date.split('/')
     if (parts.length !== 3 || parts.some(p => p === '') || isNaN(new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime())) {
-      errors.date = 'Please enter a valid date (DD/MM/YYYY).'
+      errors.date = 'Masukkan tanggal yang valid (HH/BB/TTTT).'
     }
   }
   return errors
@@ -348,8 +348,8 @@ const LogNewGrowthSection = ({
     </div>
   )
 
-  const titleLabel = isEditing ? 'Update Measurement' : 'Log New Growth'
-  const saveLabel  = isEditing ? 'Update' : 'Save'
+  const titleLabel = isEditing ? 'Perbarui Data Pengukuran' : 'Catat Pertumbuhan Baru'
+  const saveLabel  = isEditing ? 'Perbarui' : 'Simpan'
 
   if (isMobile) {
     return (
@@ -362,7 +362,7 @@ const LogNewGrowthSection = ({
             </div>
             {isEditing && (
               <button onClick={onCancelEdit} className="text-xs font-semibold text-slate-500 bg-white hover:bg-slate-100 rounded-full px-3 py-1 border border-slate-200 cursor-pointer font-[Montserrat,sans-serif] transition-colors">
-                Cancel
+                Batal
               </button>
             )}
           </div>
@@ -396,7 +396,7 @@ const LogNewGrowthSection = ({
                 </div>
                 {isEditing && (
                   <button onClick={onCancelEdit} className="text-xs font-semibold text-slate-500 bg-white hover:bg-slate-100 rounded-full px-3 py-1 border border-slate-200 cursor-pointer font-[Montserrat,sans-serif] transition-colors">
-                    Cancel
+                    Batal
                   </button>
                 )}
               </div>
@@ -423,7 +423,7 @@ const LogNewGrowthSection = ({
               </div>
               {isEditing && (
                 <button onClick={onCancelEdit} className="text-xs font-semibold text-slate-500 bg-white hover:bg-slate-100 rounded-full px-3 py-1 border border-slate-200 cursor-pointer font-[Montserrat,sans-serif] transition-colors self-start">
-                  Cancel Edit
+                  Batalkan Perubahan
                 </button>
               )}
               <p className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-600 leading-[22px] m-0">
@@ -500,7 +500,7 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
   }
 }> = {
   low: {
-    label: 'Low',
+    label: 'Rendah',
     bgColor: '#F1F8E9',
     borderColor: '#C5E1A5',
     badgeBg: '#E8F5E9',
@@ -526,7 +526,7 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
     },
   },
   moderate: {
-    label: 'Moderate',
+    label: 'Sedang',
     bgColor: '#FFF3E0',
     borderColor: '#FFE0B2',
     badgeBg: '#FFF3E0',
@@ -554,7 +554,7 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
     },
   },
   high: {
-    label: 'High risk of stunting',
+    label: 'Risiko tinggi stunting',
     bgColor: '#FFEBEE',
     borderColor: '#FFCDD2',
     badgeBg: '#FFCDD2',
@@ -638,7 +638,7 @@ const StuntingInsightModal = ({
             <div className="flex items-center gap-2">
               <span className="text-xl">{config.icon}</span>
               <span className="font-[Montserrat,sans-serif] font-black text-lg text-slate-900">
-                Stunting Risk Insights
+                Analisis Risiko Stunting
               </span>
             </div>
             <span
@@ -741,7 +741,7 @@ const StuntingCard = ({
               className={`font-[Montserrat,sans-serif] font-semibold uppercase leading-5 ${isTablet ? 'text-[10px] tracking-[0.5px]' : 'text-sm tracking-[0.7px]'}`}
               style={{ color: config.labelColor }}
             >
-              Stunting Risk
+              Risiko Stunting
             </span>
           </div>
 
@@ -769,7 +769,7 @@ const StuntingCard = ({
                   backdropFilter: 'blur(4px)' 
                 }}
               >
-                Details
+                Detail
                 <span className="text-[14px] leading-none group-hover:translate-x-0.5 transition-transform">→</span>
               </span>
             </button>
@@ -803,7 +803,7 @@ const KeyStatsSection = ({
 }) => {
   // Derive dynamic stunting risk from latest measurement
   let stuntingValue = "—"
-  let stuntingSub = "No data yet"
+  let stuntingSub = "Data belum tersedia"
   let aiLabel: string | null = null
   let confidence: number | null = null
 
@@ -816,19 +816,19 @@ const KeyStatsSection = ({
       // AI label is 'Normal' or 'Stunting'
       // Category (Low/Moderate/High) is derived via getStuntingCategory using confidence
       const cat = getStuntingCategory(aiLabel, confidence)
-      stuntingValue = cat === 'high' ? 'High' : cat === 'moderate' ? 'Moderate' : 'Low'
+      stuntingValue = cat === 'high' ? 'Tinggi' : cat === 'moderate' ? 'Sedang' : 'Rendah'
       // Sub-label: show AI prediction + confidence for context
       if (aiLabel.toLowerCase().includes('stunting')) {
-        stuntingSub = confidence != null ? `Stunting · ${confidence.toFixed(1)}% confidence` : 'Stunting detected'
+        stuntingSub = confidence != null ? `Stunting · ${confidence.toFixed(1)}% tingkat kepercayaan` : 'Stunting terdeteksi'
       } else {
-        stuntingSub = confidence != null ? `Normal · ${confidence.toFixed(1)}% confidence` : 'Normal growth'
+        stuntingSub = confidence != null ? `Normal · ${confidence.toFixed(1)}% tingkat kepercayaan` : 'Pertumbuhan Normal'
       }
     } else {
       // Fallback: use percentile when no AI prediction
       const pNum = extractPercentileNumber(last.heightPct)
       const cat = pNum != null ? getStuntingCategoryFromPercentile(pNum) : 'low'
-      stuntingValue = cat === 'high' ? 'High' : cat === 'moderate' ? 'Moderate' : 'Low'
-      stuntingSub = cat === 'high' ? 'Monitor closely' : cat === 'moderate' ? 'Need attention' : 'Normal growth'
+      stuntingValue = cat === 'high' ? 'Tinggi' : cat === 'moderate' ? 'Sedang' : 'Rendah'
+      stuntingSub = cat === 'high' ? 'Pantau secara rutin' : cat === 'moderate' ? 'Perlu perhatian' : 'Pertumbuhan Normal'
     }
   }
 
@@ -937,7 +937,7 @@ const BmiChart = ({
       <div className="bg-white relative rounded-lg border border-slate-100 shadow-sm p-[25px] pb-[20px]">
         <div className={`flex items-start w-full mb-4 ${isMobile ? 'flex-col gap-3' : 'flex-row justify-between'}`}>
           <div className="flex flex-col gap-0.5">
-            <span className="font-[Montserrat,sans-serif] font-bold text-lg text-slate-900 leading-7">Growth Tracker (BMI)</span>
+            <span className="font-[Montserrat,sans-serif] font-bold text-lg text-slate-900 leading-7">Pemantau Pertumbuhan (BMI)</span>
             <span className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-500 leading-5">World Health Organization Standard Reference</span>
           </div>
           <button className={`w-8 h-8 flex items-center justify-center cursor-pointer rounded-lg transition-colors hover:bg-slate-100 bg-transparent border-none flex-shrink-0 ${isMobile ? 'self-end' : ''}`} onClick={() => setModalOpen(true)} title="Expand chart"><IconExpand /></button>
@@ -1073,7 +1073,7 @@ const MeasurementsTable = ({
         {data.length === 0 && (
           <tr>
             <td colSpan={onEdit ? 7 : 6} className="py-8 text-center font-[Montserrat,sans-serif] text-sm text-slate-400">
-              No measurements recorded yet.
+              Belum ada pengukuran yang tercatat.
             </td>
           </tr>
         )}
@@ -1139,7 +1139,7 @@ const RecentMeasurementsSection = ({
         <div className="flex items-center justify-between mb-5">
           <span className="font-[Montserrat,sans-serif] font-bold text-lg text-slate-900 leading-7">Recent Measurements</span>
           <button className="font-[Montserrat,sans-serif] font-semibold text-sm text-[#628141] hover:text-[#3f6212] bg-transparent border-none cursor-pointer p-0 transition-colors" onClick={() => setModalOpen(true)}>
-            View All
+            Lihat Semua
           </button>
         </div>
         <MeasurementsTable data={previewData} isMobile={isMobile} onEdit={onEdit} onDelete={onDelete} />
@@ -1163,7 +1163,7 @@ const SaveNotification = ({ saveStatus }: { saveStatus: SaveStatus }) => {
         )}
       </div>
       <span className="font-[Montserrat,sans-serif] font-semibold text-[15px] text-white whitespace-nowrap">
-        {isSuccess ? 'Data saved!' : 'Failed to save data!'}
+        {isSuccess ? 'Data tersimpan!' : 'Gagal menyimpan data!'}
       </span>
     </div>
   )
@@ -1176,7 +1176,7 @@ const PageTitleSection = ({ bp, saveStatus }: { bp: 'mobile' | 'tablet' | 'deskt
     <div className={`flex w-full mb-8 gap-4 ${isMobile ? 'flex-col items-start' : 'flex-row items-end justify-between'}`}>
       <div className="flex flex-col gap-1">
         <h1 className={`font-[Montserrat,sans-serif] font-black text-slate-900 tracking-[-0.9px] leading-10 m-0 ${isMobile ? 'text-[28px]' : 'text-[36px]'}`}>
-          Growth Tracker
+          Pemantau Pertumbuhan
         </h1>
         <p className="font-[Montserrat,sans-serif] font-normal text-lg text-slate-500 m-0 leading-7">
           Pantau tumbuh kembang anak berdasarkan standar WHO.
@@ -1230,7 +1230,7 @@ const AddChildModal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-        <h2 style={{ fontFamily: 'Montserrat,sans-serif', fontWeight: 800, fontSize: 18, color: '#1e293b', margin: '0 0 20px' }}>Tambah Anak Baru</h2>
+        <h2 style={{ fontFamily: 'Montserrat,sans-serif', fontWeight: 800, fontSize: 18, color: '#1e293b', margin: '0 0 20px' }}>Tambah Data Anak</h2>
         {err && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 12 }}>{err}</p>}
         {[
           { label: 'Nama Depan *', val: namaDepan, set: setNamaDepan, type: 'text' },
@@ -1326,7 +1326,7 @@ const GrowthTracker = () => {
         setLatestHeight(parseFloat(String(latest.tinggiBadan)).toFixed(1))
         setLatestWeight(parseFloat(String(latest.beratBadan)).toFixed(1))
         const d = new Date(latest.tanggalCatat)
-        setLastUpdated(`Updated ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
+        setLastUpdated(`Diperbarui ${d.toLocaleDateString('id-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
       } else {
         setLatestHeight('—'); setLatestWeight('—'); setLastUpdated('No data yet')
       }
@@ -1353,7 +1353,7 @@ const GrowthTracker = () => {
 
   const handleDelete = async (index: number) => {
     const recordId = measurements[index].id
-    if (!confirm('Are you sure you want to delete this measurement?')) return
+    if (!confirm('Apakah Anda yakin ingin menghapus data pengukuran ini?')) return
     
     try {
       await childrenService.deleteGrowthRecord(recordId)
@@ -1372,9 +1372,9 @@ const GrowthTracker = () => {
           setLatestHeight((Number(latest.tinggiBadan) || 0).toFixed(1))
           setLatestWeight((Number(latest.beratBadan) || 0).toFixed(1))
           const d = new Date(latest.tanggalCatat)
-          setLastUpdated(`Updated ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
+          setLastUpdated(`Diperbarui ${d.toLocaleDateString('id-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
         } else {
-          setLatestHeight('—'); setLatestWeight('—'); setLastUpdated('No data yet')
+          setLatestHeight('—'); setLatestWeight('—'); setLastUpdated('Data belum tersedia')
         }
         setBmiData(transformBmiChartData(bmi))
         setHeightData(transformToSubChartData(percentile, 'height'))
@@ -1382,7 +1382,7 @@ const GrowthTracker = () => {
         setMeasurements(transformPercentileToMeasurements(percentile))
       }
     } catch (err) {
-      alert('Failed to delete measurement')
+      alert('Gagal menghapus data pengukuran')
     }
   }
 
@@ -1429,7 +1429,7 @@ const GrowthTracker = () => {
         setLatestHeight((Number(latest.tinggiBadan) || 0).toFixed(1))
         setLatestWeight((Number(latest.beratBadan) || 0).toFixed(1))
         const d = new Date(latest.tanggalCatat)
-        setLastUpdated(`Updated ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
+        setLastUpdated(`Diperbarui ${d.toLocaleDateString('id-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`)
       }
       setBmiData(transformBmiChartData(bmi))
       setHeightData(transformToSubChartData(percentile, 'height'))

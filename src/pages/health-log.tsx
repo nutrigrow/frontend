@@ -34,9 +34,9 @@ type InsightConfig = {
 }
 
 const CATEGORY_META: Record<CategoryType, { tab: string; badge: string }> = {
-  teenage:       { tab: 'Teenage',       badge: 'TEENAGE GIRL' },
-  pregnant:      { tab: 'Pregnant',      badge: 'PREGNANT MOTHER' },
-  breastfeeding: { tab: 'Breastfeeding', badge: 'BREASTFEEDING MOM' },
+  teenage:       { tab: 'Remaja',        badge: 'REMAJA PUTRI' },
+  pregnant:      { tab: 'Ibu Hamil',     badge: 'IBU HAMIL' },
+  breastfeeding: { tab: 'Menyusui',      badge: 'IBU MENYUSUI' },
 }
 
 function getSupplementInsight(pct: number): InsightConfig {
@@ -380,7 +380,7 @@ const SaveNotification = ({ saveStatus, onClose }: { saveStatus: SaveStatus; onC
         )}
       </div>
       <span className="font-[Montserrat,sans-serif] font-semibold text-[12px] text-white">
-        {isSuccess ? 'Data saved!' : 'Failed to save!'}
+        {isSuccess ? 'Data tersimpan!' : 'Gagal menyimpan!'}
       </span>
       <button onClick={onClose} className="hover:opacity-80 transition-opacity">
         <X size={11} className="text-white" />
@@ -405,8 +405,8 @@ const CalendarPicker = ({ value, onChange, onClose }: { value: string; onChange:
   const [viewMonth, setViewMonth] = useState(initial.getMonth())
   const [selected, setSelected] = useState<Date>(initial)
 
-  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
-  const dayNames = ['Su','Mo','Tu','We','Th','Fr','Sa']
+  const monthNames = ['januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
+  const dayNames = ['Min','Sen','Sel','Rab','Kam','Jum','Sab']
   const firstDay = new Date(viewYear, viewMonth, 1).getDay()
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
 
@@ -584,7 +584,7 @@ const StatCardBase = ({
               className="flex items-center gap-1 font-[Montserrat,sans-serif] font-semibold text-[10px] px-2 py-1 rounded-full transition-all hover:opacity-90 active:scale-95 flex-shrink-0"
               style={{ background: c.badgeBg, color: c.badgeText, border: `1px solid ${c.badgeBorder}` }}
             >
-              Details <span className="text-[11px] leading-none">→</span>
+              Detail <span className="text-[11px] leading-none">→</span>
             </button>
           </div>
           {/* Value */}
@@ -599,13 +599,13 @@ const StatCardBase = ({
 }
 
 // ─── Individual Stat Cards ─────────────────────────────────────
-const SupplementCard = ({ label = 'SUPPLEMENT INTAKE', category, value }: { label?: string; category: CategoryType; value: number | null }) => {
+const SupplementCard = ({ label = 'ASUPAN SUPLEMEN', category, value }: { label?: string; category: CategoryType; value: number | null }) => {
   const insight = value !== null ? getSupplementInsight(value) : undefined
   const targetLabel = category === 'pregnant'
-    ? 'Target: 1 Tablet TTD/day'
+    ? 'Target: 1 Tablet TTD/hari'
     : category === 'breastfeeding'
-    ? 'Target: ASI Booster/day'
-    : 'Target: 1 tab/day'
+    ? 'Target: ASI Booster/hari'
+    : 'Target: 1 tab/hari'
   return (
     <StatCardBase icon={<PillIconSvg />} iconBg="#fef2f2" label={label} insight={insight} sub={<>{targetLabel}</>}>
       {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
@@ -624,8 +624,8 @@ const FluidStatCard = ({ category, value }: { category: CategoryType; value: num
   const target = category === 'breastfeeding' ? 10 : 8
   const insight = value !== null ? getFluidInsight(value, target) : undefined
   return (
-    <StatCardBase icon={<FluidIconSvg />} iconBg="#eff6ff" label="FLUID" insight={insight}
-      sub={value !== null ? <>{target - value > 0 ? `${target - value} glasses to go!` : 'Target tercapai!'}</> : <>Log hari ini</>}
+    <StatCardBase icon={<FluidIconSvg />} iconBg="#eff6ff" label="CAIRAN" insight={insight}
+      sub={value !== null ? <>{target - value > 0 ? `${target - value} gelas lagi!` : 'Target tercapai!'}</> : <>Log hari ini</>}
     >
       {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
         <div className="flex flex-col gap-1">
@@ -647,8 +647,8 @@ const FluidStatCard = ({ category, value }: { category: CategoryType; value: num
 const RestStatCard = ({ category, value }: { category: CategoryType; value: number | null }) => {
   const insight = value !== null ? getRestInsight(value, category) : undefined
   return (
-    <StatCardBase icon={<MoonIconSvg />} iconBg="#f5f3ff" label="REST" insight={insight}
-      sub={value !== null ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Good quality</span></span> : <>Log hari ini</>}
+    <StatCardBase icon={<MoonIconSvg />} iconBg="#f5f3ff" label="ISTIRAHAT" insight={insight}
+      sub={value !== null ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Kualitas bagus</span></span> : <>Log hari ini</>}
     >
       {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
         <div className="flex items-baseline gap-1">
@@ -672,7 +672,7 @@ const MoodStatCard = ({ category, value }: { category: CategoryType; value: numb
   const moodVal  = value !== null ? Object.keys(MOOD_STR_TO_INT).find(k => MOOD_STR_TO_INT[k] === value) ?? 'biasa' : 'biasa'
   const insight  = value !== null ? getMoodInsight(moodVal, category) : undefined
   return (
-    <StatCardBase icon={<SmileIconSvg />} iconBg="#f0fdf4" label="MOOD" insight={insight}
+    <StatCardBase icon={<SmileIconSvg />} iconBg="#f0fdf4" label="SUASANA HATI" insight={insight}
       sub={value !== null ? 'Stability high' : 'Log hari ini'}
     >
       {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
@@ -689,7 +689,7 @@ const CycleStatCard = ({ value }: { value: string | null }) => {
   const isMenstruating = value === 'Sedang haid'
   const insight = value !== null ? getCycleInsight(isMenstruating) : undefined
   return (
-    <StatCardBase icon={<CalendarIconSvg />} iconBg="#fdf2f8" label="CYCLE TRACKING" insight={insight}
+    <StatCardBase icon={<CalendarIconSvg />} iconBg="#fdf2f8" label="PEMANTAU SIKLUS" insight={insight}
       sub={value !== null ? 'Siklus teratur' : 'Log hari ini'}
     >
       {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
@@ -702,7 +702,7 @@ const CycleStatCard = ({ value }: { value: string | null }) => {
 const MomWeightCard = ({ value }: { value: number | null }) => {
   const insight = value !== null ? getMomWeightInsight(value, value, 2) : undefined
   return (
-    <StatCardBase icon={<WeightIconSvg />} iconBg="#fdf2f8" label="MOM'S WEIGHT" insight={insight}
+    <StatCardBase icon={<WeightIconSvg />} iconBg="#fdf2f8" label="BERAT BADAN IBU" insight={insight}
       sub={value !== null ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Terpantau</span></span> : <>Log hari ini</>}
     >
       {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
@@ -718,7 +718,7 @@ const MomWeightCard = ({ value }: { value: number | null }) => {
 const PumpingStatCard = ({ value }: { value: number | null }) => {
   const insight = value !== null ? getPumpingInsight(value) : undefined
   return (
-    <StatCardBase icon={<DropIconSvg />} iconBg="#fdf2f8" label="NURSING & PUMPING" insight={insight}
+    <StatCardBase icon={<DropIconSvg />} iconBg="#fdf2f8" label="MENYUSUI & MEMOMPA ASI" insight={insight}
       sub={value !== null ? (value >= 8 ? <span className="flex items-center gap-1"><TrendUpIconSvg /><span>Jadwal stabil</span></span> : 'Target: 8 sesi/hari') : <>Log hari ini</>}
     >
       {value === null ? <span style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#cbd5e1", fontWeight: 700 }}>—</span> : (
@@ -739,7 +739,7 @@ const StatsGrid = ({
   bp: 'mobile' | 'tablet' | 'desktop'
   todayLog: import('../services/healthLog.service').ApiHealthLog | null
 }) => {
-  const suppLabel = category === 'breastfeeding' ? 'IRON INTAKE' : 'SUPPLEMENT INTAKE'
+  const suppLabel = category === 'breastfeeding' ? 'ASUPAN ZAT BESI' : 'ASUPAN SUPLEMEN'
   const hasData = todayLog !== null && todayLog.profile_type === CATEGORY_TO_PROFILE[category]
 
   // Derive today's values from the log (or null if no log)
@@ -798,8 +798,8 @@ const LogsTable = ({
   onEdit?: (index: number) => void
   onDelete?: (index: number) => void
 }) => {
-  const specificHeader = category === 'teenage' ? 'Menstruasi' : category === 'pregnant' ? 'Berat Badan' : 'Pumping'
-  const supplementHeader = category === 'breastfeeding' ? 'Iron' : 'Suplemen'
+  const specificHeader = category === 'teenage' ? 'Menstruasi' : category === 'pregnant' ? 'Berat Badan' : 'Memompa ASI'
+  const supplementHeader = category === 'breastfeeding' ? 'Zat Besi' : 'Suplemen'
   const showActions = !!onEdit
 
   return (
@@ -817,7 +817,7 @@ const LogsTable = ({
         </colgroup>
         <thead>
           <tr className="border-b border-slate-100">
-            {['Hari', 'Tanggal', 'Mood', 'Tidur', 'Cairan', supplementHeader, specificHeader, ...(showActions ? ['Aksi'] : [])].map(col => (
+            {['Hari', 'Tanggal', 'Suasana Hati', 'Tidur', 'Cairan', supplementHeader, specificHeader, ...(showActions ? ['Aksi'] : [])].map(col => (
               <th key={col} className="font-[Montserrat,sans-serif] font-bold text-[10px] uppercase tracking-[0.5px] text-slate-400 pb-3 whitespace-nowrap text-left px-2 first:pl-0">
                 {col}
               </th>
@@ -892,7 +892,7 @@ const AllLogsModal = ({
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 flex-shrink-0">
           <div className="flex flex-col gap-0.5">
-            <span className="font-[Montserrat,sans-serif] font-bold text-xl text-slate-900">All Health Logs</span>
+            <span className="font-[Montserrat,sans-serif] font-bold text-xl text-slate-900">Seluruh Catatan Kesehatan</span>
             <span className="font-[Montserrat,sans-serif] text-sm text-slate-500">Riwayat lengkap</span>
           </div>
           <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors border-none bg-transparent cursor-pointer ml-4"><IconClose /></button>
@@ -901,8 +901,8 @@ const AllLogsModal = ({
           <LogsTable data={logs} category={category} isMobile={false} onEdit={(i) => { onEdit(i); onClose() }} onDelete={onDelete} />
         </div>
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 flex-shrink-0">
-          <span className="font-[Montserrat,sans-serif] text-sm text-slate-400">{logs.length} records</span>
-          <button onClick={onClose} className="font-[Montserrat,sans-serif] font-bold text-sm text-white bg-[#628141] hover:bg-[#3f6212] transition-colors px-5 py-2 rounded-lg border-none cursor-pointer">Close</button>
+          <span className="font-[Montserrat,sans-serif] text-sm text-slate-400">{logs.length} riwayat</span>
+          <button onClick={onClose} className="font-[Montserrat,sans-serif] font-bold text-sm text-white bg-[#628141] hover:bg-[#3f6212] transition-colors px-5 py-2 rounded-lg border-none cursor-pointer">Tutup</button>
         </div>
       </div>
     </div>
@@ -923,9 +923,9 @@ const RecentLogsSection = ({
     <>
       <div className={`bg-white rounded-[24px] border border-[#f0f0ee] shadow-sm ${isMobile ? 'px-4 py-4' : 'px-6 py-5'}`}>
         <div className="flex items-center justify-between mb-4">
-          <span className="font-bold text-base text-[#292524] font-['Plus_Jakarta_Sans',sans-serif]">Recent Logs</span>
+          <span className="font-bold text-base text-[#292524] font-['Plus_Jakarta_Sans',sans-serif]">Catatan terbaru</span>
           <button onClick={() => setModalOpen(true)} className="font-[Montserrat,sans-serif] font-semibold text-xs text-[#65a30d] tracking-[0.6px] uppercase hover:text-[#4d7c0f] bg-transparent border-none cursor-pointer p-0 transition-colors">
-            VIEW ALL
+            LIHAT SEMUA
           </button>
         </div>
         <LogsTable data={previewData} category={category} isMobile={isMobile} onEdit={onEdit} onDelete={onDelete} />
@@ -982,7 +982,7 @@ const LogEntryModal = (props: LogEntryModalProps) => {
 
   const suppChecked = category === 'teenage' ? ttdTaken : category === 'pregnant' ? supplementTaken : supplementBfTaken
   const suppOnChange = category === 'teenage' ? setTtdTaken : category === 'pregnant' ? setSupplementTaken : setSupplementBfTaken
-  const leftTitle    = category === 'teenage' ? 'Tablet Tambah Darah (TTD)' : 'Supplement Intake'
+  const leftTitle    = category === 'teenage' ? 'Tablet Tambah Darah (TTD)' : 'Asupan Suplemen'
   const leftSubtitle = category === 'teenage' ? 'Sudah minum TTD hari ini?' : 'Sudah minum vitamin hari ini?'
 
   const weightWarning = category === 'pregnant' ? getWeightWarning(momWeight) : null
@@ -1039,7 +1039,7 @@ const LogEntryModal = (props: LogEntryModalProps) => {
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-full bg-[#ecfccb] flex items-center justify-center flex-shrink-0"><SmileIconSvg /></div>
                 <div>
-                  <p className="font-bold text-sm text-[#1c1917] font-[Montserrat,sans-serif]">Mood Tracker</p>
+                  <p className="font-bold text-sm text-[#1c1917] font-[Montserrat,sans-serif]">Pemantau Suasana Hati</p>
                   <p className="text-[10px] text-[#42493b] font-[Montserrat,sans-serif]">Bagaimana perasaanmu hari ini?</p>
                 </div>
               </div>
@@ -1076,7 +1076,7 @@ const LogEntryModal = (props: LogEntryModalProps) => {
                   <>
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0 pr-2">
-                        <p className="font-bold text-sm text-[#191c1a] font-[Montserrat,sans-serif]">Cycle Tracking</p>
+                        <p className="font-bold text-sm text-[#191c1a] font-[Montserrat,sans-serif]">Pemantau Siklus</p>
                         <p className="text-[10px] text-[#42493b] font-[Montserrat,sans-serif] mt-0.5">Sedang haid hari ini?</p>
                       </div>
                       <div className="w-9 h-9 rounded-full bg-[rgba(178,83,142,0.15)] flex items-center justify-center flex-shrink-0"><CalendarIconSvg /></div>
@@ -1090,7 +1090,7 @@ const LogEntryModal = (props: LogEntryModalProps) => {
                   <>
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0 pr-2">
-                        <p className="font-bold text-sm text-[#191c1a] font-[Montserrat,sans-serif]">Mom's Weight</p>
+                        <p className="font-bold text-sm text-[#191c1a] font-[Montserrat,sans-serif]">Berat Badan Ibu</p>
                         <p className="text-[10px] text-[#42493b] font-[Montserrat,sans-serif] mt-0.5">Catat berat badan terkini</p>
                       </div>
                       <div className="w-9 h-9 rounded-full bg-[rgba(178,83,142,0.15)] flex items-center justify-center flex-shrink-0"><WeightIconSvg /></div>
@@ -1129,7 +1129,7 @@ const LogEntryModal = (props: LogEntryModalProps) => {
                     </div>
                     {pumpingLow && (
                       <p className="text-[11px] font-semibold text-red-600 font-[Montserrat,sans-serif] pl-1">
-                        ⚠ Status: LOW — Di bawah 6 sesi/hari. Tingkatkan frekuensi pumping.
+                        ⚠ Status: RENDAH — Di bawah 6 sesi/hari. Tingkatkan frekuensi memompa.
                       </p>
                     )}
                   </>
@@ -1148,7 +1148,7 @@ const LogEntryModal = (props: LogEntryModalProps) => {
                     </svg>
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-[#191c1a] font-[Montserrat,sans-serif]">Fluid Intake</p>
+                    <p className="font-bold text-sm text-[#191c1a] font-[Montserrat,sans-serif]">Asupan Cairan</p>
                     <p className="text-[10px] text-[#42493b] font-[Montserrat,sans-serif]">Jumlah gelas (250ml)</p>
                   </div>
                 </div>
@@ -1185,7 +1185,7 @@ const LogEntryModal = (props: LogEntryModalProps) => {
             {/* Save button */}
             <div className="flex items-center gap-3 pt-1">
               <button onClick={onSave} className="flex-1 h-[46px] rounded-full bg-[#4d7c0f] hover:bg-[#3f6212] transition-colors font-[Montserrat,sans-serif] font-black text-sm text-white tracking-widest shadow-md">
-                {isEditing ? 'UPDATE LOG' : 'SAVE LOG'}
+                {isEditing ? 'PERBARUI CATATAN' : 'SIMPAN CATATAN'}
               </button>
             </div>
           </div>
@@ -1415,7 +1415,7 @@ export default function HealthLog() {
         {isMobile ? (
           <div className="flex flex-col gap-3.5 mb-5">
             <div className="flex flex-col gap-1">
-              <h1 className="font-extrabold text-[24px] text-[#1c1917] leading-none font-[Montserrat,sans-serif]">Hello, <span className="{`text-[#65a30d]`}">{userName}</span> 👋</h1>
+              <h1 className="font-extrabold text-[24px] text-[#1c1917] leading-none font-[Montserrat,sans-serif]">Halo, <span className="{`text-[#65a30d]`}">{userName}</span> 👋</h1>
               <div className="flex items-center gap-2 flex-wrap mt-0.5">
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-[0.5px] uppercase font-[Inter,sans-serif]" style={{ background: '#ecfccb', color: '#65a30d' }}>{meta.badge}</span>
                 <span className="text-xs text-[#78716c] font-[Inter,sans-serif]">• Pantau jurnal kesehatanmu.</span>
@@ -1434,7 +1434,7 @@ export default function HealthLog() {
         ) : isTablet ? (
           <div className="flex items-start justify-between gap-4 mb-5">
             <div className="flex flex-col gap-1">
-              <h1 className="font-extrabold text-[26px] text-[#1c1917] leading-none font-[Montserrat,sans-serif]">Hello, <span className="{`text-[#65a30d]`}">{userName}</span> 👋</h1>
+              <h1 className="font-extrabold text-[26px] text-[#1c1917] leading-none font-[Montserrat,sans-serif]">Halo, <span className="{`text-[#65a30d]`}">{userName}</span> 👋</h1>
               <div className="flex items-center gap-2 flex-wrap mt-0.5">
                 <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[10px] font-semibold tracking-[0.5px] uppercase font-[Inter,sans-serif]" style={{ background: '#ecfccb', color: '#65a30d' }}>{meta.badge}</span>
                 <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">• Pantau jurnal kesehatanmu.</span>
@@ -1445,7 +1445,7 @@ export default function HealthLog() {
         ) : (
           <div className="flex w-full items-center justify-between gap-4 mb-6">
             <div className="flex flex-col gap-1.5">
-              <h1 className="font-extrabold text-[28px] text-[#1c1917] leading-none font-[Montserrat,sans-serif]">Hello, <span className="{`text-[#65a30d]`}">{userName}</span> 👋</h1>
+              <h1 className="font-extrabold text-[28px] text-[#1c1917] leading-none font-[Montserrat,sans-serif]">Halo, <span className="{`text-[#65a30d]`}">{userName}</span> 👋</h1>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[11px] font-semibold tracking-[0.55px] uppercase font-[Inter,sans-serif]" style={{ background: '#ecfccb', color: '#65a30d' }}>{meta.badge}</span>
                 <span className="text-sm text-[#78716c] font-[Inter,sans-serif]">• Pantau jurnal kesehatanmu.</span>
