@@ -23,8 +23,10 @@ import iconWHO from "../assets/icons/icon-who.png";
 import { childrenService } from "../services/children.service";
 import { healthLogService } from "../services/healthLog.service";
 import { shopService } from "../services/shop.service";
+import { teleNutritionistService, type Spesialis } from "../services/teleNutritionist.service";
+import { articleService, type ArticleCard } from "../services/article.service";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface HealthItem {
@@ -69,11 +71,13 @@ const defaultHealthItems: HealthItem[] = [
   { icon: iconSupplement, label: "Asupan Suplemen", value: "Memuat", percent: 0, color: "#22c55e" },
 ];
 
-const articles: Article[] = [
-  { tag: "NUTRISI BALITA", tagColor: "#22c55e", title: "Sayur Tersembunyi: 10 Resep untuk Si Kecil yang Susah Makan", excerpt: "Kesulitan saat waktu makan? Resep kreatif ini membantu memastikan si kecil mendapatkan nutrisi yang dibutuhkan.", readTime: "5 menit baca", image: img1 },
-  { tag: "PERAWATAN PASCAPERSALINAN", tagColor: "#f97316", title: "Makanan Super untuk Menambah Energi dan Pemulihan", excerpt: "Tingkatkan kembali energi Anda dengan bahan bernutrisi tinggi yang kaya vitamin penting.", readTime: "8 menit baca", image: img2 },
-  { tag: "PENCAPAIAN PERKEMBANGAN", tagColor: "#3b82f6", title: "Memulai MPASI: Panduan Bulan demi Bulan", excerpt: "Panduan aman memperkenalkan tekstur dan rasa baru untuk bayi yang sedang tumbuh.", readTime: "12 menit baca", image: img3 },
-];
+const getTagColor = (category: string) => {
+  const cat = category.toUpperCase();
+  if (cat.includes("NUTRISI")) return "#22c55e";
+  if (cat.includes("PERAWATAN")) return "#f97316";
+  if (cat.includes("PERKEMBANGAN")) return "#3b82f6";
+  return "#6366f1";
+};
 
 const defaultGrowthData: GrowthPoint[] = [
   { label: "6 BULAN", val: 30, height: 30, weight: 5.2 },
@@ -208,6 +212,8 @@ export default function Dashboard() {
 
   const [healthItems, setHealthItems] = useState<HealthItem[]>(defaultHealthItems);
   const [shopItems, setShopItems] = useState<ShopItem[]>(defaultShopItems);
+  const [specialists, setSpecialists] = useState<Spesialis[]>([]);
+  const [articleList, setArticleList] = useState<ArticleCard[]>([]);
 
   const selectedChildName = useMemo(() => {
     const child = children.find((c) => c.id === selectedChildId);
@@ -291,6 +297,20 @@ export default function Dashboard() {
           image: product.image && product.image.trim() !== "" ? product.image : defaultShopItems[idx % defaultShopItems.length].image,
         }));
         setShopItems(mapped);
+      })
+      .catch(() => { });
+
+    teleNutritionistService.getSpecialists({ page: 1 })
+      .then((res) => {
+        if (cancelled) return;
+        setSpecialists(res.specialists.slice(0, 3));
+      })
+      .catch(() => { });
+
+    articleService.getArticles({ limit: 3 })
+      .then((res) => {
+        if (cancelled) return;
+        setArticleList(res.articles);
       })
       .catch(() => { });
 
@@ -532,14 +552,25 @@ export default function Dashboard() {
 
             {/* Foto dokter */}
             <div className="flex -space-x-3 mt-1">
-              {[doctor1, doctor2, doctor3].map((doc, i) => (
-                <div key={i} className="w-10 h-10 rounded-full border-2 border-white overflow-hidden flex-shrink-0">
-                  <img src={doc} className="w-full h-full object-cover" alt={`doctor ${i + 1}`} />
-                </div>
-              ))}
+              {specialists.length > 0 ? (
+                specialists.map((s, i) => (
+                  <div key={i} className="w-10 h-10 rounded-full border-2 border-white overflow-hidden flex-shrink-0 bg-gray-100">
+                    <img src={s.foto || doctor1} className="w-full h-full object-cover" alt={s.nama} />
+                  </div>
+                ))
+              ) : (
+                [doctor1, doctor2, doctor3].map((doc, i) => (
+                  <div key={i} className="w-10 h-10 rounded-full border-2 border-white overflow-hidden flex-shrink-0">
+                    <img src={doc} className="w-full h-full object-cover" alt={`doctor ${i + 1}`} />
+                  </div>
+                ))
+              )}
             </div>
 
-            <button className="text-sm font-semibold text-[#4d7c0f] flex items-center gap-1 hover:underline mt-1">
+            <button 
+              onClick={() => navigate("/tele-nutritionist")}
+              className="text-sm font-semibold text-[#4d7c0f] flex items-center gap-1 hover:underline mt-1 bg-transparent border-none cursor-pointer"
+            >
               Jadwalkan Sesi ›
             </button>
           </div>
@@ -589,25 +620,50 @@ export default function Dashboard() {
               <h2 className="text-xl font-bold text-gray-900">Rekomendasi Artikel</h2>
               <p className="text-sm text-gray-500">Panduan nutrisi dan kesehatan yang dipersonalisasi untuk Anda.</p>
             </div>
-            <a href="#" className="text-sm font-medium text-[#4d7c0f] hover:underline">Lihat Semua Artikel ›</a>
+            <button 
+              onClick={() => navigate("/artikel")}
+              className="text-sm font-medium text-[#4d7c0f] hover:underline bg-transparent border-none cursor-pointer"
+            >
+              Lihat Semua Artikel ›
+            </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {articles.map(a => (
-              <div key={a.title} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition group cursor-pointer">
-                <div className="h-48 overflow-hidden">
-                  <img src={a.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt={a.title} />
-                </div>
-                <div className="p-4 space-y-2">
-                  <span className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded-full" style={{ color: a.tagColor, backgroundColor: a.tagColor + "1a" }}>{a.tag}</span>
-                  <h3 className="font-bold text-gray-900 leading-snug">{a.title}</h3>
-                  <p className="text-xs text-gray-500 leading-relaxed">{a.excerpt}</p>
-                  <div className="flex items-center justify-between pt-1 text-xs text-gray-400">
-                    <img src={iconWHO} className="w-4 h-4 object-contain inline mr-1" alt="" />World Health Organization
-                    <span>{a.readTime}</span>
+            {articleList.length > 0 ? (
+              articleList.map(a => (
+                <Link 
+                  to={`/baca-artikel/${a.id}`} 
+                  key={a.id} 
+                  className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition group cursor-pointer no-underline text-inherit block"
+                >
+                  <div className="h-48 overflow-hidden">
+                    <img 
+                      src={a.image || img1} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                      alt={a.title} 
+                    />
                   </div>
-                </div>
-              </div>
-            ))}
+                  <div className="p-4 space-y-2">
+                    <span 
+                      className="text-[10px] font-bold tracking-widest px-2 py-0.5 rounded-full" 
+                      style={{ color: getTagColor(a.category), backgroundColor: getTagColor(a.category) + "1a" }}
+                    >
+                      {a.category.toUpperCase()}
+                    </span>
+                    <h3 className="font-bold text-gray-900 leading-snug">{a.title}</h3>
+                    <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{a.description}</p>
+                    <div className="flex items-center justify-between pt-1 text-xs text-gray-400">
+                      <div className="flex items-center">
+                        <img src={iconWHO} className="w-4 h-4 object-contain inline mr-1" alt="" />
+                        World Health Organization
+                      </div>
+                      <span>{a.readTime} menit baca</span>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <p className="text-center col-span-full py-8 text-gray-500 text-sm">Memuat artikel...</p>
+            )}
           </div>
         </section>
 
