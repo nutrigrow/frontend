@@ -325,7 +325,7 @@ const LogNewGrowthSection = ({
 
   const ChildSelectDropdown = () => (
     <div className="flex flex-col gap-1 w-full">
-      <label className="pl-1 text-slate-500 font-bold text-[11px] uppercase tracking-[0.6px] leading-4 font-[Montserrat,sans-serif]">Select Child</label>
+      <label className="pl-1 text-slate-500 font-bold text-[11px] uppercase tracking-[0.6px] leading-4 font-[Montserrat,sans-serif]">Pilih Anak</label>
       <div className="relative w-full">
         <select
           value={selectedChildId ?? ''}
@@ -376,7 +376,7 @@ const LogNewGrowthSection = ({
           </div>
           <DateInputField label="Tanggal Pengukuran" value={dateVal} onChange={setDateVal} error={dateError} />
           <button onClick={onSave} disabled={saving} className={`flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[50px] w-full font-[Montserrat,sans-serif] font-black text-lg text-white cursor-pointer ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}>
-            {saving ? 'Saving...' : saveLabel}
+            {saving ? 'Menyimpan...' : saveLabel}
           </button>
         </div>
       </div>
@@ -406,8 +406,8 @@ const LogNewGrowthSection = ({
               <ChildSelectDropdown />
             </div>
             <div className="flex flex-row items-start gap-3 w-full">
-              <div className="flex-1 min-w-0"><InputField label="Height (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" error={heightError} /></div>
-              <div className="flex-1 min-w-0"><InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" error={weightError} /></div>
+              <div className="flex-1 min-w-0"><InputField label="Tinggi Badan (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" error={heightError} /></div>
+              <div className="flex-1 min-w-0"><InputField label="Berat Badan (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" error={weightError} /></div>
               <div className="flex-[1.4] min-w-0"><DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} error={dateError} /></div>
             </div>
             <button onClick={onSave} disabled={saving} className={`flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[54px] w-full font-[Montserrat,sans-serif] font-black text-base text-white cursor-pointer ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}>
@@ -433,9 +433,9 @@ const LogNewGrowthSection = ({
             </div>
             <div className="flex flex-col gap-3 flex-1 min-w-0 mt-5">
               <div className="grid grid-cols-3 gap-4 w-full">
-                <InputField label="Height (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" error={heightError} />
-                <InputField label="Weight (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" error={weightError} />
-                <DateInputField label="Date of Measurement" value={dateVal} onChange={setDateVal} error={dateError} />
+                <InputField label="Tinggi Badan (cm)" value={heightVal} onChange={setHeightVal} placeholder="0.0" error={heightError} />
+                <InputField label="Berat Badan (kg)" value={weightVal} onChange={setWeightVal} placeholder="0.0" error={weightError} />
+                <DateInputField label="Tanggal Pengukuran" value={dateVal} onChange={setDateVal} error={dateError} />
               </div>
               <button onClick={onSave} disabled={saving} className={`flex items-center justify-center bg-[#628141] hover:bg-[#3f6212] transition-colors duration-150 border-none rounded-lg shadow-lg h-[50px] w-full font-[Montserrat,sans-serif] font-black text-lg text-white cursor-pointer ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}>
                 {saving ? 'Saving...' : saveLabel}
@@ -1103,8 +1103,8 @@ const MeasurementsModal = ({
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 flex-shrink-0">
           <div className="flex flex-col gap-0.5">
-            <span className="font-[Montserrat,sans-serif] font-bold text-xl text-slate-900">All Measurements</span>
-            <span className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-500">Complete growth history for Leo</span>
+            <span className="font-[Montserrat,sans-serif] font-bold text-xl text-slate-900">Semua Pengukuran</span>
+            <span className="font-[Montserrat,sans-serif] font-normal text-sm text-slate-500">Catatan Lengkap Pertumbuhan</span>
           </div>
           <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors border-none bg-transparent cursor-pointer flex-shrink-0 ml-4"><IconClose /></button>
         </div>
@@ -1112,7 +1112,7 @@ const MeasurementsModal = ({
           <MeasurementsTable data={measurements} isMobile={false} onEdit={(i) => { onEdit(i); onClose() }} onDelete={onDelete} />
         </div>
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 flex-shrink-0">
-          <span className="font-[Montserrat,sans-serif] text-sm text-slate-400">{measurements.length} records total</span>
+          <span className="font-[Montserrat,sans-serif] text-sm text-slate-400">{measurements.length} total catatan</span>
           <button onClick={onClose} className="font-[Montserrat,sans-serif] font-bold text-sm text-white bg-[#628141] hover:bg-[#3f6212] transition-colors px-5 py-2 rounded-lg border-none cursor-pointer">Close</button>
         </div>
       </div>
