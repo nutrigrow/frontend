@@ -1,14 +1,20 @@
-# Team Lead
-*    @rynadag
+# Team Lead — mereview semua perubahan
+*                    @rynadag
 
-# Frontend
-*.tsx    @nazwaanasha @eoxxax
-*.css    @nazwaanasha @eoxxax
+# Frontend: komponen, halaman, dan styling
+*.tsx                @nazwaanasha @eoxxax
+*.css                @nazwaanasha @eoxxax
+/src/pages/          @nazwaanasha @eoxxax
+/src/components/     @nazwaanasha @eoxxax
+/src/hooks/          @nazwaanasha @eoxxax
 
-# Backend
-/src/routes/     @mexsfo @rhzain
-/src/models/     @mexsfo @rhzain
+# API & utilities
+/src/services/       @nazwaanasha @eoxxax
+/src/utils/          @nazwaanasha @eoxxax
 
-# Docker
-Dockerfile             @rynadag
-docker-compose.yml     @rynadag
+# Infrastructure — wajib review Team Lead
+Dockerfile           @rynadag
+docker-compose.yml   @rynadag
+nginx.conf           @rynadag
+.github/             @rynadag
+vite.config.ts       @rynadag

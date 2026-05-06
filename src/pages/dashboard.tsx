@@ -473,8 +473,7 @@ export default function Dashboard() {
               })}
               <button
                 type="button"
-                onClick={() => {
-                  window.scrollTo(0, 0);
+                  onClick={() => {
                   navigate("/growth-tracker")
                 }
                 }
@@ -523,7 +522,6 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => {
-                  window.scrollTo(0, 0);
                   navigate("/health-log")
                 }
                 }
