@@ -553,7 +553,7 @@ export default function DetailSpesialis() {
                   el.style.boxShadow = '0 4px 16px rgba(98,129,65,0.35)'
                 }}
               >
-                Book Consultation →
+                Buat Janji Konsultasi →
               </button>
 
               {/* Next Available */}
