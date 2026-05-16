@@ -95,9 +95,9 @@ const STATUS_CONFIG: Record<
 
 // ─── Status Mapping ───
 const mapBackendStatus = (status: string, jadwalSesi: string): StatusType => {
-  // If session has passed and wasn't explicitly completed/cancelled, treat as done
-  const sessionTime = new Date(jadwalSesi)
-  const isPast = sessionTime < new Date()
+  const startTime = new Date(jadwalSesi)
+  const endTime = new Date(startTime.getTime() + 60 * 60 * 1000)
+  const isPast = endTime < new Date()
 
   switch (status) {
     case 'DONE':
@@ -610,7 +610,6 @@ const KonsultasiCard = ({
   const bufferTime = new Date(startTime.getTime() - 10 * 60000) // 10 mins before
 
   const isTooEarly = now < bufferTime
-  const isOngoing = now >= bufferTime && now <= endTime
   const isEnded = now > endTime
 
   const formatCountdown = (target: Date) => {
@@ -626,7 +625,7 @@ const KonsultasiCard = ({
     if (konsultasi.metode === 'Video Call') {
       window.open(`https://meet.jit.si/NutriGrow-Consultation-${konsultasi.rawId}`, '_blank')
     } else {
-      const waNumber = '6281234567890' // Static number as requested
+      const waNumber = '6282110834924' // statis dulu
       const message = `Halo, saya pasien NutriGrow dengan ID Sesi: ${konsultasi.id}. Saya ingin memulai sesi konsultasi Chat.`
       window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank')
     }
@@ -787,7 +786,6 @@ const KonsultasiCard = ({
               Reschedule
             </button>
 
-            {/* Batalkan */}
             <button
               onClick={() => onCancel(konsultasi)}
               style={{
@@ -808,23 +806,14 @@ const KonsultasiCard = ({
         </div>
       )}
 
-      {/* Selesai */}
-      {konsultasi.status === 'Selesai' && (
-        <div style={{ padding: '14px 20px 20px' }}>
-          <button
-            style={{
-              width: '100%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: 8, padding: '11px 16px',
-              background: `linear-gradient(135deg, ${NG.primary} 0%, ${NG.dark} 100%)`,
-              color: '#fff', border: 'none', borderRadius: 10,
-              fontFamily: 'Montserrat, sans-serif', fontSize: 13, fontWeight: 700,
-              cursor: 'pointer', boxShadow: '0 2px 8px rgba(98,129,65,0.25)',
-            }}
-          >
-            <Phone size={14} strokeWidth={2.5} />
-            Hubungi Nutritionist
-          </button>
+      {/* Selesai / Canceled */}
+      {(konsultasi.status === 'Selesai' || konsultasi.status === 'Canceled') && (
+        <div style={{ padding: '0 20px 20px' }}>
+          <div style={{ textAlign: 'center', padding: '12px', background: '#F9FAFB', borderRadius: 12, border: '1px dashed #E5E7EB' }}>
+            <p style={{ margin: 0, fontSize: 13, color: '#9CA3AF', fontWeight: 600, fontFamily: 'var(--font-heading), sans-serif' }}>
+              {konsultasi.status === 'Selesai' ? 'Sesi ini telah selesai' : 'Sesi ini telah dibatalkan'}
+            </p>
+          </div>
         </div>
       )}
     </motion.div>
