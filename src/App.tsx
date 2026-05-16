@@ -34,6 +34,7 @@ import UserManagement from "./pages/admin/user-management";
 import ProductManagement from "./pages/admin/product-management";
 import NutritionistManagement from "./pages/admin/nutritionist-management";
 import ArticleManagement from "./pages/admin/article-management";
+import { AdminLayout } from "./pages/admin/admin-layout";
 
 // ─── Layout Wrapper ──────────────────────────────────────────────────────────
 function AppLayout() {
@@ -75,10 +76,10 @@ function AppLayout() {
           <Route path="/booking-konsultasi/:id"  element={<BookingKonsultasi />} />
           <Route path="/konsultasi-saya"         element={<KonsultasiSaya />} />
 
-          {/* ── Admin Routes — AdminLayout sudah handle sidebar sendiri ── */}
-          <Route path="/admin"             element={<AdminDashboard />} />
-          <Route path="/admin/tele"         element={<TransaksiTeleNutri />} />
-          <Route path="/admin/nutrishop"    element={<TransaksiNutriShop />} />
+          
+          <Route path="/admin"             element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+          <Route path="/admin/tele"         element={<AdminLayout><TransaksiTeleNutri /></AdminLayout>} />
+          <Route path="/admin/nutrishop"    element={<AdminLayout><TransaksiNutriShop /></AdminLayout>} />
           <Route path="/admin/users"        element={<UserManagement />} />
           <Route path="/admin/products"     element={<ProductManagement />} />
           <Route path="/admin/nutritionists" element={<NutritionistManagement />} />
