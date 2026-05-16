@@ -29,8 +29,8 @@ const quickActions = [
   { label: "Tambah\nProduk",        icon: <PlusSquare size={22} />,    color: "text-blue-500",   bg: "bg-blue-50",   to: "/admin/products"          },
   { label: "Tambah\nNutritionist",  icon: <UserCheck size={22} />,     color: "text-purple-500", bg: "bg-purple-50", to: "/admin/nutritionists"     },
   { label: "Buat\nArtikel",         icon: <BookOpen size={22} />,      color: "text-orange-500", bg: "bg-orange-50", to: "/admin/articles"          },
-  { label: "Transaksi\nNutriShop",  icon: <ShoppingBag size={22} />,   color: "text-teal-500",   bg: "bg-teal-50",   to: "/admin/transactions/shop" },
-  { label: "Transaksi\nKonsultasi", icon: <ClipboardList size={22} />, color: "text-pink-500",   bg: "bg-pink-50",   to: "/admin/transactions/tele" },
+  { label: "Transaksi\nNutriShop",  icon: <ShoppingBag size={22} />,   color: "text-teal-500",   bg: "bg-teal-50",   to: "/admin/nutrishop" },
+  { label: "Transaksi\nKonsultasi", icon: <ClipboardList size={22} />, color: "text-pink-500",   bg: "bg-pink-50",   to: "/admin/tele" },
 ];
 
 const managementCards = [

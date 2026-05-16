@@ -43,8 +43,8 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: "TRANSAKSI",
     items: [
-      { label: "Transaksi NutriShop", path: "/admin/transactions/shop", icon: <ShoppingCart size={17} /> },
-      { label: "Transaksi Tele-Nutri", path: "/admin/transactions/tele", icon: <Phone size={17} /> },
+      { label: "Transaksi NutriShop", path: "/admin/nutrishop", icon: <ShoppingCart size={17} /> },
+      { label: "Transaksi Tele-Nutri", path: "/admin/tele", icon: <Phone size={17} /> },
     ],
   },
 ];
