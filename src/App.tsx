@@ -1,5 +1,6 @@
-import { BrowserRouter as Router, Routes, Route, useLocation} from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext' 
+import { useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate} from 'react-router-dom'
+import { AuthProvider, useAuth } from './context/AuthContext' 
 
 import Header from './components/header'
 import Footer from './components/footer'
@@ -24,7 +25,7 @@ import TeleNutritionist from './pages/tele-nutritionist'
 import DetailSpesialis from './pages/detail-spesialis'
 import BookingKonsultasi from './pages/booking-konsultasi'
 import KonsultasiSaya from './pages/konsultasi-saya'
-import { ProtectedRoute, PublicOnlyRoute } from './components/ProtectedRoute'
+import { AdminRoute, ProtectedRoute, PublicOnlyRoute } from './components/ProtectedRoute'
 import ScrollToTop from './components/scroll-to-top'
 
 import AdminDashboard from './pages/admin/dashboard';
@@ -34,12 +35,20 @@ import UserManagement from "./pages/admin/user-management";
 import ProductManagement from "./pages/admin/product-management";
 import NutritionistManagement from "./pages/admin/nutritionist-management";
 import ArticleManagement from "./pages/admin/article-management";
-import { AdminLayout } from "./pages/admin/admin-layout";
 
 // ─── Layout Wrapper ──────────────────────────────────────────────────────────
 function AppLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isLoggedIn } = useAuth();
   const isAdminRoute = location.pathname.startsWith('/admin');
+
+  useEffect(() => {
+    // Redirect logged-in admin immediately to the admin console if they try to access any regular/public route.
+    if (isLoggedIn && user?.role?.toUpperCase() === 'ADMIN' && !isAdminRoute && location.pathname !== '/auth/callback') {
+      navigate('/admin', { replace: true });
+    }
+  }, [isLoggedIn, user, isAdminRoute, location.pathname, navigate]);
 
   return (
     <div className={isAdminRoute ? '' : 'min-h-screen bg-white flex flex-col'}>
@@ -77,13 +86,13 @@ function AppLayout() {
           <Route path="/konsultasi-saya"         element={<KonsultasiSaya />} />
 
           
-          <Route path="/admin"             element={<AdminLayout><AdminDashboard /></AdminLayout>} />
-          <Route path="/admin/tele"         element={<AdminLayout><TransaksiTeleNutri /></AdminLayout>} />
-          <Route path="/admin/nutrishop"    element={<AdminLayout><TransaksiNutriShop /></AdminLayout>} />
-          <Route path="/admin/users"        element={<UserManagement />} />
-          <Route path="/admin/products"     element={<ProductManagement />} />
-          <Route path="/admin/nutritionists" element={<NutritionistManagement />} />
-          <Route path="/admin/articles"     element={<ArticleManagement />} />
+          <Route path="/admin"              element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/admin/tele"         element={<AdminRoute><TransaksiTeleNutri /></AdminRoute>} />
+          <Route path="/admin/nutrishop"    element={<AdminRoute><TransaksiNutriShop /></AdminRoute>} />
+          <Route path="/admin/users"        element={<AdminRoute><UserManagement /></AdminRoute>} />
+          <Route path="/admin/products"     element={<AdminRoute><ProductManagement /></AdminRoute>} />
+          <Route path="/admin/nutritionists" element={<AdminRoute><NutritionistManagement /></AdminRoute>} />
+          <Route path="/admin/articles"     element={<AdminRoute><ArticleManagement /></AdminRoute>} />
         </Routes>
       </div>
 

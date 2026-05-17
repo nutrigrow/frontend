@@ -1,12 +1,12 @@
-// nutritionist-management.tsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { 
-  Search, Download, Plus, Edit2, Copy, Trash2, 
+  Search, Download, Plus, Edit2, Trash2, 
   ChevronLeft, ChevronRight, X, Users, CheckCircle, 
-  Calendar, Clock, AlertTriangle, Filter, ChevronDown 
+  Calendar, Clock, AlertTriangle, Filter, ChevronDown, Loader2 
 } from "lucide-react";
 import { AdminLayout } from "./admin-layout";
+import { adminService, type Nutritionist } from "../../services/admin.service";
 
 type Specialization = "Gizi Anak" | "Diet" | "Olahraga" | "Gizi Klinis" | "Gizi Ibu Hamil";
 type NutritionistStatus = "Tersedia" | "Tidak Tersedia";
@@ -14,6 +14,7 @@ type SortOption = "nama-az" | "pengalaman-terbanyak" | "pengalaman-tersedikit";
 
 interface NutritionistData {
   id: string;
+  rawId: number;
   nid: string;
   name: string;
   specialization: Specialization;
@@ -37,7 +38,7 @@ interface FormData {
   phone: string; 
 }
 
-type ModalMode = "add" | "edit" | "duplicate";
+type ModalMode = "add" | "edit";
 
 const AVATAR_COLORS = ["#4a7c59","#3b82f6","#8b5cf6","#f97316","#ec4899","#14b8a6","#f59e0b","#ef4444"];
 
@@ -72,24 +73,6 @@ function exportCSV(data: NutritionistData[]): void {
   a.click();
   URL.revokeObjectURL(url);
 }
-
-const INITIAL_NUTRITIONISTS: NutritionistData[] = [
-  { id:"NUT-001", nid:"NUT-001", name:"Dr. Amelia Sari, SpGK", specialization:"Gizi Anak", strNumber:"889900122", experience:"7 tahun", experienceYears:7, status:"Tersedia", email:"amelia.sari@nutrigrow.id", phone:"+62 812-1111-0001" },
-  { id:"NUT-002", nid:"NUT-002", name:"Dr. Bambang Susilo, SpGK", specialization:"Diet", strNumber:"889910233", experience:"9 tahun", experienceYears:9, status:"Tersedia", email:"bambang.s@nutrigrow.id", phone:"+62 812-1111-0002" },
-  { id:"NUT-003", nid:"NUT-003", name:"Dr. Citra Dewi, SpGK", specialization:"Olahraga", strNumber:"889920344", experience:"6 tahun", experienceYears:6, status:"Tidak Tersedia", email:"citra.dewi@nutrigrow.id", phone:"+62 812-1111-0003" },
-  { id:"NUT-004", nid:"NUT-004", name:"Dr. Diana Putri, MGizi", specialization:"Gizi Ibu Hamil", strNumber:"889930455", experience:"4 tahun", experienceYears:4, status:"Tersedia", email:"diana.putri@nutrigrow.id", phone:"+62 812-1111-0004" },
-  { id:"NUT-005", nid:"NUT-005", name:"Dr. Eko Prasetyo, SpGK", specialization:"Diet", strNumber:"889940566", experience:"11 tahun", experienceYears:11, status:"Tersedia", email:"eko.p@nutrigrow.id", phone:"+62 812-1111-0005" },
-  { id:"NUT-006", nid:"NUT-006", name:"Dr. Fitria Handayani, MGizi", specialization:"Olahraga", strNumber:"889950677", experience:"3 tahun", experienceYears:3, status:"Tidak Tersedia", email:"fitria.h@nutrigrow.id", phone:"+62 812-1111-0006" },
-  { id:"NUT-007", nid:"NUT-007", name:"Dr. Galih Santoso, SpGK", specialization:"Gizi Anak", strNumber:"889960788", experience:"8 tahun", experienceYears:8, status:"Tersedia", email:"galih.s@nutrigrow.id", phone:"+62 812-1111-0007" },
-  { id:"NUT-008", nid:"NUT-008", name:"Dr. Hani Kusumawati, MGizi", specialization:"Diet", strNumber:"889970899", experience:"5 tahun", experienceYears:5, status:"Tersedia", email:"hani.k@nutrigrow.id", phone:"+62 812-1111-0008" },
-  { id:"NUT-009", nid:"NUT-009", name:"Dr. Ivan Permana, SpGK", specialization:"Olahraga", strNumber:"889980910", experience:"12 tahun", experienceYears:12, status:"Tersedia", email:"ivan.p@nutrigrow.id", phone:"+62 812-1111-0009" },
-  { id:"NUT-010", nid:"NUT-010", name:"Dr. Jasmine Putri, MGizi", specialization:"Gizi Anak", strNumber:"889991011", experience:"2 tahun", experienceYears:2, status:"Tidak Tersedia", email:"jasmine.p@nutrigrow.id", phone:"+62 812-1111-0010" },
-  { id:"NUT-011", nid:"NUT-011", name:"Dr. Kevin Hartanto, SpGK", specialization:"Gizi Klinis", strNumber:"889101122", experience:"10 tahun", experienceYears:10, status:"Tersedia", email:"kevin.h@nutrigrow.id", phone:"+62 812-1111-0011" },
-  { id:"NUT-012", nid:"NUT-012", name:"Dr. Laila Siti, MGizi", specialization:"Olahraga", strNumber:"889111233", experience:"6 tahun", experienceYears:6, status:"Tersedia", email:"laila.s@nutrigrow.id", phone:"+62 812-1111-0012" },
-  { id:"NUT-013", nid:"NUT-013", name:"Dr. Mira Anjani, SpGK", specialization:"Gizi Anak", strNumber:"889121344", experience:"7 tahun", experienceYears:7, status:"Tersedia", email:"mira.a@nutrigrow.id", phone:"+62 812-1111-0013" },
-  { id:"NUT-014", nid:"NUT-014", name:"Dr. Naufal Hakim, MGizi", specialization:"Diet", strNumber:"889131455", experience:"3 tahun", experienceYears:3, status:"Tidak Tersedia", email:"naufal.h@nutrigrow.id", phone:"+62 812-1111-0014" },
-  { id:"NUT-015", nid:"NUT-015", name:"Dr. Olivia Sari, SpGK", specialization:"Olahraga", strNumber:"889141566", experience:"9 tahun", experienceYears:9, status:"Tersedia", email:"olivia.s@nutrigrow.id", phone:"+62 812-1111-0015" },
-];
 
 const selectCls = 
   "appearance-none border border-gray-200 rounded-lg px-3 py-2 pr-7 text-[13px] sm:text-sm text-gray-700 bg-white outline-none focus:ring-2 focus:ring-[#4a7c59]/25 focus:border-[#4a7c59] cursor-pointer w-full";
@@ -144,7 +127,7 @@ function SpecializationBadge({ spec }: { spec: Specialization }) {
     "Gizi Ibu Hamil": "bg-orange-100 text-orange-700 border border-orange-200" 
   };
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${styles[spec]}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${styles[spec] || "bg-gray-100 text-gray-700"}`}>
       {spec}
     </span>
   );
@@ -179,7 +162,7 @@ function StatCard({ label, value, sub, icon, color }: { label: string; value: st
   );
 }
 
-function NutriModal({ mode, initialData, onSave, onClose }: { mode: ModalMode; initialData?: NutritionistData; onSave: (data: Omit<NutritionistData, "id">) => void; onClose: () => void }) {
+function NutriModal({ mode, initialData, onSave, onClose }: { mode: ModalMode; initialData?: NutritionistData; onSave: (data: Omit<NutritionistData, "id" | "rawId" | "nid" | "experience">) => void; onClose: () => void }) {
   const [form, setForm] = useState<FormData>({ 
     name: initialData?.name ?? "", 
     nid: initialData?.nid ?? "", 
@@ -191,12 +174,11 @@ function NutriModal({ mode, initialData, onSave, onClose }: { mode: ModalMode; i
     phone: initialData?.phone ?? "" 
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
-  const title = mode === "add" ? "Tambah Ahli Gizi Baru" : mode === "edit" ? "Edit Ahli Gizi" : "Duplikasi Ahli Gizi";
+  const title = mode === "add" ? "Tambah Ahli Gizi Baru" : "Edit Ahli Gizi";
   
   function validate(): boolean { 
     const e: Partial<Record<keyof FormData, string>> = {}; 
     if (!form.name.trim()) e.name = "Nama wajib diisi"; 
-    if (!form.nid.trim()) e.nid = "NID wajib diisi"; 
     if (!form.strNumber.trim()) e.strNumber = "No. STR wajib diisi"; 
     if (!form.email.trim()) e.email = "Email wajib diisi"; 
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Format email tidak valid"; 
@@ -209,11 +191,9 @@ function NutriModal({ mode, initialData, onSave, onClose }: { mode: ModalMode; i
     if (!validate()) return; 
     const years = Math.max(1, parseInt(form.experienceYears) || 1); 
     onSave({ 
-      nid: form.nid, 
       name: form.name, 
       specialization: form.specialization, 
       strNumber: form.strNumber, 
-      experience: `${years} tahun`, 
       experienceYears: years, 
       status: form.status, 
       email: form.email, 
@@ -239,19 +219,19 @@ function NutriModal({ mode, initialData, onSave, onClose }: { mode: ModalMode; i
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">NID <span className="text-red-500">*</span></label>
-              <input type="text" value={form.nid} onChange={(e) => setForm((f) => ({ ...f, nid: e.target.value }))} className={inputCls} placeholder="NUT-001" />
-              {errors.nid && <p className="mt-1 text-xs text-red-500">{errors.nid}</p>}
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 font-bold">Email Ahli Gizi <span className="text-red-500">*</span></label>
+              <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} disabled={mode === "edit"} className={inputCls + (mode === "edit" ? " bg-gray-50 text-gray-500 cursor-not-allowed" : "")} placeholder="dokter@nutrigrow.id" />
+              {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">No. STR <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 font-bold">No. STR <span className="text-red-500">*</span></label>
               <input type="text" value={form.strNumber} onChange={(e) => setForm((f) => ({ ...f, strNumber: e.target.value }))} className={inputCls} placeholder="889900122" />
               {errors.strNumber && <p className="mt-1 text-xs text-red-500">{errors.strNumber}</p>}
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Spesialisasi</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 font-bold">Spesialisasi</label>
               <select value={form.specialization} onChange={(e) => setForm((f) => ({ ...f, specialization: e.target.value as Specialization }))} className={inputCls + " bg-white"}>
                 <option value="Gizi Anak">Gizi Anak</option>
                 <option value="Diet">Diet</option>
@@ -261,25 +241,22 @@ function NutriModal({ mode, initialData, onSave, onClose }: { mode: ModalMode; i
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Status</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 font-bold">Status Kehadiran</label>
               <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as NutritionistStatus }))} className={inputCls + " bg-white"}>
                 <option value="Tersedia">Tersedia</option>
                 <option value="Tidak Tersedia">Tidak Tersedia</option>
               </select>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Pengalaman (tahun)</label>
-            <input type="number" min="0" value={form.experienceYears} onChange={(e) => setForm((f) => ({ ...f, experienceYears: e.target.value }))} className={inputCls} placeholder="1" />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email <span className="text-red-500">*</span></label>
-            <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} placeholder="dokter@nutrigrow.id" />
-            {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nomor Telepon</label>
-            <input type="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className={inputCls} placeholder="+62 812-xxxx-xxxx" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 font-bold">Pengalaman (tahun)</label>
+              <input type="number" min="0" value={form.experienceYears} onChange={(e) => setForm((f) => ({ ...f, experienceYears: e.target.value }))} className={inputCls} placeholder="1" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 font-bold">Nomor Telepon</label>
+              <input type="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className={inputCls} placeholder="+62 812-xxxx-xxxx" />
+            </div>
           </div>
           <div className="flex flex-wrap gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50">Batal</button>
@@ -299,20 +276,7 @@ function DeleteModal({ name, onConfirm, onClose }: { name: string; onConfirm: ()
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
         <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4"><AlertTriangle size={24} className="text-red-500" /></div>
         <h3 className="text-lg font-bold text-gray-900 mb-2">Hapus Ahli Gizi</h3>
-        <p className="text-sm text-gray-500 mb-6">Apakah Anda yakin ingin menghapus <strong className="text-gray-800">{name}</strong>? Tindakan ini tidak dapat dibatalkan.</p>
-        <div className="flex gap-3"><button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50">Batal</button><button onClick={onConfirm} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg text-sm font-semibold hover:bg-red-600">Ya, Hapus</button></div>
-      </div>
-    </div>
-  );
-}
-
-function BulkDeleteModal({ count, onConfirm, onClose }: { count: number; onConfirm: () => void; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
-        <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4"><AlertTriangle size={24} className="text-red-500" /></div>
-        <h3 className="text-lg font-bold text-gray-900 mb-2">Hapus Data Terpilih</h3>
-        <p className="text-sm text-gray-500 mb-6">Hapus <strong className="text-gray-800">{count} ahli gizi</strong> yang dipilih? Tindakan ini tidak dapat dibatalkan.</p>
+        <p className="text-sm text-gray-500 mb-6">Apakah Anda yakin ingin menghapus <strong className="text-gray-800">{name}</strong>? Tindakan ini akan menghapus profile dokter dan menonaktifkan akunnya.</p>
         <div className="flex gap-3"><button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50">Batal</button><button onClick={onConfirm} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg text-sm font-semibold hover:bg-red-600">Ya, Hapus</button></div>
       </div>
     </div>
@@ -320,108 +284,159 @@ function BulkDeleteModal({ count, onConfirm, onClose }: { count: number; onConfi
 }
 
 export default function NutritionistManagement() {
-  const [nutritionists, setNutritionists] = useState<NutritionistData[]>(INITIAL_NUTRITIONISTS);
+  const [nutritionists, setNutritionists] = useState<NutritionistData[]>([]);
   const [search, setSearch] = useState("");
   const [specFilter, setSpecFilter] = useState("Semua Spesialisasi");
   const [statusFilter, setStatusFilter] = useState("Semua Status");
   const [sortBy, setSortBy] = useState<SortOption>("nama-az");
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const [stats, setStats] = useState({ total: 0, available: 0, avgExp: "0", specs: 0 });
   const [modal, setModal] = useState<{ open: boolean; mode: ModalMode; data?: NutritionistData }>({ open: false, mode: "add" });
   const [deleteTarget, setDeleteTarget] = useState<NutritionistData | null>(null);
-  const [showBulkDelete, setShowBulkDelete] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterExpMin, setFilterExpMin] = useState("");
   const [filterExpMax, setFilterExpMax] = useState("");
 
   const ITEMS_PER_PAGE = 10;
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    let result = nutritionists.filter((n) => {
-      const matchSearch = !q || n.name.toLowerCase().includes(q) || n.nid.toLowerCase().includes(q) || (n.email ?? "").toLowerCase().includes(q);
-      const matchSpec = specFilter === "Semua Spesialisasi" || n.specialization === specFilter;
-      const matchStatus = statusFilter === "Semua Status" || n.status === statusFilter;
-      let matchExp = true;
-      if (filterExpMin && !isNaN(Number(filterExpMin))) matchExp = matchExp && n.experienceYears >= Number(filterExpMin);
-      if (filterExpMax && !isNaN(Number(filterExpMax))) matchExp = matchExp && n.experienceYears <= Number(filterExpMax);
-      return matchSearch && matchSpec && matchStatus && matchExp;
-    });
-    result = [...result].sort((a, b) => {
-      switch (sortBy) {
-        case "nama-az": return a.name.localeCompare(b.name, "id");
-        case "pengalaman-terbanyak": return b.experienceYears - a.experienceYears;
-        case "pengalaman-tersedikit": return a.experienceYears - b.experienceYears;
-        default: return 0;
+  const mapBackendNutritionist = (n: Nutritionist): NutritionistData => {
+    return {
+      id: `NUT-${String(n.id).padStart(3, "0")}`,
+      rawId: n.id,
+      nid: `NUT-${String(n.id).padStart(3, "0")}`,
+      name: n.nama,
+      specialization: (n.spesialisasi || "Gizi Anak") as Specialization,
+      strNumber: n.registrasiMedis || "-",
+      experience: `${n.pengalamanTahun} tahun`,
+      experienceYears: n.pengalamanTahun,
+      status: n.isAvailable ? "Tersedia" : "Tidak Tersedia",
+      avatar: n.avatarUrl || undefined,
+      email: n.email || undefined,
+      phone: n.noTelepon || undefined,
+    };
+  };
+
+  const fetchNutritionists = async () => {
+    setLoading(true);
+    try {
+      const params: any = {
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+        search: search.trim() || undefined,
+      };
+
+      if (specFilter !== "Semua Spesialisasi") {
+        params.spesialisasi = specFilter;
       }
-    });
-    return result;
-  }, [nutritionists, search, specFilter, statusFilter, sortBy, filterExpMin, filterExpMax]);
 
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-  
-  const stats = useMemo(() => ({ 
-    total: nutritionists.length, 
-    available: nutritionists.filter((n) => n.status === "Tersedia").length, 
-    avgExp: nutritionists.length ? (nutritionists.reduce((s, n) => s + n.experienceYears, 0) / nutritionists.length).toFixed(1) : "0", 
-    specs: new Set(nutritionists.map((n) => n.specialization)).size,
-  }), [nutritionists]);
+      if (statusFilter !== "Semua Status") {
+        params.isAvailable = statusFilter === "Tersedia" ? "true" : "false";
+      }
 
-  function handleSave(data: Omit<NutritionistData, "id">) { 
-    if (modal.mode === "edit" && modal.data) { 
-      setNutritionists((prev) => prev.map((n) => n.id === modal.data!.id ? { ...n, ...data } : n)); 
-      toast.success("Data ahli gizi berhasil diperbarui"); 
-    } else { 
-      const newId = `NUT-${String(nutritionists.length + 1).padStart(3, "0")}`; 
-      setNutritionists((prev) => [...prev, { id: newId, ...data }]); 
-      toast.success("Ahli gizi baru berhasil ditambahkan"); 
-    } 
-    setModal({ open: false, mode: "add" }); 
-  }
-  
-  function handleDelete() { 
-    if (!deleteTarget) return; 
-    setNutritionists((prev) => prev.filter((n) => n.id !== deleteTarget.id)); 
-    setDeleteTarget(null); 
-    toast.success("Data berhasil dihapus"); 
-  }
-  
-  function handleBulkDelete() { 
-    const count = selectedIds.size; 
-    setNutritionists((prev) => prev.filter((n) => !selectedIds.has(n.id))); 
-    setSelectedIds(new Set()); 
-    setShowBulkDelete(false); 
-    toast.success(`${count} data berhasil dihapus`); 
-  }
-  
-  function handleExport() { 
-    exportCSV(filtered); 
-    toast.success("Export berhasil"); 
-  }
-  
-  function toggleSelect(id: string) { 
-    setSelectedIds((prev) => { 
-      const next = new Set(prev); 
-      next.has(id) ? next.delete(id) : next.add(id); 
-      return next; 
-    }); 
-  }
-  
-  function toggleAll() { 
-    if (paginated.length > 0 && paginated.every((n) => selectedIds.has(n.id))) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(paginated.map((n) => n.id)));
+      if (filterExpMin) params.minExperience = filterExpMin;
+      if (filterExpMax) params.maxExperience = filterExpMax;
+
+      const res = await adminService.getNutritionists(params);
+
+      let mapped = res.nutritionists.map(mapBackendNutritionist);
+      
+      // Perform local client-side sorting to respect user order choice exactly
+      mapped = [...mapped].sort((a, b) => {
+        switch (sortBy) {
+          case "nama-az": return a.name.localeCompare(b.name, "id");
+          case "pengalaman-terbanyak": return b.experienceYears - a.experienceYears;
+          case "pengalaman-tersedikit": return a.experienceYears - b.experienceYears;
+          default: return 0;
+        }
+      });
+
+      setNutritionists(mapped);
+      setTotalPages(res.pagination.totalPages);
+      setTotalCount(res.pagination.total);
+      
+      setStats({
+        total: res.stats.total,
+        available: res.stats.available,
+        avgExp: res.stats.avgExperience.toFixed(1),
+        specs: res.stats.specializations,
+      });
+    } catch (error) {
+      console.error("Failed to fetch nutritionists", error);
+      toast.error("Gagal memuat data ahli gizi");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNutritionists();
+  }, [search, specFilter, statusFilter, sortBy, currentPage, filterExpMin, filterExpMax]);
+
+  async function handleSave(data: any) {
+    try {
+      if (modal.mode === "edit" && modal.data) {
+        const body = {
+          nama: data.name,
+          spesialisasi: data.specialization,
+          strNumber: data.strNumber,
+          pengalamanTahun: data.experienceYears,
+          noTelepon: data.phone,
+          isAvailable: data.status === "Tersedia",
+        };
+        await adminService.updateNutritionist(modal.data.rawId, body);
+        toast.success("Data ahli gizi berhasil diperbarui");
+      } else {
+        const body = {
+          nama: data.name,
+          email: data.email,
+          password: "nutrigrow123", // secure default initial password for nutritionist user login
+          spesialisasi: data.specialization,
+          strNumber: data.strNumber,
+          pengalamanTahun: data.experienceYears,
+          noTelepon: data.phone,
+          isAvailable: data.status === "Tersedia",
+          isActive: true,
+        };
+        await adminService.createNutritionist(body);
+        toast.success("Ahli gizi baru berhasil didaftarkan");
+      }
+      fetchNutritionists();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Gagal menyimpan data ahli gizi");
+    } finally {
+      setModal({ open: false, mode: "add" });
     }
   }
-  
-  function goPage(p: number) { 
-    setCurrentPage(Math.max(1, Math.min(p, totalPages || 1))); 
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    try {
+      await adminService.deleteNutritionist(deleteTarget.rawId);
+      toast.success("Ahli gizi berhasil dihapus");
+      fetchNutritionists();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Gagal menghapus ahli gizi");
+    } finally {
+      setDeleteTarget(null);
+    }
   }
-  
-  React.useEffect(() => { 
-    setCurrentPage(1); 
+
+
+  function handleExport() {
+    exportCSV(nutritionists);
+    toast.success("Export berhasil");
+  }
+
+  function goPage(p: number) {
+    setCurrentPage(Math.max(1, Math.min(p, totalPages || 1)));
+  }
+
+  useEffect(() => {
+    setCurrentPage(1);
   }, [search, specFilter, statusFilter, sortBy, filterExpMin, filterExpMax]);
 
   const FilterModal = () => {
@@ -453,13 +468,12 @@ export default function NutritionistManagement() {
           </div>
           <div className="p-5 space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Rentang Pengalaman (tahun)</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 font-bold">Rentang Pengalaman (tahun)</label>
               <div className="grid grid-cols-2 gap-3">
-                <input type="text" value={localExpMin} onChange={(e) => setLocalExpMin(e.target.value)} placeholder="Min (contoh: 3)" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-[#4a7c59]/30 focus:border-[#4a7c59] outline-none" />
-                <input type="text" value={localExpMax} onChange={(e) => setLocalExpMax(e.target.value)} placeholder="Max (contoh: 15)" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-[#4a7c59]/30 focus:border-[#4a7c59] outline-none" />
+                <input type="text" value={localExpMin} onChange={(e) => setLocalExpMin(e.target.value)} placeholder="Min" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-[#4a7c59]/30 focus:border-[#4a7c59] outline-none" />
+                <input type="text" value={localExpMax} onChange={(e) => setLocalExpMax(e.target.value)} placeholder="Max" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-[#4a7c59]/30 focus:border-[#4a7c59] outline-none" />
               </div>
             </div>
-            <p className="text-xs text-gray-400">*Masukkan angka berapa saja, contoh: 5 atau 12</p>
           </div>
           <div className="flex gap-3 p-5 pt-0">
             <button onClick={handleReset} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50">Reset</button>
@@ -477,7 +491,7 @@ export default function NutritionistManagement() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Manajemen Ahli Gizi</h1>
-          <p className="text-sm text-gray-500 mt-1">Kelola semua ahli gizi Tele-Nutritionist</p>
+          <p className="text-sm text-gray-500 mt-1">Kelola semua ahli gizi dan penjadwalan konsultasi Tele-Nutritionist</p>
         </div>
         <button onClick={() => setModal({ open: true, mode: "add" })} className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#4a7c59] text-white rounded-lg text-sm font-semibold hover:bg-[#3d6849] transition-colors shadow-sm shrink-0">
           <Plus size={16} /> Tambah Ahli Gizi
@@ -485,10 +499,10 @@ export default function NutritionistManagement() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total Ahli Gizi" value={stats.total} sub="Terdaftar" icon={<Users size={18} />} color="#4a7c59" />
+        <StatCard label="Total Ahli Gizi" value={stats.total} sub="Terdaftar di DB" icon={<Users size={18} />} color="#4a7c59" />
         <StatCard label="Tersedia" value={stats.available} sub={`${stats.total > 0 ? ((stats.available / stats.total) * 100).toFixed(1) : 0}% dari total`} icon={<CheckCircle size={18} />} color="#16a34a" />
-        <StatCard label="Rata-rata Exp." value={`${stats.avgExp} th`} sub="Pengalaman rata-rata" icon={<Clock size={18} />} color="#8b5cf6" />
-        <StatCard label="Spesialisasi" value={stats.specs} sub="Bidang keahlian" icon={<Calendar size={18} />} color="#f97316" />
+        <StatCard label="Rata-rata Exp." value={`${stats.avgExp} th`} sub="Jam terbang ahli gizi" icon={<Clock size={18} />} color="#8b5cf6" />
+        <StatCard label="Bidang Keahlian" value={stats.specs} sub="Variasi keilmuan gizi" icon={<Calendar size={18} />} color="#f97316" />
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -534,16 +548,11 @@ export default function NutritionistManagement() {
               </SelectWrapper>
 
               <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
-                <button onClick={() => setShowFilterModal(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 whitespace-nowrap">
+                <button onClick={() => setShowFilterModal(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 whitespace-nowrap font-medium">
                   <Filter size={14} /> Filter
                 </button>
-                {selectedIds.size > 0 && (
-                  <button onClick={() => setShowBulkDelete(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 whitespace-nowrap">
-                    <Trash2 size={14} /> Hapus ({selectedIds.size})
-                  </button>
-                )}
-                <button onClick={handleExport} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 whitespace-nowrap">
-                  <Download size={14} /> Export
+                <button onClick={handleExport} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 whitespace-nowrap font-medium">
+                  <Download size={14} /> Export CSV
                 </button>
               </div>
             </div>
@@ -551,86 +560,77 @@ export default function NutritionistManagement() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="w-10 px-4 py-3">
-                  <input 
-                    type="checkbox" 
-                    checked={paginated.length > 0 && paginated.every((n) => selectedIds.has(n.id))} 
-                    onChange={toggleAll} 
-                    className="rounded border-gray-300 accent-[#4a7c59]" 
-                  />
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">AHLI GIZI</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">SPESIALISASI</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">NO. STR</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">PENGALAMAN</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">STATUS</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">AKSI</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {paginated.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-12 text-gray-400 text-sm">
-                    Tidak ada data yang ditemukan
-                  </td>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-[#4a7c59]" />
+              <p className="text-sm text-gray-400 font-medium">Memuat data ahli gizi...</p>
+            </div>
+          ) : (
+            <table className="w-full min-w-[800px]">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50/50">
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">AHLI GIZI</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">SPESIALISASI</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">NO. STR</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">PENGALAMAN</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">STATUS</th>
+                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">AKSI</th>
                 </tr>
-              ) : (
-                paginated.map((nutri) => (
-                  <tr key={nutri.id} className={`hover:bg-gray-50/50 ${selectedIds.has(nutri.id) ? "bg-green-50/30" : ""}`}>
-                    <td className="px-4 py-3.5">
-                      <input type="checkbox" checked={selectedIds.has(nutri.id)} onChange={() => toggleSelect(nutri.id)} className="rounded border-gray-300 accent-[#4a7c59]" />
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <AvatarCell nutri={nutri} />
-                    </td>
-                    <td className="px-4 py-3.5 hidden md:table-cell">
-                      <SpecializationBadge spec={nutri.specialization} />
-                    </td>
-                    <td className="px-4 py-3.5 hidden lg:table-cell">
-                      <span className="text-sm text-gray-600 font-mono">{nutri.strNumber}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-sm text-gray-700 font-medium whitespace-nowrap">{nutri.experience}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <NutriStatus status={nutri.status} />
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => setModal({ open: true, mode: "edit", data: nutri })} 
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors text-xs font-medium"
-                        >
-                          <Edit2 size={13} /> Edit
-                        </button>
-                        <button 
-                          onClick={() => setModal({ open: true, mode: "duplicate", data: nutri })} 
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors text-xs font-medium"
-                        >
-                          <Copy size={13} /> Salin
-                        </button>
-                        <button 
-                          onClick={() => setDeleteTarget(nutri)} 
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-xs font-medium"
-                        >
-                          <Trash2 size={13} /> Hapus
-                        </button>
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {nutritionists.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-12 text-gray-400 text-sm">
+                      Tidak ada data yang ditemukan
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  nutritionists.map((nutri) => (
+                    <tr key={nutri.id} className="hover:bg-gray-50/50">
+                      <td className="px-6 py-3.5">
+                        <AvatarCell nutri={nutri} />
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <SpecializationBadge spec={nutri.specialization} />
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="text-sm text-gray-600 font-mono">{nutri.strNumber}</span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="text-sm text-gray-700 font-medium whitespace-nowrap">{nutri.experience}</span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <NutriStatus status={nutri.status} />
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => setModal({ open: true, mode: "edit", data: nutri })} 
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors text-xs font-semibold"
+                          >
+                            <Edit2 size={13} /> Edit
+                          </button>
+
+                          <button 
+                            onClick={() => setDeleteTarget(nutri)} 
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-xs font-semibold"
+                          >
+                            <Trash2 size={13} /> Hapus
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3.5 border-t border-gray-100">
           <p className="text-sm text-gray-500 order-2 sm:order-1">
-            Menampilkan {filtered.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}–
-            {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} dari {filtered.length} ahli gizi
+            Menampilkan {nutritionists.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}–
+            {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} dari {totalCount} ahli gizi
           </p>
           <div className="flex items-center gap-1 order-1 sm:order-2">
             <button 
@@ -670,7 +670,6 @@ export default function NutritionistManagement() {
 
       {modal.open && <NutriModal mode={modal.mode} initialData={modal.data} onSave={handleSave} onClose={() => setModal({ open: false, mode: "add" })} />}
       {deleteTarget && <DeleteModal name={deleteTarget.name} onConfirm={handleDelete} onClose={() => setDeleteTarget(null)} />}
-      {showBulkDelete && <BulkDeleteModal count={selectedIds.size} onConfirm={handleBulkDelete} onClose={() => setShowBulkDelete(false)} />}
       {showFilterModal && <FilterModal />}
     </AdminLayout>
   );

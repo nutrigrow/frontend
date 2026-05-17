@@ -1,12 +1,10 @@
-import React, { useState, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { toast } from "sonner";
-import imgAuthor from "../../assets/images/images-avatar.png";
 import {
   Search,
   Download,
   Plus,
   Edit,
-  Copy,
   Trash,
   ChevronLeft,
   ChevronRight,
@@ -24,8 +22,10 @@ import {
   Eye,
   Calendar,
   ChevronDown,
+  Loader2
 } from "lucide-react";
 import { AdminLayout } from "./admin-layout";
+import { adminService, type Article } from "../../services/admin.service";
 
 type ArticleCategory = "Kesehatan" | "Gizi" | "Resep" | "Tips" | "Gaya Hidup";
 type ArticleStatus = "Published" | "Draft" | "Diarsipkan";
@@ -37,6 +37,7 @@ interface AuthorInfo {
 
 interface ArticleData {
   id: string;
+  rawId: number;
   title: string;
   slug: string;
   category: ArticleCategory;
@@ -48,7 +49,7 @@ interface ArticleData {
   views?: number;
 }
 
-interface FormData {
+interface FormDataState {
   title: string;
   slug: string;
   category: ArticleCategory;
@@ -58,7 +59,7 @@ interface FormData {
   publishedDate: string;
 }
 
-type ModalMode = "add" | "edit" | "copy";
+type ModalMode = "add" | "edit";
 type SortOption = "terbaru" | "terlama" | "judul-az";
 
 const AVATAR_COLORS = ["#4a7c59","#3b82f6","#8b5cf6","#f97316","#ec4899","#14b8a6","#f59e0b","#ef4444"];
@@ -99,11 +100,11 @@ function exportCSV(data: ArticleData[]): void {
   URL.revokeObjectURL(url);
 }
 
-function formatDatetimeID(dtLocal: string): string {
+function formatDatetimeID(dtLocal: string | Date): string {
   if (!dtLocal) return "";
   const MONTHS = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
   const d = new Date(dtLocal);
-  if (isNaN(d.getTime())) return dtLocal;
+  if (isNaN(d.getTime())) return String(dtLocal);
   const day = d.getDate();
   const month = MONTHS[d.getMonth()];
   const year = d.getFullYear();
@@ -177,24 +178,6 @@ const OPTION_STYLE = `
   }
 `;
 
-const INITIAL_ARTICLES: ArticleData[] = [
-  { id: "ART-001", title: "Pentingnya Gizi Seimbang untuk Anak", slug: "pentingnya-gizi-seimbang-untuk-anak", category: "Gizi", author: { name: "Dr. Amelia Sari, SpGK", avatar: imgAuthor }, status: "Published", publishedDate: "22 Mei 2026, 10:30", thumbnail: undefined, views: 1842, content: "Gizi seimbang merupakan fondasi utama tumbuh kembang anak yang optimal." },
-  { id: "ART-002", title: "Nutrisi Penting Selama Kehamilan", slug: "nutrisi-penting-selama-kehamilan", category: "Kesehatan", author: { name: "Dr. Citra Dewi, SpGK", avatar: imgAuthor }, status: "Published", publishedDate: "21 Mei 2026, 09:15", thumbnail: undefined, views: 2103, content: "Selama kehamilan, kebutuhan nutrisi ibu meningkat secara signifikan." },
-  { id: "ART-003", title: "Tips Makanan Sehat untuk Keluarga", slug: "tips-makanan-sehat-untuk-keluarga", category: "Tips", author: { name: "Dr. Bambang Susilo, SpGK", avatar: imgAuthor }, status: "Published", publishedDate: "20 Mei 2026, 08:45", thumbnail: undefined, views: 3247, content: "Menyiapkan makanan sehat untuk keluarga tidak harus mahal dan rumit." },
-  { id: "ART-004", title: "Manfaat Suplemen untuk Imunitas", slug: "manfaat-suplemen-untuk-imunitas", category: "Kesehatan", author: { name: "Dr. Diana Putri, MGizi", avatar: imgAuthor }, status: "Draft", thumbnail: undefined, views: 0, content: "Suplemen dapat menjadi pelengkap diet untuk memperkuat sistem imun tubuh." },
-  { id: "ART-005", title: "Aktivitas Fisik untuk Hidup Sehat", slug: "aktivitas-fisik-untuk-hidup-sehat", category: "Gaya Hidup", author: { name: "Dr. Eko Prasetyo, SpGK", avatar: imgAuthor }, status: "Draft", thumbnail: undefined, views: 0, content: "Olahraga rutin adalah investasi terbaik untuk kesehatan jangka panjang." },
-  { id: "ART-006", title: "Resep MPASI Bergizi untuk Bayi 6 Bulan", slug: "resep-mpasi-bergizi-bayi-6-bulan", category: "Resep", author: { name: "Dr. Fitria Handayani, MGizi", avatar: imgAuthor }, status: "Published", publishedDate: "18 Mei 2026, 07:30", views: 4521, content: "Memulai MPASI pada usia 6 bulan adalah momen penting." },
-  { id: "ART-007", title: "Cara Memilih Suplemen yang Tepat", slug: "cara-memilih-suplemen-yang-tepat", category: "Tips", author: { name: "Dr. Galih Santoso, SpGK", avatar: imgAuthor }, status: "Published", publishedDate: "17 Mei 2026, 11:00", views: 1598, content: "Pasar suplemen dipenuhi berbagai pilihan yang membingungkan." },
-  { id: "ART-008", title: "Dampak Kekurangan Vitamin D pada Tubuh", slug: "dampak-kekurangan-vitamin-d", category: "Kesehatan", author: { name: "Dr. Hani Kusumawati, MGizi", avatar: imgAuthor }, status: "Published", publishedDate: "16 Mei 2026, 09:45", views: 2876, content: "Vitamin D berperan vital dalam kesehatan tulang, imunitas, dan kesehatan mental." },
-  { id: "ART-009", title: "Menu Diet Seimbang Setiap Hari", slug: "menu-diet-seimbang-setiap-hari", category: "Gizi", author: { name: "Dr. Ivan Permana, SpGK", avatar: imgAuthor }, status: "Draft", views: 0, content: "Diet sehat bukan berarti mengurangi makan, tetapi memilih makanan yang tepat." },
-  { id: "ART-010", title: "Resep Smoothie Bergizi untuk Anak", slug: "resep-smoothie-bergizi-untuk-anak", category: "Resep", author: { name: "Dr. Jasmine Putri, MGizi", avatar: imgAuthor }, status: "Published", publishedDate: "14 Mei 2026, 08:00", views: 3102, content: "Smoothie adalah cara menyenangkan untuk menambah asupan buah dan sayur." },
-  { id: "ART-011", title: "Tips Mengatasi Stunting pada Balita", slug: "tips-mengatasi-stunting-balita", category: "Tips", author: { name: "Dr. Kevin Hartanto, SpGK", avatar: imgAuthor }, status: "Published", publishedDate: "13 Mei 2026, 10:15", views: 5634, content: "Stunting masih menjadi tantangan besar di Indonesia." },
-  { id: "ART-012", title: "Manfaat Probiotik untuk Kesehatan Pencernaan", slug: "manfaat-probiotik-pencernaan", category: "Kesehatan", author: { name: "Dr. Laila Siti, MGizi", avatar: imgAuthor }, status: "Draft", views: 0, content: "Probiotik adalah bakteri baik yang hidup di dalam usus." },
-  { id: "ART-013", title: "Panduan Gizi untuk Ibu Menyusui", slug: "panduan-gizi-ibu-menyusui", category: "Gizi", author: { name: "Dr. Mira Anjani, SpGK", avatar: imgAuthor }, status: "Published", publishedDate: "11 Mei 2026, 09:00", views: 2341, content: "Ibu menyusui membutuhkan asupan kalori dan nutrisi ekstra." },
-  { id: "ART-014", title: "Olahraga Aman untuk Penderita Diabetes", slug: "olahraga-aman-penderita-diabetes", category: "Gaya Hidup", author: { name: "Dr. Naufal Hakim, MGizi", avatar: imgAuthor }, status: "Diarsipkan", publishedDate: "5 Mar 2026, 00:00", views: 1204, content: "Olahraga adalah salah satu pilar manajemen diabetes yang efektif." },
-  { id: "ART-015", title: "Resep Salad Sayur Anti Stunting", slug: "resep-salad-sayur-anti-stunting", category: "Resep", author: { name: "Dr. Olivia Sari, SpGK", avatar: imgAuthor }, status: "Published", publishedDate: "9 Mei 2026, 11:30", views: 1876, content: "Salad sayur yang kaya zat gizi dapat menjadi menu favorit keluarga." },
-];
-
 function SelectWrapper({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={`relative ${className ?? ""}`}>
@@ -231,13 +214,9 @@ function ArticleRow({ article }: { article: ArticleData }) {
 function AuthorCell({ author }: { author: AuthorInfo }) {
   return (
     <div className="flex items-center gap-2">
-      {author.avatar ? (
-        <img src={author.avatar} alt={author.name} className="w-7 h-7 rounded-full object-cover border border-gray-200 shrink-0" />
-      ) : (
-        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ backgroundColor: getAvatarColor(author.name) }}>
-          {getInitials(author.name)}
-        </div>
-      )}
+      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ backgroundColor: getAvatarColor(author.name) }}>
+        {getInitials(author.name)}
+      </div>
       <span className="text-sm text-gray-700 truncate max-w-[100px] md:max-w-[150px]">{author.name.replace(", SpGK", "").replace(", MGizi", "")}</span>
     </div>
   );
@@ -251,13 +230,13 @@ function CategoryBadge({ category }: { category: ArticleCategory }) {
     Tips: "bg-purple-100 text-purple-700 border border-purple-200",
     "Gaya Hidup": "bg-pink-100 text-pink-700 border border-pink-200",
   };
-  return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${styles[category]}`}>{category}</span>;
+  return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${styles[category] || "bg-gray-100 text-gray-700"}`}>{category}</span>;
 }
 
 function StatusBadge({ status }: { status: ArticleStatus }) {
-  if (status === "Published") return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200 whitespace-nowrap">Published</span>;
-  if (status === "Draft") return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">Draft</span>;
-  return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200 whitespace-nowrap">Diarsipkan</span>;
+  if (status === "Published") return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200 whitespace-nowrap">Published</span>;
+  if (status === "Draft") return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">Draft</span>;
+  return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200 whitespace-nowrap">Diarsipkan</span>;
 }
 
 function StatCard({ label, value, sub, icon, color }: { label: string; value: string | number; sub: string; icon: React.ReactNode; color: string }) {
@@ -286,7 +265,7 @@ function PreviewModal({ content, onClose }: { content: string; onClose: () => vo
           <h3 className="text-base font-bold text-gray-900 flex items-center gap-2"><Eye size={16} className="text-[#4a7c59]" /> Preview Konten</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={18} /></button>
         </div>
-        <div className="flex-1 overflow-y-auto p-5 text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: html || "<p class='text-gray-400 italic'>Belum ada konten untuk ditampilkan.</p>" }} />
+        <div className="flex-1 overflow-y-auto p-5 text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none font-sans" dangerouslySetInnerHTML={{ __html: html || "<p class='text-gray-400 italic'>Belum ada konten untuk ditampilkan.</p>" }} />
         <div className="px-5 py-3 border-t border-gray-100 flex justify-end"><button onClick={onClose} className="px-4 py-2 bg-[#4a7c59] text-white rounded-lg text-sm font-semibold hover:bg-[#3d6849]">Tutup</button></div>
       </div>
     </div>
@@ -328,8 +307,8 @@ function applyBulletList(textarea: HTMLTextAreaElement, onChange: (val: string) 
   });
 }
 
-function ArticleModal({ mode, initialData, onSave, onClose }: { mode: ModalMode; initialData?: ArticleData; onSave: (data: Omit<ArticleData, "id">) => void; onClose: () => void }) {
-  const [form, setForm] = useState<FormData>({
+function ArticleModal({ mode, initialData, onSave, onClose }: { mode: ModalMode; initialData?: ArticleData; onSave: (formData: FormData) => void; onClose: () => void }) {
+  const [form, setForm] = useState<FormDataState>({
     title: initialData?.title ?? "",
     slug: initialData?.slug ?? "",
     category: initialData?.category ?? "Kesehatan",
@@ -338,8 +317,9 @@ function ArticleModal({ mode, initialData, onSave, onClose }: { mode: ModalMode;
     content: initialData?.content ?? "",
     publishedDate: initialData?.publishedDate ? parseDatetimeToLocal(initialData.publishedDate) : "",
   });
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof FormDataState, string>>>({});
   const [coverPreview, setCoverPreview] = useState<string | undefined>(initialData?.thumbnail);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -347,36 +327,59 @@ function ArticleModal({ mode, initialData, onSave, onClose }: { mode: ModalMode;
   const modalTitle = mode === "add" ? "Tambah Artikel Baru" : mode === "edit" ? "Edit Artikel" : "Duplikasi Artikel";
 
   function handleTitleChange(val: string) { setForm((f) => ({ ...f, title: val, slug: toSlug(val) })); }
+  
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) { 
     const file = e.target.files?.[0]; 
     if (file) { 
+      setCoverFile(file);
       const reader = new FileReader(); 
       reader.onload = (ev) => setCoverPreview(ev.target?.result as string); 
       reader.readAsDataURL(file); 
     } 
   }
+  
   function validate(): boolean { 
-    const e: Partial<Record<keyof FormData, string>> = {}; 
+    const e: Partial<Record<keyof FormDataState, string>> = {}; 
     if (!form.title.trim()) e.title = "Judul wajib diisi"; 
     if (!form.authorName.trim()) e.authorName = "Nama penulis wajib diisi"; 
     if (!form.content.trim()) e.content = "Isi artikel wajib diisi"; 
     setErrors(e); 
     return Object.keys(e).length === 0; 
   }
+  
   function handleSubmit(e: React.FormEvent) { 
     e.preventDefault(); 
     if (!validate()) return; 
-    onSave({ 
-      title: form.title, 
-      slug: form.slug || toSlug(form.title), 
-      category: form.category, 
-      author: { name: form.authorName, avatar: initialData?.author.avatar }, 
-      status: form.status, 
-      content: form.content, 
-      publishedDate: form.status === "Published" ? (form.publishedDate ? formatDatetimeID(form.publishedDate) : formatDatetimeID(new Date().toISOString().slice(0,16))) : undefined, 
-      thumbnail: coverPreview || initialData?.thumbnail, 
-      views: initialData?.views ?? 0 
-    }); 
+
+    const formData = new FormData();
+    formData.append("judul", form.title);
+    formData.append("slug", form.slug || toSlug(form.title));
+    formData.append("penulis", form.authorName);
+    formData.append("konten", form.content);
+    
+    const catMap: Record<string, string> = {
+      Kesehatan: "KEHAMILAN", // Maps nicely to database constraints
+      Gizi: "GIZI",
+      Resep: "MPASI",
+      Tips: "STUNTING",
+      "Gaya Hidup": "GIZI",
+    };
+    formData.append("kategori", catMap[form.category] || "GIZI");
+    
+    const statusVal = form.status === "Published" ? "PUBLISHED" : "DRAFT";
+    formData.append("status", statusVal);
+    formData.append("isPublished", form.status === "Published" ? "true" : "false");
+    
+    if (form.status === "Published") {
+      const pubDate = form.publishedDate ? new Date(form.publishedDate).toISOString() : new Date().toISOString();
+      formData.append("publishedAt", pubDate);
+    }
+
+    if (coverFile) {
+      formData.append("gambar", coverFile);
+    }
+    
+    onSave(formData as any); 
   }
 
   const handleBold = useCallback(() => { if (!textareaRef.current) return; wrapSelection(textareaRef.current, "**", "**", "teks tebal", (val) => setForm((f) => ({ ...f, content: val }))); }, []);
@@ -401,7 +404,7 @@ function ArticleModal({ mode, initialData, onSave, onClose }: { mode: ModalMode;
                 {coverPreview ? (
                   <><img src={coverPreview} alt="Cover" className="w-full h-full object-cover absolute inset-0" /><div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"><p className="text-white text-sm font-medium">Ganti Gambar</p></div></>
                 ) : (
-                  <div className="flex flex-col items-center gap-2 text-gray-400"><ImagePlus size={28} /><p className="text-sm">Klik untuk upload gambar sampul</p><p className="text-xs">JPG, PNG, WebP – Maks. 2MB</p></div>
+                  <div className="flex flex-col items-center gap-2 text-gray-400"><ImagePlus size={28} /><p className="text-sm font-medium">Klik untuk upload gambar sampul</p><p className="text-xs">JPG, PNG, WebP – Maks. 2MB</p></div>
                 )}
               </div>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
@@ -442,7 +445,7 @@ function ArticleModal({ mode, initialData, onSave, onClose }: { mode: ModalMode;
                 <button type="button" onMouseDown={(e) => { e.preventDefault(); handleItalic(); }} className={toolbarBtnCls} title="Miring (Italic)"><Italic size={14} /></button>
                 <button type="button" onMouseDown={(e) => { e.preventDefault(); handleList(); }} className={toolbarBtnCls} title="Bullet List"><List size={14} /></button>
                 <span className="border-l border-gray-300 mx-1 self-stretch" />
-                <button type="button" onClick={() => setShowPreview(true)} className={`${toolbarBtnCls} flex items-center gap-1 text-xs font-medium`}><Eye size={13} /> Preview</button>
+                <button type="button" onClick={() => setShowPreview(true)} className={`${toolbarBtnCls} flex items-center gap-1 text-xs font-semibold`}><Eye size={13} /> Preview</button>
                 <span className="ml-auto text-[11px] text-gray-400 hidden sm:block">**tebal** | *miring* | • list</span>
               </div>
               <textarea 
@@ -462,10 +465,10 @@ function ArticleModal({ mode, initialData, onSave, onClose }: { mode: ModalMode;
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Status Publikasi</label>
               <div className="flex flex-wrap gap-3">
-                {(["Draft", "Published", "Diarsipkan"] as ArticleStatus[]).map((s) => (
+                {(["Draft", "Published"] as ArticleStatus[]).map((s) => (
                   <label key={s} className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all text-sm font-medium ${form.status === s ? "border-[#4a7c59] bg-[#ebf3ec] text-[#4a7c59]" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
                     <input type="radio" name="status" value={s} checked={form.status === s} onChange={() => setForm((f) => ({ ...f, status: s }))} className="hidden" />
-                    {s === "Published" ? <CheckCircle size={14} /> : s === "Draft" ? <Clock size={14} /> : <Archive size={14} />}{s}
+                    {s === "Published" ? <CheckCircle size={14} /> : <Clock size={14} />}{s}
                   </label>
                 ))}
               </div>
@@ -518,57 +521,106 @@ function DeleteModal({ title: articleTitle, onConfirm, onClose }: { title: strin
   );
 }
 
-function BulkDeleteModal({ count, onConfirm, onClose }: { count: number; onConfirm: () => void; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
-        <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4"><AlertTriangle size={24} className="text-red-500" /></div>
-        <h3 className="text-lg font-bold text-gray-900 mb-2">Hapus Data Terpilih</h3>
-        <p className="text-sm text-gray-500 mb-6">Hapus <strong className="text-gray-800">{count} artikel</strong> yang dipilih? Tindakan ini tidak dapat dibatalkan.</p>
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50">Batal</button>
-          <button onClick={onConfirm} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg text-sm font-semibold hover:bg-red-600">Ya, Hapus</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function ArticleManagement() {
-  const [articles, setArticles] = useState<ArticleData[]>(INITIAL_ARTICLES);
+  const [articles, setArticles] = useState<ArticleData[]>([]);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("Semua Kategori");
   const [statusFilter, setStatusFilter] = useState("Semua Status");
   const [sortBy, setSortBy] = useState<SortOption>("terbaru");
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const [stats, setStats] = useState({ total: 0, published: 0, draft: 0, archived: 0 });
   const [modal, setModal] = useState<{ open: boolean; mode: ModalMode; data?: ArticleData }>({ open: false, mode: "add" });
   const [deleteTarget, setDeleteTarget] = useState<ArticleData | null>(null);
-  const [showBulkDelete, setShowBulkDelete] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
 
   const ITEMS_PER_PAGE = 10;
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    let result = articles.filter((a) => {
-      const matchSearch = !q || a.title.toLowerCase().includes(q) || a.slug.toLowerCase().includes(q) || a.author.name.toLowerCase().includes(q);
-      const matchCat = catFilter === "Semua Kategori" || a.category === catFilter;
-      const matchStatus = statusFilter === "Semua Status" || a.status === statusFilter;
-      let matchDate = true;
-      if (filterDateFrom && a.publishedDate) {
-        const pubDate = a.publishedDate.split(",")[0];
-        matchDate = matchDate && pubDate >= filterDateFrom;
+  const mapBackendArticle = (a: Article): ArticleData => {
+    const categoryMapBack: Record<string, ArticleCategory> = {
+      GIZI: "Gizi",
+      MPASI: "Resep",
+      STUNTING: "Tips",
+      KEHAMILAN: "Kesehatan",
+      MENYUSUI: "Kesehatan",
+    };
+    
+    return {
+      id: `ART-${String(a.id).padStart(3, "0")}`,
+      rawId: a.id,
+      title: a.judul,
+      slug: a.slug,
+      category: (categoryMapBack[a.kategori] || "Gizi") as ArticleCategory,
+      author: {
+        name: a.penulis || "Admin",
+      },
+      status: a.status === "PUBLISHED" ? "Published" : "Draft",
+      publishedDate: a.publishedAt ? formatDatetimeID(a.publishedAt) : undefined,
+      thumbnail: a.gambarUrl ? (a.gambarUrl.startsWith("http") ? a.gambarUrl : `http://localhost:5000${a.gambarUrl}`) : undefined,
+      content: a.konten,
+      views: 0,
+    };
+  };
+
+  const fetchArticles = async () => {
+    setLoading(true);
+    try {
+      const params: any = {
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+        search: search.trim() || undefined,
+      };
+
+      const catMap: Record<string, string> = {
+        Kesehatan: "KEHAMILAN",
+        Gizi: "GIZI",
+        Resep: "MPASI",
+        Tips: "STUNTING",
+        "Gaya Hidup": "GIZI",
+      };
+
+      if (catFilter !== "Semua Kategori") {
+        params.kategori = catMap[catFilter];
       }
-      if (filterDateTo && a.publishedDate) {
-        const pubDate = a.publishedDate.split(",")[0];
-        matchDate = matchDate && pubDate <= filterDateTo;
+
+      if (statusFilter !== "Semua Status") {
+        params.status = statusFilter === "Published" ? "PUBLISHED" : "DRAFT";
       }
-      return matchSearch && matchCat && matchStatus && matchDate;
-    });
-    result = [...result].sort((a, b) => {
+
+      const res = await adminService.getArticles(params);
+      const mapped = res.articles.map(mapBackendArticle);
+
+      setArticles(mapped);
+      setTotalPages(res.pagination.totalPages);
+      setTotalCount(res.pagination.total);
+
+      setStats({
+        total: res.stats.total,
+        published: res.stats.published,
+        draft: res.stats.draft,
+        archived: 0,
+      });
+    } catch (error) {
+      console.error("Failed to fetch articles", error);
+      toast.error("Gagal memuat daftar artikel");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchArticles();
+  }, [search, catFilter, statusFilter, sortBy, currentPage, filterDateFrom, filterDateTo]);
+
+  const filteredAndSorted = useMemo(() => {
+    let result = [...articles];
+    // Apply local client-side sorting based on dropdown choice
+    result.sort((a, b) => {
       switch (sortBy) {
         case "judul-az": return a.title.localeCompare(b.title, "id");
         case "terbaru": return (b.publishedDate ?? "").localeCompare(a.publishedDate ?? "");
@@ -577,48 +629,41 @@ export default function ArticleManagement() {
       }
     });
     return result;
-  }, [articles, search, catFilter, statusFilter, sortBy, filterDateFrom, filterDateTo]);
+  }, [articles, sortBy]);
 
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-  
-  const stats = useMemo(() => {
-    const total = articles.length;
-    const published = articles.filter((a) => a.status === "Published").length;
-    const draft = articles.filter((a) => a.status === "Draft").length;
-    const archived = articles.filter((a) => a.status === "Diarsipkan").length;
-    return { total, published, draft, archived };
-  }, [articles]);
-
-  function handleSave(data: Omit<ArticleData, "id">) {
-    if (modal.mode === "edit" && modal.data) {
-      setArticles((prev) => prev.map((a) => a.id === modal.data!.id ? { id: a.id, ...data } : a));
-      toast.success("Artikel berhasil diupdate");
-    } else {
-      const newId = `ART-${String(articles.length + 1).padStart(3, "0")}`;
-      setArticles((prev) => [...prev, { id: newId, ...data }]);
-      toast.success("Artikel baru berhasil ditambahkan");
+  async function handleSave(formData: any) {
+    try {
+      if (modal.mode === "edit" && modal.data) {
+        await adminService.updateArticle(modal.data.rawId, formData);
+        toast.success("Artikel berhasil diperbarui");
+      } else {
+        await adminService.createArticle(formData);
+        toast.success("Artikel baru berhasil ditambahkan");
+      }
+      fetchArticles();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Gagal menyimpan artikel");
+    } finally {
+      setModal({ open: false, mode: "add" });
     }
-    setModal({ open: false, mode: "add" });
   }
 
-  function handleDelete() { 
-    if (!deleteTarget) return; 
-    setArticles((prev) => prev.filter((a) => a.id !== deleteTarget.id)); 
-    setDeleteTarget(null); 
-    toast.success("Artikel berhasil dihapus"); 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    try {
+      await adminService.deleteArticle(deleteTarget.rawId);
+      toast.success("Artikel berhasil dihapus");
+      fetchArticles();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Gagal menghapus artikel");
+    } finally {
+      setDeleteTarget(null);
+    }
   }
 
-  function handleBulkDelete() {
-    const count = selectedIds.size;
-    setArticles((prev) => prev.filter((a) => !selectedIds.has(a.id)));
-    setSelectedIds(new Set());
-    setShowBulkDelete(false);
-    toast.success(`${count} artikel berhasil dihapus`);
-  }
 
   function handleExport() { 
-    exportCSV(filtered); 
+    exportCSV(filteredAndSorted); 
     toast.success("Export berhasil"); 
   }
 
@@ -634,27 +679,13 @@ export default function ArticleManagement() {
     toast.success("Filter direset"); 
   }
 
-  function toggleSelect(id: string) { 
-    setSelectedIds((prev) => { 
-      const n = new Set(prev); 
-      n.has(id) ? n.delete(id) : n.add(id); 
-      return n; 
-    }); 
-  }
 
-  function toggleAll() { 
-    if (paginated.length > 0 && paginated.every((a) => selectedIds.has(a.id))) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(paginated.map((a) => a.id)));
-    }
-  }
 
   function goPage(p: number) { 
     setCurrentPage(Math.max(1, Math.min(p, totalPages || 1))); 
   }
 
-  React.useEffect(() => { 
+  useEffect(() => { 
     setCurrentPage(1); 
   }, [search, catFilter, statusFilter, sortBy, filterDateFrom, filterDateTo]);
 
@@ -690,18 +721,18 @@ export default function ArticleManagement() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Manajemen Artikel</h1>
-          <p className="text-sm text-gray-500 mt-1">Kelola semua artikel kesehatan dan konten</p>
+          <p className="text-sm text-gray-500 mt-1">Buat, edit, dan terbitkan artikel edukasi gizi & kesehatan</p>
         </div>
-        <button onClick={() => setModal({ open: true, mode: "add" })} className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#4a7c59] text-white rounded-lg text-sm font-semibold hover:bg-[#3d6849] shadow-sm shrink-0">
+        <button onClick={() => setModal({ open: true, mode: "add" })} className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#4a7c59] text-white rounded-lg text-sm font-semibold hover:bg-[#3d6849] shadow-sm shrink-0 transition-colors">
           <Plus size={16} /> Tambah Artikel
         </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total Artikel" value={stats.total} sub="+12 minggu ini" icon={<FileText size={18} />} color="#4a7c59" />
+        <StatCard label="Total Artikel" value={stats.total} sub="Terdata di sistem" icon={<FileText size={18} />} color="#4a7c59" />
         <StatCard label="Artikel Published" value={stats.published} sub={`${stats.total > 0 ? ((stats.published / stats.total) * 100).toFixed(1) : 0}% dari total`} icon={<CheckCircle size={18} />} color="#16a34a" />
         <StatCard label="Artikel Draft" value={stats.draft} sub={`${stats.total > 0 ? ((stats.draft / stats.total) * 100).toFixed(1) : 0}% dari total`} icon={<Clock size={18} />} color="#f97316" />
-        <StatCard label="Diarsipkan" value={stats.archived} sub={`${stats.total > 0 ? ((stats.archived / stats.total) * 100).toFixed(1) : 0}% dari total`} icon={<Archive size={18} />} color="#e74c3c" />
+        <StatCard label="Diarsipkan" value={stats.archived} sub="0% dari total" icon={<Archive size={18} />} color="#e74c3c" />
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -736,7 +767,6 @@ export default function ArticleManagement() {
                   <option>Semua Status</option>
                   <option>Published</option>
                   <option>Draft</option>
-                  <option>Diarsipkan</option>
                 </select>
               </SelectWrapper>
 
@@ -749,16 +779,11 @@ export default function ArticleManagement() {
               </SelectWrapper>
 
               <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
-                <button onClick={() => setShowFilterModal(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 whitespace-nowrap">
+                <button onClick={() => setShowFilterModal(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 whitespace-nowrap font-medium">
                   <Filter size={14} /> Filter
                 </button>
-                {selectedIds.size > 0 && (
-                  <button onClick={() => setShowBulkDelete(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 whitespace-nowrap">
-                    <Trash size={14} /> Hapus ({selectedIds.size})
-                  </button>
-                )}
-                <button onClick={handleExport} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 whitespace-nowrap">
-                  <Download size={14} /> Export
+                <button onClick={handleExport} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 whitespace-nowrap font-medium">
+                  <Download size={14} /> Export CSV
                 </button>
               </div>
             </div>
@@ -766,86 +791,77 @@ export default function ArticleManagement() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="w-10 px-4 py-3">
-                  <input 
-                    type="checkbox" 
-                    checked={paginated.length > 0 && paginated.every((a) => selectedIds.has(a.id))} 
-                    onChange={toggleAll} 
-                    className="rounded border-gray-300 accent-[#4a7c59]" 
-                  />
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">ARTIKEL</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">KATEGORI</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">PENULIS</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">STATUS</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">TANGGAL TERBIT</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">AKSI</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {paginated.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-12 text-gray-400 text-sm">
-                    Tidak ada artikel yang ditemukan
-                  </td>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-[#4a7c59]" />
+              <p className="text-sm text-gray-400 font-medium">Memuat daftar artikel...</p>
+            </div>
+          ) : (
+            <table className="w-full min-w-[800px]">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50/50">
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">ARTIKEL</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">KATEGORI</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">PENULIS</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">STATUS</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">TANGGAL TERBIT</th>
+                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">AKSI</th>
                 </tr>
-              ) : (
-                paginated.map((article) => (
-                  <tr key={article.id} className={`hover:bg-gray-50/50 ${selectedIds.has(article.id) ? "bg-green-50/30" : ""}`}>
-                    <td className="px-4 py-3.5">
-                      <input type="checkbox" checked={selectedIds.has(article.id)} onChange={() => toggleSelect(article.id)} className="rounded border-gray-300 accent-[#4a7c59]" />
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <ArticleRow article={article} />
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <CategoryBadge category={article.category} />
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <AuthorCell author={article.author} />
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <StatusBadge status={article.status} />
-                    </td>
-                    <td className="px-4 py-3.5 hidden md:table-cell">
-                      <span className="text-sm text-gray-600 whitespace-nowrap">{article.publishedDate ?? "–"}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => setModal({ open: true, mode: "edit", data: article })} 
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors text-xs font-medium"
-                        >
-                          <Edit size={13} /> Edit
-                        </button>
-                        <button 
-                          onClick={() => setModal({ open: true, mode: "copy", data: article })} 
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors text-xs font-medium"
-                        >
-                          <Copy size={13} /> Salin
-                        </button>
-                        <button 
-                          onClick={() => setDeleteTarget(article)} 
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-xs font-medium"
-                        >
-                          <Trash size={13} /> Hapus
-                        </button>
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filteredAndSorted.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-12 text-gray-400 text-sm">
+                      Tidak ada artikel yang ditemukan
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredAndSorted.map((article) => (
+                    <tr key={article.id} className="hover:bg-gray-50/50">
+                      <td className="px-6 py-3.5">
+                        <ArticleRow article={article} />
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <CategoryBadge category={article.category} />
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <AuthorCell author={article.author} />
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <StatusBadge status={article.status} />
+                      </td>
+                      <td className="px-4 py-3.5 hidden md:table-cell">
+                        <span className="text-sm text-gray-600 whitespace-nowrap">{article.publishedDate ?? "–"}</span>
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => setModal({ open: true, mode: "edit", data: article })} 
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors text-xs font-semibold"
+                          >
+                            <Edit size={13} /> Edit
+                          </button>
+
+                          <button 
+                            onClick={() => setDeleteTarget(article)} 
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-xs font-semibold"
+                          >
+                            <Trash size={13} /> Hapus
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3.5 border-t border-gray-100">
           <p className="text-sm text-gray-500 order-2 sm:order-1">
-            Menampilkan {filtered.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}–
-            {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} dari {filtered.length} artikel
+            Menampilkan {filteredAndSorted.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}–
+            {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} dari {totalCount} artikel
           </p>
           <div className="flex items-center gap-1 order-1 sm:order-2">
             <button 
@@ -896,13 +912,6 @@ export default function ArticleManagement() {
           title={deleteTarget.title} 
           onConfirm={handleDelete} 
           onClose={() => setDeleteTarget(null)} 
-        />
-      )}
-      {showBulkDelete && (
-        <BulkDeleteModal 
-          count={selectedIds.size} 
-          onConfirm={handleBulkDelete} 
-          onClose={() => setShowBulkDelete(false)} 
         />
       )}
       {showFilterModal && <FilterModal />}

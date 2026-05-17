@@ -6,7 +6,6 @@ import {
   Clock,
   Video,
   MessageSquare,
-  Phone,
   RotateCcw,
   X,
   CheckCircle2,
@@ -31,6 +30,7 @@ interface Konsultasi {
   ahliGiziId: number
   rawJadwalSesi: string
   durasiMenit: number
+  linkMeeting?: string | null
   transaksi?: {
     id: number;
     statusBayar: string;
@@ -136,6 +136,7 @@ const mapConsultation = (c: any): Konsultasi => ({
   ahliGiziId: c.ahliGiziId,
   rawJadwalSesi: c.jadwalSesi,
   durasiMenit: c.durasiMenit || 30,
+  linkMeeting: c.linkMeeting,
   transaksi: c.transaksi ? {
     id: c.transaksi.id,
     statusBayar: c.transaksi.statusBayar,
@@ -623,7 +624,8 @@ const KonsultasiCard = ({
 
   const handleOpenLink = () => {
     if (konsultasi.metode === 'Video Call') {
-      window.open(`https://meet.jit.si/NutriGrow-Consultation-${konsultasi.rawId}`, '_blank')
+      const activeLink = konsultasi.linkMeeting || `https://meet.jit.si/NutriGrow-Consultation-${konsultasi.rawId}`;
+      window.open(activeLink, '_blank')
     } else {
       const waNumber = '6282110834924' // statis dulu
       const message = `Halo, saya pasien NutriGrow dengan ID Sesi: ${konsultasi.id}. Saya ingin memulai sesi konsultasi Chat.`

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { Toaster } from "sonner";
+import { useAuth } from "../../context/AuthContext";
 import {
   LayoutDashboard,
   Users,
@@ -55,6 +56,8 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -136,14 +139,20 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="p-4 border-t border-gray-100">
           <div className="flex items-center gap-2.5 mb-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#4a7c59] to-[#2d5a38] flex items-center justify-center text-white text-xs font-bold shrink-0">
-              A
+              {(user?.nama || "A")[0].toUpperCase()}
             </div>
             <div className="min-w-0">
-              <p className="text-[12px] font-semibold text-gray-800 truncate">Super Admin</p>
-              <p className="text-[11px] text-gray-500 truncate">admin@nutrigrow.id</p>
+              <p className="text-[12px] font-semibold text-gray-800 truncate">{user?.nama || "Super Admin"}</p>
+              <p className="text-[11px] text-gray-500 truncate">{user?.email || "admin@nutrigrow.id"}</p>
             </div>
           </div>
-          <button className="flex items-center gap-2 text-[12px] text-gray-500 hover:text-red-500 transition-colors">
+          <button 
+            onClick={async () => {
+              await logout();
+              navigate("/sign-in");
+            }}
+            className="flex items-center gap-2 text-[12px] text-gray-500 hover:text-red-500 transition-colors w-full"
+          >
             <LogOut size={14} />
             <span>Keluar</span>
           </button>
@@ -163,10 +172,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex-1" />
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#4a7c59] to-[#2d5a38] flex items-center justify-center text-white text-sm font-bold">
-              A
+              {(user?.nama || "A")[0].toUpperCase()}
             </div>
             <div className="hidden sm:block">
-              <p className="text-[13px] font-semibold text-gray-800 leading-tight">Admin</p>
+              <p className="text-[13px] font-semibold text-gray-800 leading-tight">{user?.nama || "Admin"}</p>
               <p className="text-[11px] text-gray-500">Super Admin</p>
             </div>
           </div>

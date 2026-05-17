@@ -15,7 +15,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   isLoggedIn: boolean;
@@ -58,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userData = await authService.login(email, password);
     // Langsung set user agar Header berubah otomatis
     setUser(userData);
+    return userData;
   };
 
   const logout = async () => {

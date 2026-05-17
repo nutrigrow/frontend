@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 import img1 from "../assets/images/img-article-1.png";
-import img2 from "../assets/images/img-article-2.png";
-import img3 from "../assets/images/img-article-3.png";
 
 import iconHydration from "../assets/icons/icon-hydration.png";
 import iconSleep from "../assets/icons/icon-sleep.png";
@@ -35,15 +33,6 @@ interface HealthItem {
   value: string;
   percent: number;
   color: string;
-}
-
-interface Article {
-  tag: string;
-  tagColor: string;
-  title: string;
-  excerpt: string;
-  readTime: string;
-  image: string;
 }
 
 interface GrowthPoint {

@@ -169,11 +169,17 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const isDesktop = bp === 'desktop'
 
   const navigate = useNavigate()
-  const { login, isLoggedIn } = useAuth()
+  const { login, isLoggedIn, user } = useAuth()
 
   useEffect(() => {
-    if (isLoggedIn) navigate('/dashboard', { replace: true })  // ← ganti '/' → '/dashboard'
-  }, [isLoggedIn, navigate])
+    if (isLoggedIn && user) {
+      if (user.role?.toUpperCase() === 'ADMIN') {
+        navigate('/admin', { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
+    }
+  }, [isLoggedIn, user, navigate])
 
   const [email, setEmail]               = useState('')
   const [password, setPassword]         = useState('')
@@ -200,8 +206,12 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
     setError('')
 
     try {
-      await login(email, password)
-      navigate('/dashboard')
+      const loggedInUser = await login(email, password)
+      if (loggedInUser?.role?.toUpperCase() === 'ADMIN') {
+        navigate('/admin')
+      } else {
+        navigate('/dashboard')
+      }
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Login gagal. Periksa kembali email dan password kamu.')
     } finally {
