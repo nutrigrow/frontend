@@ -18,6 +18,7 @@ export interface User {
   emailVerifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  tinggiBadanIbu?: number | null;
 }
 
 export interface UsersResponse {
