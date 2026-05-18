@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Users, ShoppingBag, UserCheck, BookOpen, ArrowRight, UserPlus, PlusSquare, ClipboardList, Loader2 } from "lucide-react";
+import { Users, ShoppingBag, UserCheck, BookOpen, ArrowRight, UserPlus, PlusSquare, ClipboardList, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { adminService, type DashboardResponse } from "../../services/admin.service";
 import { AdminLayout } from "./admin-layout";
 
@@ -15,17 +15,16 @@ const activityIcon: Record<Activity["type"], { bg: string; emoji: string }> = {
   user:    { bg: "bg-green-100",  emoji: "👤" },
   product: { bg: "bg-orange-100", emoji: "📦" },
   order:   { bg: "bg-blue-100",   emoji: "🛒" },
-  session: { bg: "bg-purple-100", emoji: "📅" },
+  session: { bg: "bg-purple-100", emoji: "🗓️" },
   article: { bg: "bg-yellow-100", emoji: "📝" },
 };
 
 const quickActions = [
-  { label: "Tambah\nPengguna",      icon: <UserPlus size={22} />,      color: "text-[#4a7c59]",  bg: "bg-green-50",  to: "/admin/users"             },
   { label: "Tambah\nProduk",        icon: <PlusSquare size={22} />,    color: "text-blue-500",   bg: "bg-blue-50",   to: "/admin/products"          },
   { label: "Tambah\nNutritionist",  icon: <UserCheck size={22} />,     color: "text-purple-500", bg: "bg-purple-50", to: "/admin/nutritionists"     },
   { label: "Buat\nArtikel",         icon: <BookOpen size={22} />,      color: "text-orange-500", bg: "bg-orange-50", to: "/admin/articles"          },
   { label: "Transaksi\nNutriShop",  icon: <ShoppingBag size={22} />,   color: "text-teal-500",   bg: "bg-teal-50",   to: "/admin/nutrishop" },
-  { label: "Transaksi\nKonsultasi", icon: <ClipboardList size={22} />, color: "text-pink-500",   bg: "bg-pink-50",   to: "/admin/tele" },
+  { label: "Transaksi\nTele-Nutritionist", icon: <ClipboardList size={22} />, color: "text-pink-500",   bg: "bg-pink-50",   to: "/admin/tele" },
 ];
 
 function getRelativeTime(isoString: string): string {
@@ -43,6 +42,7 @@ export default function AdminDashboard() {
   const today = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activityPage, setActivityPage] = useState(1);
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -121,17 +121,17 @@ export default function AdminDashboard() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Selamat datang kembali! Berikut ringkasan NutriGrow.</p>
+            <p className="text-sm text-gray-500 mt-0.5">Selamat datang! Berikut ringkasan NutriGrow.</p>
           </div>
           <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm text-gray-600 shadow-sm">
-            📅 {today}
+            🗓️ {today}
           </div>
         </div>
 
         {/* Financial Stat Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-            <p className="text-xs text-gray-500 font-semibold tracking-wider uppercase">Revisi Pendapatan NutriShop</p>
+            <p className="text-xs text-gray-500 font-semibold tracking-wider uppercase">Pendapatan NutriShop</p>
             <p className="text-2xl font-bold text-gray-900 mt-2">Rp {(stats?.revenue.shop || 0).toLocaleString("id-ID")}</p>
             <p className="text-xs text-green-600 font-medium mt-1">Transaksi penjualan sukses</p>
           </div>
@@ -189,50 +189,94 @@ export default function AdminDashboard() {
         {/* Recent Activity + Quick Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Recent Activity */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
-              <p className="font-semibold text-gray-900">Aktivitas Terbaru</p>
-              <span className="text-xs bg-green-50 text-[#4a7c59] px-2.5 py-0.5 rounded-full font-medium">Realtime</span>
-            </div>
-            <div className="space-y-4">
-              {(!data?.activities || data.activities.length === 0) ? (
-                <div className="text-center py-8 text-gray-400 text-sm">Belum ada aktivitas terbaru</div>
-              ) : (
-                data.activities.map((act, i) => {
-                  const cfg = activityIcon[act.type];
-                  return (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className={`w-8 h-8 rounded-full ${cfg?.bg || "bg-gray-100"} flex items-center justify-center flex-shrink-0 text-sm`}>
-                        {cfg?.emoji || "🔔"}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <p className="font-semibold text-gray-900">Aktivitas Terbaru</p>
+                <span className="text-xs bg-green-50 text-[#4a7c59] px-2.5 py-0.5 rounded-full font-medium">Realtime</span>
+              </div>
+              <div className="space-y-4">
+                {(!data?.activities || data.activities.length === 0) ? (
+                  <div className="text-center py-8 text-gray-400 text-sm">Belum ada aktivitas terbaru</div>
+                ) : (
+                  data.activities.slice((activityPage - 1) * 3, activityPage * 3).map((act, i) => {
+                    const cfg = activityIcon[act.type];
+                    return (
+                      <div key={i} className="flex items-start gap-3">
+                        <div className={`w-8 h-8 rounded-full ${cfg?.bg || "bg-gray-100"} flex items-center justify-center flex-shrink-0 text-sm`}>
+                          {cfg?.emoji || "🔔"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800">{act.message}</p>
+                          <p className="text-xs text-gray-400 truncate">{act.sub}</p>
+                        </div>
+                        <p className="text-[11px] text-gray-400 whitespace-nowrap flex-shrink-0">{getRelativeTime(act.at)}</p>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800">{act.message}</p>
-                        <p className="text-xs text-gray-400 truncate">{act.sub}</p>
-                      </div>
-                      <p className="text-[11px] text-gray-400 whitespace-nowrap flex-shrink-0">{getRelativeTime(act.at)}</p>
-                    </div>
-                  );
-                })
-              )}
+                    );
+                  })
+                )}
+              </div>
             </div>
+
+            {Math.ceil((data?.activities?.length || 0) / 3) > 1 && (
+              <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-100">
+                <span className="text-[11px] text-gray-400 font-medium">
+                  Halaman {activityPage} dari {Math.ceil((data?.activities?.length || 0) / 3)}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
+                    disabled={activityPage === 1}
+                    className="p-1 rounded bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button
+                    onClick={() => setActivityPage((p) => Math.min(Math.ceil((data?.activities?.length || 0) / 3), p + 1))}
+                    disabled={activityPage === Math.ceil((data?.activities?.length || 0) / 3)}
+                    className="p-1 rounded bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Quick Actions */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
             <p className="font-semibold text-gray-900 mb-4">Aksi Cepat</p>
-            <div className="grid grid-cols-3 gap-3">
-              {quickActions.map(action => (
-                <Link
-                  key={action.label}
-                  to={action.to}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition text-center group bg-white"
-                >
-                  <div className={`w-10 h-10 rounded-xl ${action.bg} ${action.color} flex items-center justify-center group-hover:scale-105 transition-transform`}>
-                    {action.icon}
-                  </div>
-                  <p className="text-[11px] font-medium text-gray-600 leading-tight whitespace-pre-line">{action.label}</p>
-                </Link>
-              ))}
+            <div className="space-y-3">
+              {/* Row 1: 3 Columns */}
+              <div className="grid grid-cols-3 gap-3">
+                {quickActions.slice(0, 3).map(action => (
+                  <Link
+                    key={action.label}
+                    to={action.to}
+                    className="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition text-center group bg-white"
+                  >
+                    <div className={`w-10 h-10 rounded-xl ${action.bg} ${action.color} flex items-center justify-center group-hover:scale-105 transition-transform`}>
+                      {action.icon}
+                    </div>
+                    <p className="text-[11px] font-medium text-gray-600 leading-tight whitespace-pre-line">{action.label}</p>
+                  </Link>
+                ))}
+              </div>
+              {/* Row 2: 2 Columns */}
+              <div className="grid grid-cols-2 gap-3">
+                {quickActions.slice(3).map(action => (
+                  <Link
+                    key={action.label}
+                    to={action.to}
+                    className="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition text-center group bg-white"
+                  >
+                    <div className={`w-10 h-10 rounded-xl ${action.bg} ${action.color} flex items-center justify-center group-hover:scale-105 transition-transform`}>
+                      {action.icon}
+                    </div>
+                    <p className="text-[11px] font-medium text-gray-600 leading-tight whitespace-pre-line">{action.label}</p>
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         </div>
