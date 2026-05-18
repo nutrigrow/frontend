@@ -101,9 +101,9 @@ function EditModal({ order, onSave, onClose }: { order: TransaksiShop; onSave: (
             </select>
           </div>
         </div>
-        <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 border border-gray-200 text-gray-600 text-sm font-semibold rounded-lg py-2.5 hover:bg-gray-50 transition">Batal</button>
-          <button onClick={() => onSave(status)} className="flex-1 bg-[#4a7c59] hover:bg-[#2d5a38] text-white text-sm font-semibold rounded-lg py-2.5 transition">Simpan Perubahan</button>
+        <div className="flex gap-3 mt-6 pt-2">
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">Batal</button>
+          <button onClick={() => onSave(status)} className="flex-1 px-4 py-2.5 bg-[#4a7c59] text-white rounded-lg text-sm font-semibold hover:bg-[#3d6849] transition-colors">Simpan Perubahan</button>
         </div>
       </div>
     </div>
@@ -158,9 +158,11 @@ function OrderDetail({ order, onBack, onEdit, onSync }: { order: TransaksiShop; 
           </div>
         </div>
 
-        <div className="mt-5 flex gap-3">
-          <button onClick={onEdit} className="flex-1 bg-[#4a7c59] hover:bg-[#2d5a38] text-white font-semibold text-sm rounded-lg py-2.5 transition">✏️ Ubah Status</button>
-          <button onClick={onSync} className="flex-1 border border-gray-200 text-gray-600 font-semibold text-sm rounded-lg py-2.5 hover:bg-gray-50 transition flex items-center justify-center gap-2">
+        <div className="mt-5 flex gap-3 pt-2">
+          <button onClick={onEdit} className="flex-1 px-4 py-2.5 bg-[#4a7c59] text-white rounded-lg text-sm font-semibold hover:bg-[#3d6849] transition-colors flex items-center justify-center gap-2">
+            Edit
+          </button>
+          <button onClick={onSync} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
             <RefreshCw size={14} /> Sinkronkan Midtrans
           </button>
         </div>
@@ -434,65 +436,62 @@ export default function TransaksiNutriShop() {
   return (
     <AdminLayout>
       <div className="space-y-5">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Transaksi NutriShop</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Kelola dan pantau semua transaksi pembelian produk kesehatan NutriShop</p>
+            <p className="text-sm text-gray-500 mt-1">Kelola dan pantau semua transaksi pembelian produk kesehatan NutriShop</p>
           </div>
-          <button onClick={handleExport} className="flex items-center gap-2 text-sm font-semibold border border-gray-200 rounded-lg px-4 py-2 bg-white hover:bg-gray-50 transition text-gray-600">
-            <Download size={15} /> Ekspor CSV
-          </button>
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-5 flex flex-col gap-2 md:gap-3">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs text-gray-500 font-medium">Total Pesanan</p>
+                <p className="text-sm text-gray-500 font-medium">Total Pesanan</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
-                <p className="text-xs text-gray-400 mt-1 font-medium">Accumulated transactions</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center text-green-600 flex-shrink-0">
-                <ShoppingCart size={18} />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs text-gray-500 font-medium">Total Pendapatan</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">{formatRp(stats.revenue)}</p>
-                <p className="text-xs text-green-500 mt-1 font-semibold">SUCCESS state payments</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-500 flex-shrink-0">
-                <TrendingUp size={18} />
+              <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+                <ShoppingCart size={18} className="text-green-600" />
               </div>
             </div>
+            <p className="text-xs text-gray-500 line-clamp-1">Akumulasi semua transaksi</p>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-5 flex flex-col gap-2 md:gap-3">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs text-gray-500 font-medium">Pesanan Selesai</p>
+                <p className="text-sm text-gray-500 font-medium">Total Pendapatan</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{formatRp(stats.revenue)}</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+                <TrendingUp size={18} className="text-orange-500" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 line-clamp-1">Dari pembayaran SUCCESS</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-5 flex flex-col gap-2 md:gap-3">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-gray-500 font-medium">Pesanan Selesai</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{stats.successCount}</p>
-                <p className="text-xs text-gray-400 mt-1">{stats.total ? Math.round((stats.successCount / stats.total) * 100) : 0}% success rate</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-500 flex-shrink-0">
-                <CheckCircle size={18} />
+              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                <CheckCircle size={18} className="text-blue-500" />
               </div>
             </div>
+            <p className="text-xs text-gray-500 line-clamp-1">{stats.total ? Math.round((stats.successCount / stats.total) * 100) : 0}% success rate</p>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-5 flex flex-col gap-2 md:gap-3">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs text-gray-500 font-medium">Menunggu Pembayaran</p>
+                <p className="text-sm text-gray-500 font-medium">Menunggu Pembayaran</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{stats.pendingCount}</p>
-                <p className="text-xs text-yellow-500 mt-1 font-semibold">Awaiting user checkout</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-yellow-100 flex items-center justify-center text-yellow-500 flex-shrink-0">
-                <XCircle size={18} />
+              <div className="w-10 h-10 rounded-full bg-yellow-50 flex items-center justify-center shrink-0">
+                <XCircle size={18} className="text-yellow-500" />
               </div>
             </div>
+            <p className="text-xs text-gray-500 line-clamp-1">Menunggu user checkout</p>
           </div>
         </div>
 
@@ -500,30 +499,42 @@ export default function TransaksiNutriShop() {
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
 
           {/* Search + filter */}
-          <div className="flex items-center gap-3 px-4 py-3 flex-wrap border-b border-gray-100 bg-white">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a7c59] transition"
-                placeholder="Cari pesanan, pelanggan, atau invoice..." value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
+          <div className="p-4 border-b border-gray-100 bg-white">
+            <div className="flex flex-col gap-3">
+              <div className="relative w-full">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 pl-9 pr-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-[#4a7c59]/25 focus:border-[#4a7c59] transition"
+                  placeholder="Cari pesanan, pelanggan, atau invoice..." value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+              
+              <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2">
+                {/* Status dropdown */}
+                <div className="relative flex-1 w-full sm:w-auto">
+                  <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as StatusShop)}
+                    className="appearance-none border border-gray-200 rounded-lg px-3 py-2 pr-7 text-[13px] sm:text-sm text-gray-700 bg-white outline-none focus:ring-2 focus:ring-[#4a7c59]/25 focus:border-[#4a7c59] cursor-pointer w-full">
+                    <option value="Semua">Semua Status</option>
+                    {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
 
-            {/* Date range toggle */}
-            <div className="flex items-center gap-1 border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm text-gray-600 cursor-pointer" onClick={() => setShowDateFilter(!showDateFilter)}>
-              <Calendar size={14} className="text-gray-400 mr-1" />
-              <span className="text-xs">{dateFrom ? dateFrom : "Dari"}</span>
-              <span className="text-gray-300 mx-1">–</span>
-              <span className="text-xs">{dateTo ? dateTo : "Sampai"}</span>
-              {(dateFrom || dateTo) && <span className="w-1.5 h-1.5 rounded-full bg-[#4a7c59] ml-1" />}
-            </div>
+                {/* Date range toggle */}
+                <div className="flex-1 w-full sm:w-auto flex items-center justify-between sm:justify-start gap-1 border border-gray-200 rounded-lg px-3 py-2 bg-white text-[13px] sm:text-sm text-gray-700 cursor-pointer hover:bg-gray-50 transition" onClick={() => setShowDateFilter(!showDateFilter)}>
+                  <div className="flex items-center">
+                    <Calendar size={14} className="text-gray-400 mr-2" />
+                    <span>{dateFrom ? dateFrom : "Dari"}</span>
+                    <span className="text-gray-300 mx-2">–</span>
+                    <span>{dateTo ? dateTo : "Sampai"}</span>
+                  </div>
+                  {(dateFrom || dateTo) && <span className="w-1.5 h-1.5 rounded-full bg-[#4a7c59] ml-2" />}
+                </div>
 
-            {/* Status dropdown */}
-            <div className="relative">
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as StatusShop)}
-                className="appearance-none border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-[#4a7c59] transition cursor-pointer">
-                <option value="Semua">Semua Status</option>
-                {allStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
+                  <button onClick={handleExport} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 whitespace-nowrap font-medium transition">
+                    <Download size={14} /> Export CSV
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -556,15 +567,15 @@ export default function TransaksiNutriShop() {
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Pesanan</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Pelanggan</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => toggleSort("dateSort")}>
+                  <tr className="border-b border-gray-100 bg-gray-50/50">
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Pesanan</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Pelanggan</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50" onClick={() => toggleSort("dateSort")}>
                       <span className="flex items-center gap-1">Tanggal <SortIcon field="dateSort" /></span>
                     </th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Pembayaran</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => toggleSort("total")}>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Pembayaran</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50" onClick={() => toggleSort("total")}>
                       <span className="flex items-center gap-1">Total <SortIcon field="total" /></span>
                     </th>
                     <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Aksi</th>
@@ -574,32 +585,36 @@ export default function TransaksiNutriShop() {
                   {data.length === 0 ? (
                     <tr><td colSpan={7} className="text-center py-12 text-gray-400 text-sm">Tidak ada transaksi ditemukan</td></tr>
                   ) : data.map(t => (
-                    <tr key={t.id} className="hover:bg-gray-50 transition">
-                      <td className="px-4 py-3">
+                    <tr key={t.id} className="hover:bg-gray-50/50 transition">
+                      <td className="px-6 py-3.5">
                         <p className="text-sm font-bold text-gray-800">#{t.id}</p>
-                        <p className="text-[11px] text-gray-400 font-mono">{t.shopId}</p>
+                        <p className="text-xs text-gray-400 font-mono">{t.shopId}</p>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className={`w-8 h-8 rounded-full ${t.color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>{t.initials}</div>
+                      <td className="px-6 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-9 h-9 rounded-full ${t.color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>{t.initials}</div>
                           <div>
                             <p className="font-semibold text-gray-800 whitespace-nowrap text-sm">{t.user}</p>
-                            <p className="text-xs text-gray-400">{t.userEmail}</p>
+                            <p className="text-xs text-gray-500">{t.userEmail}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{t.createdAt}</td>
-                      <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap font-medium capitalize">{t.metode.replace("_", " ").toLowerCase()}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-3.5 text-sm text-gray-600 whitespace-nowrap">{t.createdAt}</td>
+                      <td className="px-6 py-3.5 text-sm text-gray-600 whitespace-nowrap font-medium capitalize">{t.metode.replace("_", " ").toLowerCase()}</td>
+                      <td className="px-6 py-3.5">
                         <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${statusConfig[t.status].bg} ${statusConfig[t.status].text}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${statusConfig[t.status].dot}`} />{t.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-bold text-gray-900 whitespace-nowrap">{formatRp(t.total)}</td>
-                      <td className="px-6 py-3 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          <button onClick={() => setSelectedOrder(t)} className="text-xs text-[#4a7c59] hover:text-[#2d5a38] font-bold transition">Detail</button>
-                          <button onClick={() => setEditTarget(t)} className="text-gray-400 hover:text-blue-500 transition text-xs font-semibold">✏️ Edit Status</button>
+                      <td className="px-6 py-3.5 font-bold text-gray-900 whitespace-nowrap">{formatRp(t.total)}</td>
+                      <td className="px-6 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => setSelectedOrder(t)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors text-xs font-semibold">
+                            Detail
+                          </button>
+                          <button onClick={() => setEditTarget(t)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 transition-colors text-xs font-semibold">
+                            Edit
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -610,7 +625,7 @@ export default function TransaksiNutriShop() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3.5 border-t border-gray-100 bg-white">
-            <p className="text-xs text-gray-500 order-2 sm:order-1 font-medium">
+            <p className="text-sm text-gray-500 order-2 sm:order-1">
               Menampilkan {data.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}–
               {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} dari {totalCount} transaksi
             </p>
@@ -618,18 +633,18 @@ export default function TransaksiNutriShop() {
               <button 
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} 
                 disabled={currentPage === 1} 
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={15} />
               </button>
               {getPaginationPages(currentPage, totalPages).map((p, i) => 
                 p === "..." ? (
-                  <span key={`e${i}`} className="px-2 text-gray-400 text-xs">…</span>
+                  <span key={`e${i}`} className="px-2 text-gray-400 text-sm">…</span>
                 ) : (
                   <button 
                     key={p} 
                     onClick={() => setCurrentPage(p as number)} 
-                    className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
+                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                       currentPage === p 
                         ? "bg-[#4a7c59] text-white" 
                         : "border border-gray-200 text-gray-700 hover:bg-gray-50"
@@ -642,9 +657,9 @@ export default function TransaksiNutriShop() {
               <button 
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} 
                 disabled={currentPage === totalPages || totalPages === 0} 
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronRight size={14} />
+                <ChevronRight size={15} />
               </button>
             </div>
           </div>
