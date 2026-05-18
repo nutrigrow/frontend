@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { Toaster } from "sonner";
 import { useAuth } from "../../context/AuthContext";
+import NutriGrowLogo from "../../assets/logo/logo-nutrigrow.svg";
 import {
   LayoutDashboard,
   Users,
@@ -13,7 +14,6 @@ import {
   Menu,
   X,
   LogOut,
-  Leaf,
 } from "lucide-react";
 
 interface NavItem {
@@ -45,7 +45,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: "TRANSAKSI",
     items: [
       { label: "Transaksi NutriShop", path: "/admin/nutrishop", icon: <ShoppingCart size={17} /> },
-      { label: "Transaksi Tele-Nutri", path: "/admin/tele", icon: <Phone size={17} /> },
+      { label: "Transaksi Tele-Nutritionist", path: "/admin/tele", icon: <Phone size={17} /> },
     ],
   },
 ];
@@ -81,18 +81,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       >
         {/* Logo */}
         <div className="h-16 px-4 flex items-center gap-2 border-b border-gray-100">
-          <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 bg-gradient-to-br from-[#4a7c59] to-[#2d5a38] rounded-lg flex items-center justify-center shrink-0">
-              <Leaf size={14} className="text-white" />
-            </div>
-            <div>
-              <span className="font-bold text-[15px] text-gray-900">
-                Nutri<span className="text-[#4a7c59]">Grow</span>
-              </span>
-              <p className="text-[9px] font-semibold text-gray-400 tracking-widest uppercase leading-none">
-                Admin Console
-              </p>
-            </div>
+          <div className="pl-1">
+            <img src={NutriGrowLogo} alt="NutriGrow Logo" className="h-[34px] w-auto object-contain" />
           </div>
           <button
             className="ml-auto lg:hidden text-gray-400 hover:text-gray-600"
@@ -162,7 +152,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main Content */}
       <div className="lg:ml-[260px] flex flex-col min-h-screen">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center gap-3 px-4 lg:px-6 sticky top-0 z-10 shrink-0">
+        <header className="lg:hidden h-16 bg-white border-b border-gray-200 flex items-center gap-3 px-4 sticky top-0 z-10 shrink-0">
           <button
             className="lg:hidden p-2 rounded-md hover:bg-gray-100 text-gray-600"
             onClick={() => setSidebarOpen(true)}
@@ -170,15 +160,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <Menu size={20} />
           </button>
           <div className="flex-1" />
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#4a7c59] to-[#2d5a38] flex items-center justify-center text-white text-sm font-bold">
-              {(user?.nama || "A")[0].toUpperCase()}
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-[13px] font-semibold text-gray-800 leading-tight">{user?.nama || "Admin"}</p>
-              <p className="text-[11px] text-gray-500">Super Admin</p>
-            </div>
-          </div>
         </header>
 
         {/* Page Content */}
