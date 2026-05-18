@@ -216,8 +216,8 @@ function NutriModal({ mode, initialData, onSave, onClose }: { mode: ModalMode; i
       gelar: form.gelar,
       pendidikan: form.pendidikan,
       jadwal: form.jadwal,
-      biayaVideoCall: form.biayaVideoCall,
-      biayaChat: form.biayaChat,
+      biayaVideoCall: parseInt(form.biayaVideoCall) || 0,
+      biayaChat: parseInt(form.biayaChat) || 0,
       avatar: initialData?.avatar 
     }); 
   }
@@ -362,8 +362,8 @@ export default function NutritionistManagement() {
       email: n.email || undefined,
       phone: n.noTelepon || undefined,
       gelar: n.gelar || "",
-      pendidikan: typeof n.pendidikan === "string" ? n.pendidikan : (Array.isArray(n.pendidikan) ? n.pendidikan.join(", ") : JSON.stringify(n.pendidikan || "").replace(/^"|"$/g, "")),
-      jadwal: typeof n.jadwal === "string" ? n.jadwal : (Array.isArray(n.jadwal) ? n.jadwal.join(", ") : JSON.stringify(n.jadwal || "").replace(/^"|"$/g, "")),
+      pendidikan: typeof n.pendidikan === "string" ? n.pendidikan : (Array.isArray(n.pendidikan) ? (n.pendidikan as any[]).join(", ") : JSON.stringify(n.pendidikan || "").replace(/^"|"$/g, "")),
+      jadwal: typeof n.jadwal === "string" ? n.jadwal : (Array.isArray(n.jadwal) ? (n.jadwal as any[]).join(", ") : JSON.stringify(n.jadwal || "").replace(/^"|"$/g, "")),
       biayaVideoCall: n.biayaVideoCall || 0,
       biayaChat: n.biayaChat || 0,
     };
