@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Users, ShoppingBag, UserCheck, BookOpen, ArrowRight, UserPlus, PlusSquare, ClipboardList, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, ShoppingBag, UserCheck, BookOpen, ArrowRight, PlusSquare, ClipboardList, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { adminService, type DashboardResponse } from "../../services/admin.service";
 import { AdminLayout } from "./admin-layout";
 
