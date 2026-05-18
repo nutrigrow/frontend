@@ -25,6 +25,11 @@ interface NutritionistData {
   avatar?: string;
   email?: string;
   phone?: string;
+  gelar?: string;
+  pendidikan?: string;
+  jadwal?: string;
+  biayaVideoCall?: number;
+  biayaChat?: number;
 }
 
 interface FormData { 
@@ -36,6 +41,11 @@ interface FormData {
   status: NutritionistStatus; 
   email: string; 
   phone: string; 
+  gelar: string;
+  pendidikan: string;
+  jadwal: string;
+  biayaVideoCall: string;
+  biayaChat: string;
 }
 
 type ModalMode = "add" | "edit";
@@ -171,7 +181,12 @@ function NutriModal({ mode, initialData, onSave, onClose }: { mode: ModalMode; i
     experienceYears: String(initialData?.experienceYears ?? 1), 
     status: initialData?.status ?? "Tersedia", 
     email: initialData?.email ?? "", 
-    phone: initialData?.phone ?? "" 
+    phone: initialData?.phone ?? "",
+    gelar: initialData?.gelar ?? "",
+    pendidikan: initialData?.pendidikan ?? "",
+    jadwal: initialData?.jadwal ?? "",
+    biayaVideoCall: String(initialData?.biayaVideoCall ?? 0),
+    biayaChat: String(initialData?.biayaChat ?? 0),
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const title = mode === "add" ? "Tambah Ahli Gizi Baru" : "Edit Ahli Gizi";
@@ -198,6 +213,11 @@ function NutriModal({ mode, initialData, onSave, onClose }: { mode: ModalMode; i
       status: form.status, 
       email: form.email, 
       phone: form.phone, 
+      gelar: form.gelar,
+      pendidikan: form.pendidikan,
+      jadwal: form.jadwal,
+      biayaVideoCall: form.biayaVideoCall,
+      biayaChat: form.biayaChat,
       avatar: initialData?.avatar 
     }); 
   }
@@ -256,6 +276,30 @@ function NutriModal({ mode, initialData, onSave, onClose }: { mode: ModalMode; i
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5 font-bold">Nomor Telepon</label>
               <input type="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className={inputCls} placeholder="+62 812-xxxx-xxxx" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 font-bold">Gelar</label>
+              <input type="text" value={form.gelar} onChange={(e) => setForm((f) => ({ ...f, gelar: e.target.value }))} className={inputCls} placeholder="Sp.GK" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 font-bold">Pendidikan</label>
+              <input type="text" value={form.pendidikan} onChange={(e) => setForm((f) => ({ ...f, pendidikan: e.target.value }))} className={inputCls} placeholder="S1 Gizi, S2 Kedokteran" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5 font-bold">Jadwal Praktik</label>
+            <textarea value={form.jadwal} onChange={(e) => setForm((f) => ({ ...f, jadwal: e.target.value }))} className={inputCls} placeholder="Senin - Jumat, 09:00 - 17:00" rows={2} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 font-bold">Biaya Video Call (Rp)</label>
+              <input type="number" min="0" value={form.biayaVideoCall} onChange={(e) => setForm((f) => ({ ...f, biayaVideoCall: e.target.value }))} className={inputCls} placeholder="50000" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 font-bold">Biaya Chat (Rp)</label>
+              <input type="number" min="0" value={form.biayaChat} onChange={(e) => setForm((f) => ({ ...f, biayaChat: e.target.value }))} className={inputCls} placeholder="30000" />
             </div>
           </div>
           <div className="flex flex-wrap gap-3 pt-2">
@@ -317,6 +361,11 @@ export default function NutritionistManagement() {
       avatar: n.avatarUrl || undefined,
       email: n.email || undefined,
       phone: n.noTelepon || undefined,
+      gelar: n.gelar || "",
+      pendidikan: typeof n.pendidikan === "string" ? n.pendidikan : (Array.isArray(n.pendidikan) ? n.pendidikan.join(", ") : JSON.stringify(n.pendidikan || "").replace(/^"|"$/g, "")),
+      jadwal: typeof n.jadwal === "string" ? n.jadwal : (Array.isArray(n.jadwal) ? n.jadwal.join(", ") : JSON.stringify(n.jadwal || "").replace(/^"|"$/g, "")),
+      biayaVideoCall: n.biayaVideoCall || 0,
+      biayaChat: n.biayaChat || 0,
     };
   };
 
@@ -386,6 +435,11 @@ export default function NutritionistManagement() {
           pengalamanTahun: data.experienceYears,
           noTelepon: data.phone,
           isAvailable: data.status === "Tersedia",
+          gelar: data.gelar,
+          pendidikan: data.pendidikan,
+          jadwal: data.jadwal,
+          biayaVideoCall: parseInt(data.biayaVideoCall) || 0,
+          biayaChat: parseInt(data.biayaChat) || 0,
         };
         await adminService.updateNutritionist(modal.data.rawId, body);
         toast.success("Data ahli gizi berhasil diperbarui");
@@ -400,6 +454,11 @@ export default function NutritionistManagement() {
           noTelepon: data.phone,
           isAvailable: data.status === "Tersedia",
           isActive: true,
+          gelar: data.gelar,
+          pendidikan: data.pendidikan,
+          jadwal: data.jadwal,
+          biayaVideoCall: parseInt(data.biayaVideoCall) || 0,
+          biayaChat: parseInt(data.biayaChat) || 0,
         };
         await adminService.createNutritionist(body);
         toast.success("Ahli gizi baru berhasil didaftarkan");
