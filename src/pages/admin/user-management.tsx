@@ -15,6 +15,7 @@ import {
   Filter,
   ChevronDown,
   Loader2,
+  Eye,
 } from "lucide-react";
 import { AdminLayout } from "./admin-layout";
 import { adminService } from "../../services/admin.service";
@@ -34,6 +35,7 @@ interface UserData {
   joinDateISO: string;
   lastActiveISO: string;
   avatar?: string;
+  tinggiBadanIbu?: number | null;
 }
 
 
@@ -177,6 +179,82 @@ function DeleteModal({ name, onConfirm, onClose }: { name: string; onConfirm: ()
   );
 }
 
+function DetailModal({ user, onClose }: { user: UserData; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/50">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 bg-[#4a7c59]/10 text-[#4a7c59] rounded-lg">
+              <Users size={18} />
+            </span>
+            <h3 className="font-bold text-gray-900">Detail Pengguna</h3>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 space-y-4">
+          {/* Avatar and Info Header */}
+          <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
+            <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shrink-0 shadow-sm" style={{ backgroundColor: getAvatarColor(user.name) }}>
+              {getInitials(user.name)}
+            </div>
+            <div>
+              <h4 className="text-base font-bold text-gray-800 leading-snug">{user.name}</h4>
+              <p className="text-xs font-semibold text-gray-400 mt-0.5">{user.id}</p>
+            </div>
+          </div>
+
+          {/* Details list */}
+          <div className="grid grid-cols-1 gap-y-3.5 text-sm">
+            <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-50 pb-2">
+              <span className="text-gray-400 font-medium">Email</span>
+              <span className="text-gray-800 font-semibold break-all text-left sm:text-right">{user.email}</span>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-50 pb-2">
+              <span className="text-gray-400 font-medium">Peran</span>
+              <span className="text-gray-800 font-semibold text-left sm:text-right">
+                <RoleBadge role={user.role} />
+              </span>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-50 pb-2">
+              <span className="text-gray-400 font-medium">Tinggi Badan Ibu</span>
+              <span className="text-gray-800 font-semibold text-left sm:text-right">
+                {user.tinggiBadanIbu ? `${user.tinggiBadanIbu} cm` : "-"}
+              </span>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-50 pb-2">
+              <span className="text-gray-400 font-medium">Tanggal Bergabung</span>
+              <span className="text-gray-800 font-semibold text-left sm:text-right">{user.joinDate}</span>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-50 pb-2">
+              <span className="text-gray-400 font-medium">Terakhir Diperbarui</span>
+              <span className="text-gray-800 font-semibold text-left sm:text-right">{user.lastActive}</span>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:justify-between pb-2">
+              <span className="text-gray-400 font-medium">Status Akun</span>
+              <span className={`font-semibold text-left sm:text-right ${user.status === "Aktif" ? "text-green-600" : "text-red-500"}`}>
+                {user.status === "Aktif" ? "Aktif" : "Nonaktif"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end p-5 bg-gray-50/50 border-t border-gray-100">
+          <button onClick={onClose} className="px-5 py-2 bg-[#4a7c59] text-white rounded-lg text-sm font-semibold hover:bg-[#3d6849] transition-colors shadow-sm">
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function UserManagement() {
   const [users, setUsers] = useState<UserData[]>([]);
   const [search, setSearch] = useState("");
@@ -191,6 +269,7 @@ export default function UserManagement() {
 
 
   const [deleteTarget, setDeleteTarget] = useState<UserData | null>(null);
+  const [detailTarget, setDetailTarget] = useState<UserData | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
@@ -233,6 +312,7 @@ export default function UserManagement() {
         joinDateISO: u.createdAt.split("T")[0],
         lastActiveISO: u.updatedAt.split("T")[0],
         avatar: u.avatarUrl || undefined,
+        tinggiBadanIbu: u.tinggiBadanIbu || null,
       }));
 
       setUsers(mapped);
@@ -464,7 +544,13 @@ export default function UserManagement() {
                         </div>
                       </td>
                       <td className="px-6 py-3.5">
-                        <div className="flex items-center justify-end">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => setDetailTarget(user)} 
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#ebf3ec] text-[#4a7c59] hover:bg-[#ebf3ec]/80 transition-colors text-xs font-semibold"
+                          >
+                            <Eye size={13} /> Detail
+                          </button>
                           <button 
                             onClick={() => setDeleteTarget(user)} 
                             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-xs font-semibold"
@@ -524,6 +610,7 @@ export default function UserManagement() {
 
 
       {deleteTarget && <DeleteModal name={deleteTarget.name} onConfirm={handleDelete} onClose={() => setDeleteTarget(null)} />}
+      {detailTarget && <DetailModal user={detailTarget} onClose={() => setDetailTarget(null)} />}
       {showFilterModal && <FilterModal />}
     </AdminLayout>
   );
