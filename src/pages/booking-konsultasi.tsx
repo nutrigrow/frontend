@@ -718,9 +718,15 @@ export default function BookingKonsultasi() {
                     boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
                   }}
                 >
-                  <h3 style={{ margin: '0 0 16px', fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 16, color: '#1C1917' }}>
-                    Waktu Tersedia
-                  </h3>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                    <h3 style={{ margin: 0, fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 16, color: '#1C1917' }}>
+                      Waktu Tersedia
+                    </h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#FEF3C7', color: '#D97706', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+                      <Clock size={12} />
+                      <span>Maks. 30 Menit/Sesi</span>
+                    </div>
+                  </div>
                   {selectedDate ? (
                     availableSlots.length > 0 ? (
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
