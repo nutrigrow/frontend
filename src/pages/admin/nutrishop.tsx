@@ -111,60 +111,65 @@ function EditModal({ order, onSave, onClose }: { order: TransaksiShop; onSave: (
 }
 
 // ── Order Detail ───────────────────────────────────────────────────────────
-function OrderDetail({ order, onBack, onEdit, onSync }: { order: TransaksiShop; onBack: () => void; onEdit: () => void; onSync: () => void; }) {
+function OrderDetail({ order, onClose, onEdit, onSync }: { order: TransaksiShop; onClose: () => void; onEdit: () => void; onSync: () => void; }) {
   const cfg = statusConfig[order.status];
   return (
-    <div className="space-y-4 max-w-2xl">
-      <button onClick={onBack} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition">
-        <ArrowLeft size={15} /> Kembali ke daftar
-      </button>
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-start justify-between mb-1">
-          <p className="text-xs text-gray-400">{order.shopId}</p>
-          <span className={`text-xs font-semibold px-3 py-1 rounded-full ${cfg.bg} ${cfg.text}`}>{order.status}</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+          <div className="flex flex-col">
+            <h2 className="text-lg font-bold text-gray-900">Detail Order #{order.id}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{order.shopId}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={`text-xs font-semibold px-3 py-1 rounded-full ${cfg.bg} ${cfg.text}`}>{order.status}</span>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={18} /></button>
+          </div>
         </div>
-        <h2 className="text-xl font-bold text-gray-900">Order #{order.id}</h2>
-        <p className="text-xs text-gray-400 mt-0.5">Dibuat: {order.createdAt}</p>
-        <p className="text-xs text-gray-400">Dibayar: {order.paidAt ?? "-"}</p>
+        
+        <div className="p-6">
+          <p className="text-xs text-gray-500 mb-1">Dibuat: {order.createdAt}</p>
+          <p className="text-xs text-gray-500 mb-6">Dibayar: {order.paidAt ?? "-"}</p>
 
-        <div className="mt-5">
-          <p className="text-sm font-semibold text-gray-800 mb-2">Item Pesanan</p>
-          <div className="border border-gray-100 rounded-lg divide-y divide-gray-100 bg-gray-50/30">
-            {order.items.map((item, i) => (
-              <div key={i} className="flex justify-between items-start p-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">{item.name}</p>
-                  <p className="text-xs text-gray-400">Qty {item.qty} x {formatRp(item.price)}</p>
+          <div className="mb-6">
+            <p className="text-sm font-semibold text-gray-800 mb-2">Item Pesanan</p>
+            <div className="border border-gray-100 rounded-lg divide-y divide-gray-100 bg-gray-50/30">
+              {order.items.map((item, i) => (
+                <div key={i} className="flex justify-between items-start p-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">{item.name}</p>
+                    <p className="text-xs text-gray-400">Qty {item.qty} x {formatRp(item.price)}</p>
+                  </div>
+                  <p className="text-sm font-bold text-gray-900">{formatRp(item.price * item.qty)}</p>
                 </div>
-                <p className="text-sm font-bold text-gray-900">{formatRp(item.price * item.qty)}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="mt-4">
-          <p className="text-sm font-semibold text-gray-800 mb-2">Alamat Pengiriman</p>
-          <div className="border border-gray-100 rounded-lg p-3 bg-gray-50/30">
-            <p className="text-sm font-semibold text-gray-800">{order.user} ({order.userPhone})</p>
-            <p className="text-sm text-gray-600 mt-1">{order.alamat}</p>
-            <p className="text-sm text-gray-600">{order.kota}</p>
+          <div className="mb-6">
+            <p className="text-sm font-semibold text-gray-800 mb-2">Alamat Pengiriman</p>
+            <div className="border border-gray-100 rounded-lg p-3 bg-gray-50/30">
+              <p className="text-sm font-bold text-gray-900 mb-1">{order.user} ({order.userPhone})</p>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {order.alamat}<br />
+                {order.kota}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="mt-4 space-y-2">
-          <div className="flex justify-between text-sm text-gray-500"><span>Biaya Pengiriman</span><span>{formatRp(order.biayaPengiriman)}</span></div>
-          <div className="flex justify-between text-sm font-bold pt-1 border-t border-gray-100">
-            <span className="text-gray-900">Total Transaksi</span><span className="text-[#4a7c59]">{formatRp(order.total)}</span>
+          <div className="flex justify-between items-center py-4 border-t border-gray-100 mb-2 mt-2">
+            <p className="text-sm font-semibold text-gray-900">Total Transaksi</p>
+            <p className="text-xl font-bold text-[#4a7c59]">{formatRp(order.total)}</p>
           </div>
-        </div>
 
-        <div className="mt-5 flex gap-3 pt-2">
-          <button onClick={onEdit} className="flex-1 px-4 py-2.5 bg-[#4a7c59] text-white rounded-lg text-sm font-semibold hover:bg-[#3d6849] transition-colors flex items-center justify-center gap-2">
-            Edit
-          </button>
-          <button onClick={onSync} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-            <RefreshCw size={14} /> Sinkronkan Midtrans
-          </button>
+          <div className="flex gap-3 pt-2">
+            <button onClick={onEdit} className="flex-1 px-4 py-2.5 bg-[#4a7c59] text-white rounded-lg text-sm font-semibold hover:bg-[#3d6849] transition-colors flex items-center justify-center gap-2">
+              Edit
+            </button>
+            <button onClick={onSync} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
+              <RefreshCw size={14} /> Sinkronkan Midtrans
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -415,26 +420,18 @@ export default function TransaksiNutriShop() {
   const SortIcon = ({ field }: { field: "dateSort" | "total" }) =>
     sortField === field ? sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} /> : <ChevronDown size={12} className="text-gray-300" />;
 
-  if (selectedOrder) {
-    const current = data.find(t => t.id === selectedOrder.id) ?? selectedOrder;
-    return (
-      <AdminLayout>
-        <div className="space-y-5">
-          <div><h1 className="text-2xl font-bold text-gray-900">Transaksi NutriShop</h1></div>
-          <OrderDetail 
-            order={current} 
-            onBack={() => setSelectedOrder(null)} 
-            onEdit={() => setEditTarget(current)} 
-            onSync={() => handleSyncMidtrans(current)} 
-          />
-          {editTarget && <EditModal order={editTarget} onSave={handleSaveEdit} onClose={() => setEditTarget(null)} />}
-        </div>
-      </AdminLayout>
-    );
-  }
-
   return (
     <AdminLayout>
+      {selectedOrder && (
+        <OrderDetail 
+          order={selectedOrder} 
+          onClose={() => setSelectedOrder(null)} 
+          onEdit={() => { setEditTarget(selectedOrder); setSelectedOrder(null); }} 
+          onSync={() => handleSyncMidtrans(selectedOrder)} 
+        />
+      )}
+      {editTarget && <EditModal order={editTarget} onSave={handleSaveEdit} onClose={() => setEditTarget(null)} />}
+      
       <div className="space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
           <div>

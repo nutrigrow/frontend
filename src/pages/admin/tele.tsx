@@ -208,83 +208,78 @@ function EditModal({ sesi, onSave, onClose }: { sesi: TransaksiTele; onSave: (bo
 }
 
 // ── Session Detail ─────────────────────────────────────────────────────────
-function SessionDetail({ sesi, onBack, onEdit }: { sesi: TransaksiTele; onBack: () => void; onEdit: () => void; }) {
+function SessionDetail({ sesi, onClose, onEdit }: { sesi: TransaksiTele; onClose: () => void; onEdit: () => void; }) {
   const cfg = statusConfig[sesi.status];
   return (
-    <div className="space-y-4 max-w-2xl">
-      <button onClick={onBack} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition font-medium">
-        <ArrowLeft size={15} /> Kembali ke daftar
-      </button>
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-3">
-          <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 ${cfg.bg} ${cfg.text}`}>{sesi.status}</span>
-          <p className="text-xs text-gray-400">ID: {sesi.id}</p>
-        </div>
-        <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100">
-          <div className={`w-12 h-12 rounded-full ${sesi.nutriColor} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>{sesi.nutriInitials}</div>
-          <div>
-            <p className="font-bold text-gray-900">{sesi.nutritionist}</p>
-            <p className="text-sm text-[#4a7c59] font-medium">{sesi.spesialisasi}</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10 rounded-t-2xl">
+          <div className="flex flex-col">
+            <h2 className="text-lg font-bold text-gray-900">Detail Sesi #{sesi.id}</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 ${cfg.bg} ${cfg.text}`}>{sesi.status}</span>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={18} /></button>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3 mb-5">
-          {[{ label: "📅 Tanggal Sesi", value: sesi.tanggal }, { label: "🕐 Waktu Sesi", value: sesi.waktu }, { label: "📹 Metode Sesi", value: sesi.metode }].map(item => (
-            <div key={item.label} className="bg-gray-50 rounded-xl p-3">
-              <p className="text-[10px] text-gray-400 mb-1 font-semibold">{item.label}</p>
-              <p className="text-sm font-bold text-gray-900">{item.value}</p>
-            </div>
-          ))}
-        </div>
 
-        <div className="border border-gray-100 rounded-lg p-4 mb-4 bg-gray-50/20">
-          <p className="text-xs font-semibold text-gray-400 mb-2">PENGGUNA / PASIEN</p>
-          <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-full ${sesi.userColor} flex items-center justify-center text-white text-xs font-bold`}>{sesi.userInitials}</div>
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100">
+            <div className={`w-12 h-12 rounded-full ${sesi.nutriColor} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>{sesi.nutriInitials}</div>
             <div>
-              <p className="text-sm font-bold text-gray-800">{sesi.user}</p>
-              <p className="text-xs text-gray-500">Mendaftar: {sesi.createdAt} · Dibayar: {sesi.paidAt ?? "-"}</p>
+              <p className="font-bold text-gray-900">{sesi.nutritionist}</p>
+              <p className="text-sm text-[#4a7c59] font-medium">{sesi.spesialisasi}</p>
             </div>
           </div>
-        </div>
-
-        {sesi.metode === "Video Call" && (
-          <div className="border border-gray-100 rounded-lg p-4 mb-4 bg-blue-50/10">
-            <p className="text-xs font-semibold text-blue-500 mb-1 flex items-center gap-1"><Link2 size={13} /> LINK VIDEO CALL SESSION</p>
-            {(() => {
-              const activeLink = sesi.linkMeeting || `https://meet.jit.si/NutriGrow-Consultation-${sesi.rawId}`;
-              return (
-                <div className="space-y-1">
-                  <a href={activeLink} target="_blank" rel="noreferrer" className="text-sm text-blue-600 font-semibold hover:underline break-all block">
-                    {activeLink}
-                  </a>
-                  {!sesi.linkMeeting && (
-                    <span className="text-[10px] text-gray-400 font-medium italic block bg-gray-50 p-1.5 rounded border border-gray-100">
-                      💡 Link default Jitsi di atas dapat digunakan langsung atau diubah ke Zoom/Meet melalui tombol Edit Sesi.
-                    </span>
-                  )}
-                </div>
-              );
-            })()}
+          
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            {[{ label: "📅 Tanggal Sesi", value: sesi.tanggal }, { label: "🕐 Waktu Sesi", value: sesi.waktu }, { label: "📹 Metode Sesi", value: sesi.metode }].map(item => (
+              <div key={item.label} className="bg-gray-50 rounded-xl p-3">
+                <p className="text-[10px] text-gray-400 mb-1 font-semibold">{item.label}</p>
+                <p className="text-sm font-bold text-gray-900">{item.value}</p>
+              </div>
+            ))}
           </div>
-        )}
 
-        <div className="border border-gray-100 rounded-lg p-4 mb-4 bg-orange-50/10">
-          <p className="text-xs font-semibold text-orange-600 mb-1 flex items-center gap-1"><FileText size={13} /> CATATAN KONSULTASI</p>
-          {sesi.catatan ? (
-            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{sesi.catatan}</p>
-          ) : (
-            <p className="text-xs text-gray-400 italic">Belum ada catatan yang ditulis untuk sesi ini.</p>
+          <div className="border border-gray-100 rounded-xl p-4 mb-5">
+            <p className="text-[10px] font-semibold text-gray-400 mb-2">PENGGUNA / PASIEN</p>
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full ${sesi.userColor} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>{sesi.userInitials}</div>
+              <div>
+                <p className="font-bold text-gray-900 text-sm">{sesi.user}</p>
+                <p className="text-[11px] text-gray-500">Mendaftar: {sesi.createdAt} · Dibayar: {sesi.paidAt ?? "-"}</p>
+              </div>
+            </div>
+          </div>
+
+          {sesi.metode === "Video Call" && (
+            <div className="border border-gray-100 rounded-lg p-4 mb-4 bg-blue-50/10">
+              <p className="text-xs font-semibold text-blue-500 mb-1 flex items-center gap-1"><Link2 size={13} /> LINK VIDEO CALL SESSION</p>
+              <a href={sesi.linkMeeting || `https://meet.jit.si/NutriGrow-Consultation-${sesi.rawId}`} target="_blank" rel="noreferrer" className="text-sm text-blue-600 font-semibold hover:underline break-all block">
+                {sesi.linkMeeting || `https://meet.jit.si/NutriGrow-Consultation-${sesi.rawId}`}
+              </a>
+            </div>
           )}
-        </div>
 
-        <div className="flex justify-between items-center py-4 border-t border-gray-100 mb-4 mt-2">
-          <p className="text-sm font-semibold text-gray-900">Total Biaya Sesi</p>
-          <p className="text-xl font-bold text-[#4a7c59]">{formatRp(sesi.total)}</p>
-        </div>
-        <div className="flex gap-3">
-          <button onClick={onEdit} className="flex-1 px-4 py-2.5 bg-[#4a7c59] text-white rounded-lg text-sm font-semibold hover:bg-[#3d6849] transition-colors flex items-center justify-center gap-2">
-            ✏️ Edit Sesi
-          </button>
+          <div className="border border-gray-100 rounded-lg p-4 mb-4 bg-orange-50/10">
+            <p className="text-xs font-semibold text-orange-600 mb-1 flex items-center gap-1"><FileText size={13} /> CATATAN KONSULTASI</p>
+            {sesi.catatan ? (
+              <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{sesi.catatan}</p>
+            ) : (
+              <p className="text-xs text-gray-400 italic">Belum ada catatan yang ditulis untuk sesi ini.</p>
+            )}
+          </div>
+
+          <div className="flex justify-between items-center py-4 border-t border-gray-100 mt-4">
+            <p className="text-sm font-semibold text-gray-900">Total Biaya Sesi</p>
+            <p className="text-xl font-bold text-[#4a7c59]">{formatRp(sesi.total)}</p>
+          </div>
+          
+          <div className="flex gap-3 pt-2">
+            <button onClick={onEdit} className="flex-1 px-4 py-2.5 bg-[#4a7c59] text-white rounded-lg text-sm font-semibold hover:bg-[#3d6849] transition-colors flex items-center justify-center gap-2">
+              Edit Sesi
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -532,23 +527,6 @@ export default function TransaksiTeleNutri() {
 
   const SortIcon = ({ field }: { field: "dateSort" | "total" }) =>
     sortField === field ? sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} /> : <ChevronDown size={12} className="text-gray-300" />;
-
-  if (selectedSesi) {
-    const current = data.find(t => t.id === selectedSesi.id) ?? selectedSesi;
-    return (
-      <AdminLayout>
-        <div className="space-y-5">
-          <div><h1 className="text-2xl font-bold text-gray-900">Konsultasi Tele-Nutritionist</h1></div>
-          <SessionDetail 
-            sesi={current} 
-            onBack={() => setSelectedSesi(null)} 
-            onEdit={() => setEditTarget(current)} 
-          />
-          {editTarget && <EditModal sesi={editTarget} onSave={handleSaveEdit} onClose={() => setEditTarget(null)} />}
-        </div>
-      </AdminLayout>
-    );
-  }
 
   return (
     <AdminLayout>
@@ -800,6 +778,14 @@ export default function TransaksiTeleNutri() {
         </div>
       </div>
 
+      {/* Modals */}
+      {selectedSesi && (
+        <SessionDetail 
+          sesi={selectedSesi} 
+          onClose={() => setSelectedSesi(null)} 
+          onEdit={() => { setEditTarget(selectedSesi); setSelectedSesi(null); }} 
+        />
+      )}
       {editTarget && <EditModal sesi={editTarget} onSave={handleSaveEdit} onClose={() => setEditTarget(null)} />}
     </AdminLayout>
   );
