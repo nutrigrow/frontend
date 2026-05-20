@@ -618,7 +618,7 @@ export default function ArticleManagement() {
   }, [search, catFilter, statusFilter, sortBy, currentPage, filterDateFrom, filterDateTo]);
 
   const filteredAndSorted = useMemo(() => {
-    let result = [...articles];
+    const result = [...articles];
     // Apply local client-side sorting based on dropdown choice
     result.sort((a, b) => {
       switch (sortBy) {
