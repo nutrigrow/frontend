@@ -1263,10 +1263,19 @@ export default function HealthLog() {
 
         setLogs({ teenage: teen, pregnant: preg, breastfeeding: bf })
         setLogIds({ teenage: teenIds, pregnant: pregIds, breastfeeding: bfIds })
-        // Set today's log from the most recent entry
+        
+        // Set today's log from the most recent entry if it's today
         const todayIso = new Date().toISOString().split('T')[0]
         const todayEntry = sorted.find(l => l.date === todayIso)
         setTodayLog(todayEntry ?? null)
+
+        // Set active category to the latest logged data's category
+        if (sorted.length > 0) {
+          const latestProfile = sorted[0].profile_type
+          if (latestProfile === 'teen') setActiveCategory('teenage')
+          else if (latestProfile === 'pregnant') setActiveCategory('pregnant')
+          else if (latestProfile === 'breastfeeding') setActiveCategory('breastfeeding')
+        }
       })
       .catch(() => {})
       .finally(() => setLogsLoading(false))
