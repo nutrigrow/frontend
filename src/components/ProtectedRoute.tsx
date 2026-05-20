@@ -9,7 +9,7 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!isLoggedIn) {
-    return <Navigate to="/about-us" replace />
+    return <Navigate to="/" replace />
   }
 
   if (user?.role?.toUpperCase() === 'ADMIN') {
