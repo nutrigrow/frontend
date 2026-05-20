@@ -188,13 +188,14 @@ export interface ShopOrder {
   };
   alamat: {
     id: number;
-    penerima: string;
-    telepon: string;
-    provinsi: string;
-    kota: string;
+    namaPenerima: string;
+    noTelepon: string;
+    alamatLengkap: string;
+    kelurahan: string;
     kecamatan: string;
-    detail: string;
-    label: string;
+    kota: string;
+    kodePos: string;
+    isUtama: boolean;
   } | null;
   items: ShopOrderItem[];
 }
