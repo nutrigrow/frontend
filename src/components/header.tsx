@@ -3,8 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import NutriGrowLogo    from '../assets/logo/logo-nutrigrow.svg'
 import DropdownIcon     from '../assets/icons/icon-dropdown.svg'
-import NotificationIcon from '../assets/icons/icon-notification.svg'
-import SettingIcon       from '../assets/icons/icon-settings.svg'
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 // Tipe lokal untuk Avatar — memetakan 'nama' dari AuthContext ke 'name'
@@ -159,8 +157,6 @@ const Header = () => {
 
           {/* ── Desktop action icons + auth ── */}
           <div className="hidden lg:flex items-center" style={{ gap: '16px' }}>
-            <IconBtn ariaLabel="Notifikasi"><img src={NotificationIcon} alt="" width={16} height={20} /></IconBtn>
-            <IconBtn ariaLabel="Pengaturan"><img src={SettingIcon} alt="" width={21} height={20} /></IconBtn>
 
             {/* Profile dropdown / Sign In */}
             {isLoggedIn && user ? (
@@ -263,16 +259,6 @@ const Header = () => {
           </div>
 
           <div style={{ height: '1px', background: 'var(--color-nutri-border)', margin: '12px 0' }} />
-
-          {/* Icon actions mobile */}
-          <div className="flex items-center gap-3 py-1 mb-3">
-            <IconBtn ariaLabel="Notifikasi"><img src={NotificationIcon} alt="" width={16} height={20} /></IconBtn>
-            <span className="text-sm md:text-base font-[family-name:var(--font-heading)] text-[color:var(--color-nutri-slate)]">Notifikasi</span>
-          </div>
-          <div className="flex items-center gap-3 py-1 mb-4">
-            <IconBtn ariaLabel="Pengaturan"><img src={SettingIcon} alt="" width={21} height={20} /></IconBtn>
-            <span className="text-sm md:text-base font-[family-name:var(--font-heading)] text-[color:var(--color-nutri-slate)]">Pengaturan</span>
-          </div>
 
           {/* Auth button mobile */}
           {isLoggedIn ? (
@@ -412,21 +398,6 @@ const MobileFeaturesAccordion = ({ open, onToggle, items, onItemClick }: any) =>
     </div>
   )
 }
-
-// ─── IconBtn ──────────────────────────────────────────────────────────────────
-const IconBtn = ({ children, ariaLabel }: { children: React.ReactNode; ariaLabel: string }) => (
-  <button
-    aria-label={ariaLabel}
-    style={{
-      width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--color-nutri-icon-bg)', border: 'none', borderRadius: '8px', cursor: 'pointer',
-    }}
-    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--color-nutri-icon-bg-hover)' }}
-    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--color-nutri-icon-bg)' }}
-  >
-    {children}
-  </button>
-)
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 const Avatar = ({ user, size = 36 }: { user: DisplayUser; size?: number }) => (
