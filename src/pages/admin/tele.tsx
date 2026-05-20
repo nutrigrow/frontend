@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { 
-  Search, Download, ChevronDown, ChevronUp, 
-  ArrowLeft, X, Calendar, Users, 
+  Search, Download, ChevronDown, ChevronUp,
+  X, Calendar, Users,
   TrendingUp, CheckCircle, XCircle, Link2, FileText, Loader2,
   ChevronLeft, ChevronRight 
 } from "lucide-react";
