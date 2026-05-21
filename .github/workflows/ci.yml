@@ -120,7 +120,7 @@ jobs:
 
           PATTERN_MATCHES=$(grep -RInE \
             "(AKIA[0-9A-Z]{16}|-----BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY-----|ghp_[A-Za-z0-9_]{36}|sk-[A-Za-z0-9]{20,})" \
-            src public Dockerfile nginx.conf package.json package-lock.json 2>/dev/null || true)
+            src public Dockerfile .github/docker/frontend.Dockerfile nginx.conf package.json package-lock.json 2>/dev/null || true)
 
           if [ -n "$PATTERN_MATCHES" ]; then
             echo "::error::Potential leaked secret pattern detected:"
@@ -149,6 +149,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: .github/docker/frontend.Dockerfile
           push: false
           tags: nutrigrow-frontend:ci-test
           cache-from: type=gha
