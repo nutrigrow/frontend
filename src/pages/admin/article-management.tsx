@@ -128,34 +128,66 @@ function parseDatetimeToLocal(display: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function renderPreviewHTML(text: string): string {
-  const lines = text.split("\n");
-  let html = "";
-  let inUl = false;
+function renderPreviewContent(text: string): React.ReactNode {
+  if (!text.trim()) {
+    return <p className="text-gray-400 italic">Belum ada konten untuk ditampilkan.</p>;
+  }
 
-  for (const rawLine of lines) {
+  const lines = text.split("\n");
+  const blocks: React.ReactNode[] = [];
+  let listItems: React.ReactNode[][] = [];
+
+  const flushList = (key: number) => {
+    if (listItems.length === 0) return;
+    blocks.push(
+      <ul key={`ul-${key}`} className="list-disc pl-5 my-1">
+        {listItems.map((item, index) => (
+          <li key={index} className="my-0.5">{item}</li>
+        ))}
+      </ul>
+    );
+    listItems = [];
+  };
+
+  lines.forEach((rawLine, index) => {
     const line = rawLine;
     if (/^•\s/.test(line)) {
-      if (!inUl) { html += "<ul style=\"list-style:disc;padding-left:1.25rem;margin:0.25rem 0\">"; inUl = true; }
-      const content = applyInline(line.slice(2));
-      html += `<li style="margin:0.1rem 0">${content}</li>`;
+      listItems.push(renderInlineContent(line.slice(2)));
     } else {
-      if (inUl) { html += "</ul>"; inUl = false; }
+      flushList(index);
       if (line.trim() === "") {
-        html += "<br/>";
+        blocks.push(<div key={`space-${index}`} className="h-3" />);
       } else {
-        html += `<p style="margin:0.25rem 0">${applyInline(line)}</p>`;
+        blocks.push(<p key={`p-${index}`} className="my-1">{renderInlineContent(line)}</p>);
       }
     }
-  }
-  if (inUl) html += "</ul>";
-  return html;
+  });
+
+  flushList(lines.length);
+  return blocks;
 }
 
-function applyInline(text: string): string {
-  text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  text = text.replace(/\*(.+?)\*/g, "<em>$1</em>");
-  return text;
+function renderInlineContent(text: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  const inlinePattern = /(\*\*[^*]+?\*\*|\*[^*]+?\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = inlinePattern.exec(text)) !== null) {
+    if (match.index > lastIndex) nodes.push(text.slice(lastIndex, match.index));
+
+    const token = match[0];
+    if (token.startsWith("**")) {
+      nodes.push(<strong key={`strong-${match.index}`}>{token.slice(2, -2)}</strong>);
+    } else {
+      nodes.push(<em key={`em-${match.index}`}>{token.slice(1, -1)}</em>);
+    }
+
+    lastIndex = match.index + token.length;
+  }
+
+  if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
+  return nodes;
 }
 
 const selectCls = "appearance-none border border-gray-200 rounded-lg px-3 py-2 pr-7 text-[13px] sm:text-sm text-gray-700 bg-white outline-none focus:ring-2 focus:ring-[#4a7c59]/25 focus:border-[#4a7c59] cursor-pointer w-full";
@@ -257,7 +289,6 @@ function StatCard({ label, value, sub, icon, color }: { label: string; value: st
 }
 
 function PreviewModal({ content, onClose }: { content: string; onClose: () => void }) {
-  const html = renderPreviewHTML(content);
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
@@ -265,7 +296,7 @@ function PreviewModal({ content, onClose }: { content: string; onClose: () => vo
           <h3 className="text-base font-bold text-gray-900 flex items-center gap-2"><Eye size={16} className="text-[#4a7c59]" /> Preview Konten</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={18} /></button>
         </div>
-        <div className="flex-1 overflow-y-auto p-5 text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none font-sans" dangerouslySetInnerHTML={{ __html: html || "<p class='text-gray-400 italic'>Belum ada konten untuk ditampilkan.</p>" }} />
+        <div className="flex-1 overflow-y-auto p-5 text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none font-sans">{renderPreviewContent(content)}</div>
         <div className="px-5 py-3 border-t border-gray-100 flex justify-end"><button onClick={onClose} className="px-4 py-2 bg-[#4a7c59] text-white rounded-lg text-sm font-semibold hover:bg-[#3d6849]">Tutup</button></div>
       </div>
     </div>
