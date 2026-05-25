@@ -474,10 +474,22 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="mt-4">
-              <Sparkline data={growthData} />
-              <div className="flex justify-between text-[10px] font-bold text-[#94a3b8] px-1 mt-1 font-[Montserrat,sans-serif]">
-                {growthData.map(d => <span key={d.label}>{d.label}</span>)}
-              </div>
+              {children.length > 0 && growthData.length > 0 ? (
+                <>
+                  <Sparkline data={growthData} />
+                  <div className="flex justify-between text-[10px] font-bold text-[#94a3b8] px-1 mt-1 font-[Montserrat,sans-serif]">
+                    {growthData.map(d => <span key={d.label}>{d.label}</span>)}
+                  </div>
+                </>
+              ) : children.length > 0 ? (
+                <div className="bg-slate-50 rounded-xl p-8 text-center text-slate-400 font-medium text-sm">
+                  Belum ada catatan pertumbuhan untuk {selectedChildName}. Yuk, catat pertumbuhan pertamanya!
+                </div>
+              ) : (
+                <div className="bg-slate-50 rounded-xl p-8 text-center text-slate-400 font-medium text-sm">
+                  Belum ada data anak. Tambahkan profil anak untuk melihat grafik pertumbuhan.
+                </div>
+              )}
             </div>
           </div>
 
