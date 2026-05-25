@@ -99,7 +99,7 @@ const SectionOurRoots = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(28,25,23,0.92) 0%, rgba(28,25,23,0.55) 60%, rgba(28,25,23,0.2) 100%)' }} />
 
       <div style={{ position: 'relative', zIndex: 2, maxWidth: 1280, margin: '0 auto', paddingInline, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: isMobile ? 18 : 28, maxWidth: isMobile ? '100%' : 840 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: isMobile ? 18 : 28, maxWidth: isMobile ? '100%' : 1000 }}>
 
           {/* Badge */}
           <div className="badge-shimmer" style={{ display: 'inline-flex', padding: '6px 18px', borderRadius: 9999, border: '1px solid rgba(163,230,53,0.3)', boxShadow: '0 4px 12px rgba(163,230,53,0.1)' }}>
@@ -109,12 +109,12 @@ const SectionOurRoots = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           </div>
 
           <h1 style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900, fontSize: bp === 'mobile' ? 32 : bp === 'tablet' ? 44 : 54, lineHeight: isMobile ? '42px' : '64px', color: BRAND.white, margin: 0 }}>
-            Lebih dari Sekadar Pencatat,{' '}
+            Lebih dari Sekadar Pencatat, {bp !== 'mobile' && <br />}
             <span className="text-gradient-lime" style={{ fontWeight: 900 }}>Kami Adalah Pendamping Anda.</span>
           </h1>
 
-          <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: isMobile ? 14 : 18, lineHeight: isMobile ? '24px' : '30px', color: '#E7E5E4', margin: 0, maxWidth: 620 }}>
-            Langkah pertama untuk generasi yang lebih sehat dimulai dari sini. Pantau pertumbuhan anak dan asupan gizi secara presisi dalam satu platform terpadu.
+          <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: isMobile ? 14 : 18, lineHeight: isMobile ? '24px' : '30px', color: '#E7E5E4', margin: 0, maxWidth: 760 }}>
+            Langkah pertama untuk generasi yang lebih sehat dimulai dari sini. {bp !== 'mobile' && <br />} Pantau pertumbuhan anak dan asupan gizi secara presisi dalam satu platform terpadu.
           </p>
 
           <button

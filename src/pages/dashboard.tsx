@@ -441,7 +441,7 @@ export default function Dashboard() {
               </div>
               {/* <span className="flex items-center gap-1 text-xs font-medium text-[#4d7c0f] bg-green-50 border border-green-200 rounded-full px-3 py-1 flex-shrink-0"><img src={iconHealthyRange} className="w-4 h-4 object-contain" alt="" /> Within Healthy Range</span> */}
             </div>
-            <div className="grid grid-cols-4 gap-3 mt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
               {[
                 { label: "Tinggi Badan", value: heightValue, sub: heightSub },
                 { label: "Berat Badan", value: weightValue, sub: weightSub },
