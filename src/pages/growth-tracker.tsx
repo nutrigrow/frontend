@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { useAuth } from '../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 import {
   ComposedChart,
   Area,
@@ -38,6 +40,8 @@ type SaveStatus = 'idle' | 'success' | 'error'
 type Measurement = {
   id: number;
   date: string; age: string; height: string; weight: string; heightPct: string; weightPct: string
+  medianHeight?: string
+  medianWeight?: string
   risikoStuntingMl: string | null
   mlConfidence: number | null
 }
@@ -152,14 +156,14 @@ const BmiTooltip = ({ active, payload, label }: any) => {
   )
 }
 
-const ChildTooltip = ({ active, payload, label, unit }: any) => {
+const ChildTooltip = ({ active, payload, label, unit, childName }: any) => {
   if (!active || !payload || !payload.length) return null
   const child = payload.find((p: any) => p.dataKey === 'child')
   if (!child) return null
   return (
     <div className="bg-slate-900 text-white rounded-lg px-3 py-2 shadow-xl border border-slate-700 text-xs font-[Montserrat,sans-serif]">
       <p className="font-bold text-slate-300 mb-0.5 text-[11px]">{label}</p>
-      <p className="font-bold text-[#86efac] text-[11px]">Anak Kamu: <span className="text-white">{child.value} {unit}</span></p>
+      <p className="font-bold text-[#86efac] text-[11px]">{childName || 'Anak Kamu'}: <span className="text-white">{child.value} {unit}</span></p>
     </div>
   )
 }
@@ -216,11 +220,25 @@ const CalendarPicker = ({ value, onChange, onClose }: { value: string; onChange:
       <div className="grid grid-cols-7 gap-y-1">
         {cells.map((day, i) => (
           <div key={i} className="flex items-center justify-center">
-            {day ? (
-              <button onClick={() => handleSelect(day)} className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${isSelected(day) ? 'bg-[#628141] text-white' : 'text-slate-700 hover:bg-[#f0f7e8] hover:text-[#628141]'}`}>
-                {day}
-              </button>
-            ) : <span />}
+            {day ? (() => {
+              const cellDate = new Date(viewYear, viewMonth, day)
+              const isFuture = cellDate > new Date()
+              return (
+                <button
+                  disabled={isFuture}
+                  onClick={() => handleSelect(day)}
+                  className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${
+                    isSelected(day) 
+                      ? 'bg-[#628141] text-white' 
+                      : isFuture 
+                        ? 'text-slate-300 cursor-not-allowed' 
+                        : 'text-slate-700 hover:bg-[#f0f7e8] hover:text-[#628141]'
+                  }`}
+                >
+                  {day}
+                </button>
+              )
+            })() : <span />}
           </div>
         ))}
       </div>
@@ -295,6 +313,14 @@ const validateInputs = (height: string, weight: string, date: string) => {
     const parts = date.split('/')
     if (parts.length !== 3 || parts.some(p => p === '') || isNaN(new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime())) {
       errors.date = 'Masukkan tanggal yang valid (HH/BB/TTTT).'
+    } else {
+      const selectedDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      selectedDate.setHours(0,0,0,0);
+      if (selectedDate > today) {
+        errors.date = 'Tanggal pengukuran tidak boleh di masa depan.'
+      }
     }
   }
   return errors
@@ -965,12 +991,12 @@ const GrowthChartSection = ({
 )
 
 // ─── Section 4: Sub-charts ────────────────────────────────────────────────────
-const SmallChart = ({ title, data, lastLabel, bp, unit }: { title: string; data: any[]; lastLabel: string; bp: 'mobile' | 'tablet' | 'desktop'; unit: string }) => {
+const SmallChart = ({ title, data, lastLabel, bp, unit, childName }: { title: string; data: any[]; lastLabel: string; bp: 'mobile' | 'tablet' | 'desktop'; unit: string; childName: string }) => {
   const [modalOpen, setModalOpen] = useState(false)
   const dotFn = makeLineDot(data, lastLabel)
   const isMobile = bp === 'mobile'
   const legendItems = [
-    { color: '#3f6212', label: 'Anak Kamu' },
+    { color: '#3f6212', label: childName },
     { color: '#cbd5e1', dash: true, label: 'Median WHO' },
   ]
   const chartContent = () => (
@@ -979,7 +1005,7 @@ const SmallChart = ({ title, data, lastLabel, bp, unit }: { title: string; data:
         <CartesianGrid vertical={false} stroke="#f1f5f9" strokeWidth={1} />
         <XAxis dataKey="age" tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
         <YAxis tick={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
-        <Tooltip content={<ChildTooltip unit={unit} />} cursor={{ stroke: '#628141', strokeWidth: 1, strokeDasharray: '4 4' }} />
+        <Tooltip content={<ChildTooltip unit={unit} childName={childName} />} cursor={{ stroke: '#628141', strokeWidth: 1, strokeDasharray: '4 4' }} />
         <Line type="monotone" dataKey="median" stroke="#cbd5e1" strokeDasharray="4 4" strokeWidth={1.5} dot={false} activeDot={false} />
         <Line type="monotone" dataKey="child" stroke="#3f6212" strokeWidth={2.5} dot={dotFn as any} activeDot={{ r: 5, fill: '#3f6212', stroke: 'white', strokeWidth: 2 }} />
       </ComposedChart>
@@ -1003,15 +1029,16 @@ const SmallChart = ({ title, data, lastLabel, bp, unit }: { title: string; data:
 }
 
 const SubChartsSection = ({
-  bp, heightData, weightData,
+  bp, heightData, weightData, childName,
 }: {
   bp: 'mobile' | 'tablet' | 'desktop'
   heightData: { age: string; child: number }[]
   weightData: { age: string; child: number }[]
+  childName: string
 }) => (
   <div className={`w-full mb-8 grid gap-6 ${bp === 'mobile' ? 'grid-cols-1' : 'grid-cols-2'}`}>
-    <SmallChart title="Tinggi Badan sesuai Usia" data={heightData} lastLabel={heightData.length > 0 ? String(heightData[heightData.length-1].child) : ''} bp={bp} unit="cm" />
-    <SmallChart title="Berat Badan sesuai Usia" data={weightData} lastLabel={weightData.length > 0 ? String(weightData[weightData.length-1].child) : ''} bp={bp} unit="kg" />
+    <SmallChart title="Tinggi Badan sesuai Usia" data={heightData} lastLabel={heightData.length > 0 ? String(heightData[heightData.length-1].child) : ''} bp={bp} unit="cm" childName={childName} />
+    <SmallChart title="Berat Badan sesuai Usia" data={weightData} lastLabel={weightData.length > 0 ? String(weightData[weightData.length-1].child) : ''} bp={bp} unit="kg" childName={childName} />
   </div>
 )
 
@@ -1150,7 +1177,7 @@ const RecentMeasurementsSection = ({
 }
 
 // ─── Save Notification Banner ─────────────────────────────────────────────────
-const SaveNotification = ({ saveStatus }: { saveStatus: SaveStatus }) => {
+const SaveNotification = ({ saveStatus, errorMessage }: { saveStatus: SaveStatus; errorMessage?: string }) => {
   if (saveStatus !== 'success' && saveStatus !== 'error') return null
   const isSuccess = saveStatus === 'success'
   return (
@@ -1163,14 +1190,14 @@ const SaveNotification = ({ saveStatus }: { saveStatus: SaveStatus }) => {
         )}
       </div>
       <span className="font-[Montserrat,sans-serif] font-semibold text-[15px] text-white whitespace-nowrap">
-        {isSuccess ? 'Data tersimpan!' : 'Gagal menyimpan data!'}
+        {isSuccess ? 'Data tersimpan!' : (errorMessage || 'Gagal menyimpan data!')}
       </span>
     </div>
   )
 }
 
 // ─── Page Title Section ───────────────────────────────────────────────────────
-const PageTitleSection = ({ bp, saveStatus }: { bp: 'mobile' | 'tablet' | 'desktop'; saveStatus: SaveStatus }) => {
+const PageTitleSection = ({ bp, saveStatus, errorMessage }: { bp: 'mobile' | 'tablet' | 'desktop'; saveStatus: SaveStatus; errorMessage?: string }) => {
   const isMobile = bp === 'mobile'
   return (
     <div className={`flex w-full mb-8 gap-4 ${isMobile ? 'flex-col items-start' : 'flex-row items-end justify-between'}`}>
@@ -1182,7 +1209,7 @@ const PageTitleSection = ({ bp, saveStatus }: { bp: 'mobile' | 'tablet' | 'deskt
           Pantau tumbuh kembang anak berdasarkan standar WHO.
         </p>
       </div>
-      <SaveNotification saveStatus={saveStatus} />
+      <SaveNotification saveStatus={saveStatus} errorMessage={errorMessage} />
     </div>
   )
 }
@@ -1241,6 +1268,7 @@ const AddChildModal = ({
             <label style={{ fontFamily: 'Montserrat,sans-serif', fontWeight: 700, fontSize: 12, color: '#475569', display: 'block', marginBottom: 6 }}>{label}</label>
             <input
               type={type} value={val} onChange={e => set(e.target.value)}
+              max={type === 'date' ? new Date().toISOString().split('T')[0] : undefined}
               style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #e2e8f0', fontFamily: 'Montserrat,sans-serif', fontSize: 14, outline: 'none' }}
             />
           </div>
@@ -1267,6 +1295,8 @@ const AddChildModal = ({
 // ─── Main GrowthTracker Component ─────────────────────────────────────────────
 const GrowthTracker = () => {
   const bp = useBreakpoint()
+  const { user } = useAuth()
+  const navigate = useNavigate()
 
   // ── Children state ──
   const [children, setChildren] = useState<{ id: number; namaDepan: string; namaAkhir: string | null; tanggalLahir: string; jenisKelamin: 'LAKI_LAKI' | 'PEREMPUAN' }[]>([])
@@ -1296,6 +1326,7 @@ const GrowthTracker = () => {
   const [dateError,   setDateError]   = useState<string | undefined>()
   const [editIndex, setEditIndex] = useState<number | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  const [saveErrorMessage, setSaveErrorMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const formRef = useRef<HTMLDivElement>(null)
 
@@ -1439,9 +1470,18 @@ const GrowthTracker = () => {
       setSaveStatus('success')
       setTimeout(() => setSaveStatus('idle'), 2500)
       handleCancelEdit()
-    } catch {
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Gagal menyimpan data!'
+      if (msg.includes('sudah tercatat') || msg.includes('sudah ada') || msg.includes('tercatat')) {
+        setSaveErrorMessage('Anda sudah memasukkan entry untuk hari ini.')
+      } else {
+        setSaveErrorMessage(msg)
+      }
       setSaveStatus('error')
-      setTimeout(() => setSaveStatus('idle'), 2500)
+      setTimeout(() => {
+        setSaveStatus('idle')
+        setSaveErrorMessage('')
+      }, 3500)
     } finally {
       setSaving(false)
     }
@@ -1465,7 +1505,7 @@ const GrowthTracker = () => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <PageTitleSection bp={bp} saveStatus={saveStatus} />
+          <PageTitleSection bp={bp} saveStatus={saveStatus} errorMessage={saveErrorMessage} />
           <button
             onClick={() => setShowAddChild(true)}
             style={{
@@ -1479,6 +1519,52 @@ const GrowthTracker = () => {
             + Tambah Anak
           </button>
         </div>
+
+
+
+        {!user?.tinggiBadanIbu && (
+          <div style={{
+            background: '#FFFBEB',
+            border: '1.5px solid #FDE68A',
+            borderRadius: 12,
+            padding: '14px 18px',
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 12,
+            fontFamily: 'Montserrat, sans-serif'
+          }}>
+            <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>⚠️</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: '#92400E' }}>
+                Tinggi Badan Ibu Belum Diisi
+              </p>
+              <p style={{ margin: '3px 0 0', fontSize: 12, color: '#B45309', lineHeight: 1.55 }}>
+                Prediksi risiko stunting saat ini menggunakan tinggi badan ibu default <strong>151.5 cm</strong>. Lengkapi data tinggi badan Ibu agar analisis AI lebih akurat.
+              </p>
+              <button
+                onClick={() => navigate('/profile')}
+                style={{
+                  marginTop: 8,
+                  background: '#D97706',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '5px 14px',
+                  fontWeight: 700,
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  fontFamily: 'Montserrat, sans-serif',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#B45309')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#D97706')}
+              >
+                Lengkapi Profil →
+              </button>
+            </div>
+          </div>
+        )}
 
         {!selectedChildId && !childrenLoading && (
           <div style={{ textAlign: 'center', padding: '60px 24px', color: '#78716c', fontFamily: 'Montserrat,sans-serif' }}>
@@ -1523,7 +1609,7 @@ const GrowthTracker = () => {
                   lastUpdated={lastUpdated}
                 />
                 <GrowthChartSection bp={bp} bmiData={bmiData} childName={childName} />
-                <SubChartsSection bp={bp} heightData={heightData} weightData={weightData} />
+                <SubChartsSection bp={bp} heightData={heightData} weightData={weightData} childName={childName} />
                 <RecentMeasurementsSection bp={bp} measurements={measurements} onEdit={handleEdit} onDelete={handleDelete} />
               </>
             )}

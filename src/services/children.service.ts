@@ -32,6 +32,8 @@ export interface ApiPercentileItem {
   beratBadan: number;
   persentilTinggi: string;
   persentilBerat: string;
+  medianTinggi: number | null;
+  medianBerat: number | null;
   risikoStuntingMl: string | null;
   mlConfidence: number | null;
 }
@@ -78,6 +80,8 @@ export const transformPercentileToMeasurements = (items: ApiPercentileItem[]) =>
     weight:           `${(Number(item.beratBadan) || 0).toFixed(1)} kg`,
     heightPct:        item.persentilTinggi || 'N/A',
     weightPct:        item.persentilBerat || 'N/A',
+    medianHeight:     item.medianTinggi ? `${Number(item.medianTinggi).toFixed(1)} cm` : '—',
+    medianWeight:     item.medianBerat ? `${Number(item.medianBerat).toFixed(1)} kg` : '—',
     risikoStuntingMl: item.risikoStuntingMl,
     mlConfidence:     item.mlConfidence,
   }));
@@ -89,6 +93,7 @@ export const transformToSubChartData = (
   [...(items || [])].reverse().map((item) => ({
     age:   formatAgeLabel(item.usiaHari || 0),
     child: field === 'height' ? (Number(item.tinggiBadan) || 0) : (Number(item.beratBadan) || 0),
+    median: field === 'height' ? (item.medianTinggi ?? undefined) : (item.medianBerat ?? undefined),
   }));
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -159,5 +164,9 @@ export const childrenService = {
 
   deleteGrowthRecord: async (recordId: number) => {
     await apiClient.delete(`/api/children/growth/${recordId}`);
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/children/${id}`);
   },
 };
