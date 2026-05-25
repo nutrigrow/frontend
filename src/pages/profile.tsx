@@ -12,6 +12,8 @@ import { useAuth }         from "../context/AuthContext";
 import { shopService }     from "../services/shop.service";
 import { childrenService } from "../services/children.service";
 import { apiClient }       from "../services/api";
+import { useLocation }     from "react-router-dom";
+import { motion, AnimatePresence } from "motion/react";
 
 // ── Backend Types ──────────────────────────────────────────────────────────
 interface BackendAddress {
@@ -181,6 +183,7 @@ function ChildModal({ initial, onSave, onDelete, onClose, isNew, saving }: {
               <input type={f.type}
                 value={form[f.key as keyof typeof form]}
                 onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                max={f.type === "date" ? new Date().toISOString().split("T")[0] : undefined}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition" />
             </div>
           ))}
@@ -219,12 +222,26 @@ function MenuItem({ icon, label, active, onClick }: {
   icon: string; label: string; active: boolean; onClick: () => void;
 }) {
   return (
-    <button onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition text-left ${
-        active ? "bg-[#f0fde4] text-[#4d7c0f]" : "text-gray-600 hover:bg-gray-100"
-      }`}>
-      <img src={icon} className="w-5 h-5 object-contain" alt="" />
-      {label}
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-left relative z-10 transition-colors duration-250"
+      style={{
+        background: 'transparent',
+        color: active ? '#4d7c0f' : '#4b5563',
+        border: 'none',
+        cursor: 'pointer',
+      }}
+    >
+      <img src={icon} className="w-5 h-5 object-contain relative z-20" alt="" style={{ filter: active ? 'none' : 'grayscale(100%)' }} />
+      <span className="relative z-20">{label}</span>
+      {active && (
+        <motion.span
+          layoutId="activeMenuItem"
+          className="absolute inset-0 bg-[#f0fde4] rounded-xl"
+          style={{ zIndex: -1 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+        />
+      )}
     </button>
   );
 }
@@ -232,7 +249,13 @@ function MenuItem({ icon, label, active, onClick }: {
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function EditProfile() {
   const { user, refreshUser } = useAuth();
-  const [activeMenu, setActiveMenu] = useState<ActiveMenu>("data-diri");
+  const location = useLocation();
+  const [activeMenu, setActiveMenu] = useState<ActiveMenu>(() => {
+    if (location.state && (location.state as any).activeMenu) {
+      return (location.state as any).activeMenu;
+    }
+    return "data-diri";
+  });
 
   // Address state
   const [addresses, setAddresses]           = useState<Address[]>([]);
@@ -368,9 +391,18 @@ export default function EditProfile() {
     }
   };
 
-  const deleteChild = (id: number) => {
-    setChildren(prev => prev.filter(c => c.id !== id));
-    setChildModal({ open: false, editId: null });
+  const deleteChild = async (id: number) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus profil anak ini?")) return;
+    setChildSaving(true);
+    try {
+      await childrenService.delete(id);
+      setChildren(prev => prev.filter(c => c.id !== id));
+      setChildModal({ open: false, editId: null });
+    } catch {
+      alert("Gagal menghapus profil anak.");
+    } finally {
+      setChildSaving(false);
+    }
   };
 
   // ── Password handlers ──
@@ -471,234 +503,302 @@ export default function EditProfile() {
           </div>
 
           {/* Content */}
-          <div className="md:col-span-3 space-y-4">
-
-            {/* ── DATA DIRI ── */}
-            {activeMenu === "data-diri" && (
-              <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-900 mb-1">Personal Information</h2>
-                    <p className="text-sm text-gray-400">Update your basic profile details here.</p>
+          <div className="md:col-span-3">
+            <AnimatePresence mode="wait">
+              {activeMenu === "data-diri" && (
+                <motion.div
+                  key="data-diri"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="bg-white rounded-2xl p-6 shadow-sm"
+                >
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900 mb-1">Personal Information</h2>
+                      <p className="text-sm text-gray-400">Update your basic profile details here.</p>
+                    </div>
+                    {!isEditingPD && (
+                      <button 
+                        onClick={() => setIsEditingPD(true)}
+                        className="flex items-center gap-2 text-sm font-semibold text-[#4d7c0f] hover:text-[#3a5a00] transition"
+                      >
+                        <img src={editsign} alt="" className="w-4 h-4" />
+                        Edit Profil
+                      </button>
+                    )}
                   </div>
-                  {!isEditingPD && (
+                  
+                  {pdError && <p className="text-xs text-red-500 mb-4 bg-red-50 rounded-lg px-3 py-2">{pdError}</p>}
+                  {pdSuccess && <p className="text-xs text-green-600 mb-4 bg-green-50 rounded-lg px-3 py-2">{pdSuccess}</p>}
+                  
+                  {isEditingPD ? (
+                    /* EDIT MODE */
+                    <>
+                      <div className="space-y-5">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-1">Nama Lengkap</label>
+                          <input 
+                            type="text" 
+                            placeholder="Masukkan nama lengkap"
+                            className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
+                            value={personalData.nama}
+                            onChange={e => setPersonalData(p => ({ ...p, nama: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-1">Tinggi Badan Ibu (cm)</label>
+                          <input 
+                            type="number" 
+                            placeholder="Contoh: 155"
+                            className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
+                            value={personalData.tinggiBadanIbu}
+                            onChange={e => setPersonalData(p => ({ ...p, tinggiBadanIbu: e.target.value }))}
+                          />
+                          <p className="text-[10px] text-gray-400 mt-1">Data ini digunakan untuk perhitungan akurat pada prediksi stunting.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-3 mt-6">
+                        <button 
+                          onClick={() => {
+                            setIsEditingPD(false);
+                            setPersonalData({ nama: user?.nama || "", tinggiBadanIbu: user?.tinggiBadanIbu || "" });
+                          }}
+                          className="text-gray-600 px-4 py-2 rounded-xl hover:bg-gray-100 transition text-sm"
+                        >
+                          Batal
+                        </button>
+                        <button 
+                          onClick={handleSavePersonalData} 
+                          disabled={pdSaving}
+                          className="bg-[#4d7c0f] text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-[#3a5a00] transition text-sm disabled:opacity-60"
+                        >
+                          {pdSaving ? "Menyimpan..." : "Simpan Perubahan"}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    /* VIEW MODE */
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Nama Lengkap</p>
+                          <p className="text-sm text-gray-900 font-medium">{user?.nama || "—"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Tinggi Badan Ibu</p>
+                          <p className="text-sm text-gray-900 font-medium">
+                            {user?.tinggiBadanIbu ? `${user.tinggiBadanIbu} cm` : "Belum diisi"}
+                          </p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Alamat Email</p>
+                        <p className="text-sm text-gray-500 font-medium">{user?.email || "—"}</p>
+                        <p className="text-[10px] text-gray-400 mt-1 italic">* Email tidak dapat diubah (terhubung ke akun Google/Login)</p>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {activeMenu === "alamat" && (
+                <motion.div
+                  key="alamat"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="bg-white rounded-2xl p-6 shadow-sm"
+                >
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900 mb-1">Daftar Alamat</h2>
+                      <p className="text-sm text-gray-400">Kelola alamat pengiriman belanja Anda di sini.</p>
+                    </div>
                     <button 
-                      onClick={() => setIsEditingPD(true)}
+                      onClick={() => setAddressModal({ open: true, editId: null })}
                       className="flex items-center gap-2 text-sm font-semibold text-[#4d7c0f] hover:text-[#3a5a00] transition"
                     >
-                      <img src={editsign} alt="" className="w-4 h-4" />
-                      Edit Profil
-                    </button>
-                  )}
-                </div>
-                
-                {pdError && <p className="text-xs text-red-500 mb-4 bg-red-50 rounded-lg px-3 py-2">{pdError}</p>}
-                {pdSuccess && <p className="text-xs text-green-600 mb-4 bg-green-50 rounded-lg px-3 py-2">{pdSuccess}</p>}
-                
-                {isEditingPD ? (
-                  /* EDIT MODE */
-                  <>
-                    <div className="space-y-5">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Nama Lengkap</label>
-                        <input 
-                          type="text" 
-                          placeholder="Masukkan nama lengkap"
-                          className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
-                          value={personalData.nama}
-                          onChange={e => setPersonalData(p => ({ ...p, nama: e.target.value }))}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Tinggi Badan Ibu (cm)</label>
-                        <input 
-                          type="number" 
-                          placeholder="Contoh: 155"
-                          className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
-                          value={personalData.tinggiBadanIbu}
-                          onChange={e => setPersonalData(p => ({ ...p, tinggiBadanIbu: e.target.value }))}
-                        />
-                        <p className="text-[10px] text-gray-400 mt-1">Data ini digunakan untuk perhitungan akurat pada prediksi stunting.</p>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3 mt-6">
-                      <button 
-                        onClick={() => {
-                          setIsEditingPD(false);
-                          setPersonalData({ nama: user?.nama || "", tinggiBadanIbu: user?.tinggiBadanIbu || "" });
-                        }}
-                        className="text-gray-600 px-4 py-2 rounded-xl hover:bg-gray-100 transition text-sm"
-                      >
-                        Batal
-                      </button>
-                      <button 
-                        onClick={handleSavePersonalData} 
-                        disabled={pdSaving}
-                        className="bg-[#4d7c0f] text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-[#3a5a00] transition text-sm disabled:opacity-60"
-                      >
-                        {pdSaving ? "Menyimpan..." : "Simpan Perubahan"}
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  /* VIEW MODE */
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Nama Lengkap</p>
-                        <p className="text-sm text-gray-900 font-medium">{user?.nama || "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Tinggi Badan Ibu</p>
-                        <p className="text-sm text-gray-900 font-medium">
-                          {user?.tinggiBadanIbu ? `${user.tinggiBadanIbu} cm` : "Belum diisi"}
-                        </p>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Alamat Email</p>
-                      <p className="text-sm text-gray-500 font-medium">{user?.email || "—"}</p>
-                      <p className="text-[10px] text-gray-400 mt-1 italic">* Email tidak dapat diubah (terhubung ke akun Google/Login)</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── ALAMAT ── */}
-            {activeMenu === "alamat" && (
-              <>
-                {addrLoading ? (
-                  <div className="bg-white rounded-2xl p-8 shadow-sm text-center text-sm text-gray-400">Memuat alamat...</div>
-                ) : addresses.length === 0 ? (
-                  <div className="bg-white rounded-2xl p-8 shadow-sm text-center text-sm text-gray-400">Belum ada alamat tersimpan.</div>
-                ) : addresses.map(addr => (
-                  <div key={addr.id} className="bg-white rounded-2xl p-5 shadow-sm flex items-start justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-bold text-gray-900 text-sm">{addr.namaPenerima}</p>
-                        {addr.isDefault && (
-                          <span className="text-[10px] border border-gray-300 rounded-full px-2 py-0.5 text-gray-500">Utama</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500">{addr.noTelepon}</p>
-                      <p className="text-xs text-gray-600 mt-0.5">{addr.alamatLengkap}</p>
-                      <p className="text-xs text-gray-600">
-                        {addr.kelurahan && `${addr.kelurahan}, `}
-                        {addr.kecamatan && `${addr.kecamatan}, `}
-                        {addr.kota}
-                        {addr.kodePos && ` ${addr.kodePos}`}
-                      </p>
-                    </div>
-                    <button onClick={() => setAddressModal({ open: true, editId: addr.id })}>
-                      <img src={editsign} alt="edit" className="w-5 h-5" />
+                      + Tambah Alamat
                     </button>
                   </div>
-                ))}
-                <div className="flex justify-center">
-                  <button onClick={() => setAddressModal({ open: true, editId: null })}
-                    className="bg-[#4d7c0f] text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-[#3a5a00] transition text-sm">
-                    + Tambah Alamat
-                  </button>
-                </div>
-              </>
-            )}
 
-            {/* ── PROFIL ANAK ── */}
-            {activeMenu === "profil-anak" && (
-              <>
-                {childLoading ? (
-                  <div className="bg-white rounded-2xl p-8 shadow-sm text-center text-sm text-gray-400">Memuat data anak...</div>
-                ) : children.length === 0 ? (
-                  <div className="bg-white rounded-2xl p-8 shadow-sm text-center text-sm text-gray-400">Belum ada profil anak.</div>
-                ) : children.map(child => (
-                  <div key={child.id} className="bg-white rounded-2xl p-5 shadow-sm flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <img
-                        src={child.jenisKelamin === "PEREMPUAN" ? girlsymbol : boysymbol}
-                        alt={child.jenisKelamin}
-                        className="w-10 h-10 object-contain"
-                      />
-                      <div>
-                        <p className="font-bold text-gray-900 text-sm">
-                          {child.namaDepan}{child.namaAkhir ? ` ${child.namaAkhir}` : ""}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {child.jenisKelamin === "PEREMPUAN" ? "Perempuan" : "Laki-laki"}
-                        </p>
-                        <p className="text-xs text-gray-400">{child.tanggalLahir}</p>
-                      </div>
-                    </div>
-                    <button onClick={() => setChildModal({ open: true, editId: child.id })}>
-                      <img src={editsign} alt="edit" className="w-5 h-5" />
-                    </button>
-                  </div>
-                ))}
-                <div className="flex justify-center">
-                  <button onClick={() => setChildModal({ open: true, editId: null })}
-                    className="bg-[#4d7c0f] text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-[#3a5a00] transition text-sm">
-                    Tambah Profil Anak
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* ── RESET PASSWORD ── */}
-            {activeMenu === "reset-password" && (
-              <div className="bg-[#fff7ed] rounded-2xl p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-gray-900 mb-1">Security &amp; Password</h2>
-                <p className="text-sm text-gray-500 mb-6">Jaga keamanan akun Anda dengan menggunakan kata sandi yang kuat.</p>
-                {pwError   && <p className="text-xs text-red-500 mb-4 bg-red-50 rounded-lg px-3 py-2">{pwError}</p>}
-                {pwSuccess && <p className="text-xs text-green-600 mb-4 bg-green-50 rounded-lg px-3 py-2">{pwSuccess}</p>}
-                <div className="space-y-5">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Password Saat Ini</label>
-                    <input type="password" placeholder="Enter Current Password"
-                      className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
-                      value={passwords.current}
-                      onChange={e => setPasswords(p => ({ ...p, current: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Kata Sandi Baru</label>
-                    <input type="password" placeholder="Enter new password"
-                      className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
-                      value={passwords.newPass}
-                      onChange={e => handleNewPassword(e.target.value)} />
-                    {passwords.newPass && (
-                      <div className="mt-2">
-                        <div className="flex gap-1 mb-1">
-                          {[1,2,3,4].map(i => (
-                            <div key={i} className="h-1.5 flex-1 rounded-full transition-all"
-                              style={{ backgroundColor: i <= pwStrength ? strengthColor : "#e5e7eb" }} />
-                          ))}
+                  {addrLoading ? (
+                    <div className="text-center text-sm text-gray-400 py-8">Memuat alamat...</div>
+                  ) : addresses.length === 0 ? (
+                    <div className="text-center text-sm text-gray-400 py-8">Belum ada alamat tersimpan.</div>
+                  ) : (
+                    <div className="space-y-4">
+                      {addresses.map(addr => (
+                        <div key={addr.id} className="border border-gray-100 rounded-2xl p-5 hover:border-gray-200 transition relative flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <p className="font-bold text-gray-900 text-sm">{addr.namaPenerima}</p>
+                              {addr.isDefault && (
+                                <span className="text-[10px] bg-green-50 text-[#4d7c0f] border border-green-200 font-semibold px-2 py-0.5 rounded-full">
+                                  Utama
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500 mb-2">{addr.noTelepon}</p>
+                            <p className="text-xs text-gray-600 leading-relaxed">
+                              {addr.alamatLengkap}, Kel. {addr.kelurahan}, Kec. {addr.kecamatan}, {addr.kota}, {addr.kodePos}
+                            </p>
+                          </div>
+                          <button 
+                            onClick={() => setAddressModal({ open: true, editId: addr.id })}
+                            className="flex items-center gap-1.5 text-xs font-semibold text-[#4d7c0f] hover:text-[#3a5a00] transition"
+                          >
+                            <img src={editsign} alt="" className="w-3.5 h-3.5" />
+                            Ubah
+                          </button>
                         </div>
-                        <p className="text-xs" style={{ color: strengthColor }}>
-                          Kekuatan kata sandi: {strengthLabel}. Gunakan minimal 8 karakter dengan simbol.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Konfirmasi Kata Sandi Baru</label>
-                    <input type="password" placeholder="Repeat new password"
-                      className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
-                      value={passwords.confirm}
-                      onChange={e => setPasswords(p => ({ ...p, confirm: e.target.value }))} />
-                    {passwords.confirm && passwords.newPass !== passwords.confirm && (
-                      <p className="text-xs text-red-500 mt-1">Password tidak cocok.</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex justify-end mt-6">
-                  <button onClick={handleChangePassword} disabled={pwSaving}
-                    className="bg-[#4d7c0f] text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-[#3a5a00] transition text-sm disabled:opacity-60">
-                    {pwSaving ? "Menyimpan..." : "Save Changes"}
-                  </button>
-                </div>
-              </div>
-            )}
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              )}
 
+              {activeMenu === "profil-anak" && (
+                <motion.div
+                  key="profil-anak"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="bg-white rounded-2xl p-6 shadow-sm"
+                >
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900 mb-1">Profil Anak</h2>
+                      <p className="text-sm text-gray-400">Kelola profil balita untuk perhitungan gizi & tumbuh kembang.</p>
+                    </div>
+                    <button 
+                      onClick={() => setChildModal({ open: true, editId: null })}
+                      className="flex items-center gap-2 text-sm font-semibold text-[#4d7c0f] hover:text-[#3a5a00] transition"
+                    >
+                      + Tambah Anak
+                    </button>
+                  </div>
+
+                  {childLoading ? (
+                    <div className="text-center text-sm text-gray-400 py-8">Memuat data anak...</div>
+                  ) : children.length === 0 ? (
+                    <div className="text-center text-sm text-gray-400 py-8">Belum ada profil anak.</div>
+                  ) : (
+                    <div className="space-y-4">
+                      {children.map(child => (
+                        <div key={child.id} className="border border-gray-100 rounded-2xl p-5 hover:border-gray-200 transition flex justify-between items-center">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-[#f4f7f0] flex items-center justify-center">
+                              <img 
+                                src={child.jenisKelamin === "LAKI_LAKI" ? boysymbol : girlsymbol} 
+                                alt={child.jenisKelamin} 
+                                className="w-6 h-6 object-contain" 
+                              />
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-900 text-sm">
+                                {child.namaDepan} {child.namaAkhir}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                Lahir: {new Date(child.tanggalLahir).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' })}
+                              </p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => setChildModal({ open: true, editId: child.id })}
+                            className="flex items-center gap-1.5 text-xs font-semibold text-[#4d7c0f] hover:text-[#3a5a00] transition"
+                          >
+                            <img src={editsign} alt="" className="w-3.5 h-3.5" />
+                            Ubah
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {activeMenu === "reset-password" && (
+                <motion.div
+                  key="reset-password"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="bg-white rounded-2xl p-6 shadow-sm"
+                >
+                  <h2 className="text-lg font-bold text-gray-900 mb-1">Reset Password</h2>
+                  <p className="text-sm text-gray-400 mb-6">Ubah kata sandi akun Anda demi keamanan.</p>
+
+                  {pwError && <p className="text-xs text-red-500 mb-4 bg-red-50 rounded-lg px-3 py-2">{pwError}</p>}
+                  {pwSuccess && <p className="text-xs text-green-600 mb-4 bg-green-50 rounded-lg px-3 py-2">{pwSuccess}</p>}
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Password Lama</label>
+                      <input 
+                        type="password" 
+                        placeholder="Masukkan password lama"
+                        className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
+                        value={passwords.current}
+                        onChange={e => setPasswords(p => ({ ...p, current: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Password Baru</label>
+                      <input 
+                        type="password" 
+                        placeholder="Minimal 8 karakter"
+                        className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
+                        value={passwords.newPass}
+                        onChange={e => handleNewPassword(e.target.value)}
+                      />
+                      {passwords.newPass && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full transition-all duration-300"
+                              style={{ 
+                                width: `${(pwStrength / 4) * 100}%`, 
+                                backgroundColor: strengthColor 
+                              }} 
+                            />
+                          </div>
+                          <span className="text-xs font-semibold" style={{ color: strengthColor }}>
+                            {strengthLabel}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Konfirmasi Password Baru</label>
+                      <input 
+                        type="password" 
+                        placeholder="Ulangi password baru"
+                        className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4d7c0f] transition"
+                        value={passwords.confirm}
+                        onChange={e => setPasswords(p => ({ ...p, confirm: e.target.value }))}
+                      />
+                      {passwords.confirm && passwords.newPass !== passwords.confirm && (
+                        <p className="text-xs text-red-500 mt-1">Password tidak cocok.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end mt-6">
+                    <button onClick={handleChangePassword} disabled={pwSaving}
+                      className="bg-[#4d7c0f] text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-[#3a5a00] transition text-sm disabled:opacity-60">
+                      {pwSaving ? "Menyimpan..." : "Simpan Perubahan"}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </main>

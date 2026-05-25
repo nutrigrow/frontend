@@ -195,10 +195,7 @@ const HeroSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           gap: isMobile ? 10 : 14,
         }}
       >
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
+        <div
           style={{
             display: 'inline-flex',
             padding: '4px 14px',
@@ -221,13 +218,9 @@ const HeroSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           >
             TELE-NUTRITIONIST
           </span>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut', delay: 0.08 }}
-        >
+        <div>
           <h1
             style={{
               fontFamily: 'Montserrat, sans-serif',
@@ -252,12 +245,9 @@ const HeroSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
           >
             Kini Lebih Dekat.
           </h1>
-        </motion.div>
+        </div>
 
-        <motion.p
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut', delay: 0.16 }}
+        <p
           style={{
             fontFamily: 'var(--font-heading), sans-serif',
             fontWeight: 400,
@@ -270,7 +260,7 @@ const HeroSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
         >
           Pilih ahli gizi terbaik dari direktori kami. Lihat profil, harga sesi, dan pilih tanggal
           serta jam konsultasi yang pas untuk Anda.
-        </motion.p>
+        </p>
       </div>
     </div>
   )
@@ -541,12 +531,7 @@ export default function TeleNutritionist() {
         }}
       >
         {/* ── Toolbar: Dropdown + Search + Konsultasi Icon ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: 'easeOut', delay: 0.05 }}
-          style={{ marginBottom: 28 }}
-        >
+        <div style={{ marginBottom: 28 }}>
           {isMobile ? (
             /* ── Mobile: Dropdown row + Search row ── */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -652,15 +637,10 @@ export default function TeleNutritionist() {
               <KonsultasiButton onClick={() => navigate('/konsultasi-saya')} />
             </div>
           )}
-        </motion.div>
+        </div>
 
         {/* ── Section Title ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: 'easeOut', delay: 0.1 }}
-          style={{ marginBottom: 24 }}
-        >
+        <div style={{ marginBottom: 24 }}>
           <h2
             style={{
               fontFamily: 'Montserrat, sans-serif',
@@ -684,7 +664,7 @@ export default function TeleNutritionist() {
             Menampilkan{' '}
             <strong style={{ color: NUTRI_GREEN }}>{totalCount}</strong> profesional bersertifikat
           </p>
-        </motion.div>
+        </div>
 
         {/* ── Specialist Grid ── */}
         {loading ? (
@@ -692,10 +672,7 @@ export default function TeleNutritionist() {
             <p style={{ color: '#78716C' }}>Memuat spesialis...</p>
           </div>
         ) : specialists.length > 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: 'easeOut', delay: 0.15 }}
+          <div
             style={{
               display: 'grid',
               gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
@@ -705,7 +682,7 @@ export default function TeleNutritionist() {
             {specialists.map(sp => (
               <CardSpesialis key={sp.id} spesialis={sp} onClick={handleSpesialisClick} />
             ))}
-          </motion.div>
+          </div>
         ) : (
           <div
             style={{

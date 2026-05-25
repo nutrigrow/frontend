@@ -18,6 +18,7 @@ import { CardNutrishop } from '../components/card-nutrishop'
 import FoodsImg from '../assets/images/img-foods.svg'
 import { shopService } from '../services/shop.service'
 import { useAuth } from '../context/AuthContext'
+import { motion } from 'motion/react'
 
 // ─── Local Product type (matches backend-mapped shape) ────────────────────────
 interface Product {
@@ -358,7 +359,7 @@ const SidebarFilter = ({
           </span>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, position: 'relative' }}>
           {categories.map(({ id, label, count, IconComp }) => {
             const isActive = selectedCategory === id
             return (
@@ -368,26 +369,33 @@ const SidebarFilter = ({
                   onCategoryChange(id)
                   if (isMobile) onCloseMobile()
                 }}
+                className="relative"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '9px 12px',
                   borderRadius: 10,
-                  border: isActive ? '1px solid #628141' : '1px solid transparent',
-                  background: isActive ? '#ECFCCB' : 'transparent',
+                  border: '1px solid transparent',
+                  background: 'transparent',
                   cursor: 'pointer',
-                  transition: 'all 0.15s',
                   textAlign: 'left',
-                }}
-                onMouseEnter={e => {
-                  if (!isActive) (e.currentTarget as HTMLElement).style.background = '#F5F5F0'
-                }}
-                onMouseLeave={e => {
-                  if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent'
+                  outline: 'none',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeShopCategory"
+                    className="absolute inset-0 bg-[#ECFCCB]"
+                    style={{
+                      borderRadius: 10,
+                      border: '1px solid #628141',
+                      zIndex: 0,
+                    }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative', zIndex: 10 }}>
                   <IconComp 
                     color={isActive ? '#3F6212' : '#78716C'} 
                     width={15} 
@@ -415,6 +423,8 @@ const SidebarFilter = ({
                     borderRadius: 9999,
                     minWidth: 24,
                     textAlign: 'center',
+                    position: 'relative',
+                    zIndex: 10,
                   }}
                 >
                   {count}
@@ -1017,6 +1027,7 @@ export default function NutriShop() {
                     title={product.title}
                     description={product.description}
                     price={product.price}
+                    stock={product.stock}
                   />
                 ))}
               </div>

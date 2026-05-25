@@ -1,6 +1,9 @@
 import { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate} from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext' 
+import { AnimatePresence } from 'motion/react'
+import AnimatedPage from './components/AnimatedPage'
+import NotFound from './pages/not-found'
 
 import Header from './components/header'
 import Footer from './components/footer'
@@ -50,50 +53,58 @@ function AppLayout() {
     }
   }, [isLoggedIn, user, isAdminRoute, location.pathname, navigate]);
 
+  // Helper to wrap route element with page transition animations
+  const animated = (element: React.ReactNode) => <AnimatedPage>{element}</AnimatedPage>;
+
   return (
     <div className={isAdminRoute ? '' : 'min-h-screen bg-white flex flex-col'}>
       {/* Header global TIDAK tampil di halaman admin */}
       {!isAdminRoute && <Header />}
 
       <div className={isAdminRoute ? '' : 'flex-grow'}>
-        <Routes>
-          {/* ── Public ── */}
-          <Route path="/"              element={<AboutUs />} />
-          <Route path="/verify-email"  element={<VerifyEmail />} />  
-          <Route path="/auth/callback" element={<OAuthCallback />} />
-          <Route path="/nutrishop"     element={<NutriShop />} />
-          <Route path="/product/:id"   element={<ProductDetail />} />
-          <Route path="/checkout"      element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
-          <Route path="/artikel"       element={<Artikel />} />
-          <Route path="/baca-artikel/:id" element={<BacaArtikel />} />
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            {/* ── Public ── */}
+            <Route path="/"              element={animated(<AboutUs />)} />
+            <Route path="/verify-email"  element={animated(<VerifyEmail />)} />  
+            <Route path="/auth/callback" element={animated(<OAuthCallback />)} />
+            <Route path="/nutrishop"     element={animated(<NutriShop />)} />
+            <Route path="/product/:id"   element={animated(<ProductDetail />)} />
+            <Route path="/checkout"      element={animated(<ProtectedRoute><Checkout /></ProtectedRoute>)} />
+            <Route path="/artikel"       element={animated(<Artikel />)} />
+            <Route path="/baca-artikel/:id" element={animated(<BacaArtikel />)} />
 
-          {/* ── Auth only ── */}
-          <Route path="/sign-in"        element={<PublicOnlyRoute><SignIn /></PublicOnlyRoute>} />
-          <Route path="/sign-up"        element={<PublicOnlyRoute><SignUp /></PublicOnlyRoute>} />
-          <Route path="/reset-password" element={<PublicOnlyRoute><ResetPassword /></PublicOnlyRoute>} />
+            {/* ── Auth only ── */}
+            <Route path="/sign-in"        element={animated(<PublicOnlyRoute><SignIn /></PublicOnlyRoute>)} />
+            <Route path="/sign-up"        element={animated(<PublicOnlyRoute><SignUp /></PublicOnlyRoute>)} />
+            <Route path="/reset-password" element={animated(<PublicOnlyRoute><ResetPassword /></PublicOnlyRoute>)} />
 
-          {/* ── Protected ── */}
-          <Route path="/dashboard"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/growth-tracker" element={<ProtectedRoute><GrowthTracker /></ProtectedRoute>} />
-          <Route path="/health-log"     element={<ProtectedRoute><HealthLog /></ProtectedRoute>} />
-          <Route path="/profile"        element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/cart"           element={<ProtectedRoute><Cart /></ProtectedRoute>} />
-          <Route path="/orders"         element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
-          <Route path="/order/:id"      element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
-          <Route path="/tele-nutritionist"       element={<TeleNutritionist />} />
-          <Route path="/detail-spesialis/:id"    element={<DetailSpesialis />} />
-          <Route path="/booking-konsultasi/:id"  element={<BookingKonsultasi />} />
-          <Route path="/konsultasi-saya"         element={<KonsultasiSaya />} />
+            {/* ── Protected ── */}
+            <Route path="/dashboard"      element={animated(<ProtectedRoute><Dashboard /></ProtectedRoute>)} />
+            <Route path="/growth-tracker" element={animated(<ProtectedRoute><GrowthTracker /></ProtectedRoute>)} />
+            <Route path="/health-log"     element={animated(<ProtectedRoute><HealthLog /></ProtectedRoute>)} />
+            <Route path="/profile"        element={animated(<ProtectedRoute><Profile /></ProtectedRoute>)} />
+            <Route path="/cart"           element={animated(<ProtectedRoute><Cart /></ProtectedRoute>)} />
+            <Route path="/orders"         element={animated(<ProtectedRoute><OrderDetail /></ProtectedRoute>)} />
+            <Route path="/order/:id"      element={animated(<ProtectedRoute><OrderDetail /></ProtectedRoute>)} />
+            <Route path="/tele-nutritionist"       element={animated(<TeleNutritionist />)} />
+            <Route path="/detail-spesialis/:id"    element={animated(<DetailSpesialis />)} />
+            <Route path="/booking-konsultasi/:id"  element={animated(<BookingKonsultasi />)} />
+            <Route path="/konsultasi-saya"         element={animated(<KonsultasiSaya />)} />
 
-          
-          <Route path="/admin"              element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-          <Route path="/admin/tele"         element={<AdminRoute><TransaksiTeleNutri /></AdminRoute>} />
-          <Route path="/admin/nutrishop"    element={<AdminRoute><TransaksiNutriShop /></AdminRoute>} />
-          <Route path="/admin/users"        element={<AdminRoute><UserManagement /></AdminRoute>} />
-          <Route path="/admin/products"     element={<AdminRoute><ProductManagement /></AdminRoute>} />
-          <Route path="/admin/nutritionists" element={<AdminRoute><NutritionistManagement /></AdminRoute>} />
-          <Route path="/admin/articles"     element={<AdminRoute><ArticleManagement /></AdminRoute>} />
-        </Routes>
+            
+            <Route path="/admin"              element={animated(<AdminRoute><AdminDashboard /></AdminRoute>)} />
+            <Route path="/admin/tele"         element={animated(<AdminRoute><TransaksiTeleNutri /></AdminRoute>)} />
+            <Route path="/admin/nutrishop"    element={animated(<AdminRoute><TransaksiNutriShop /></AdminRoute>)} />
+            <Route path="/admin/users"        element={animated(<AdminRoute><UserManagement /></AdminRoute>)} />
+            <Route path="/admin/products"     element={animated(<AdminRoute><ProductManagement /></AdminRoute>)} />
+            <Route path="/admin/nutritionists" element={animated(<AdminRoute><NutritionistManagement /></AdminRoute>)} />
+            <Route path="/admin/articles"     element={animated(<AdminRoute><ArticleManagement /></AdminRoute>)} />
+
+            {/* ── Fallback ── */}
+            <Route path="*"                   element={animated(<NotFound />)} />
+          </Routes>
+        </AnimatePresence>
       </div>
 
       {/* Footer global TIDAK tampil di halaman admin */}

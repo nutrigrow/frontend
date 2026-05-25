@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { Plus, X } from 'lucide-react'
+import { motion } from 'motion/react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 import {
@@ -367,7 +368,7 @@ const IconEdit = () => (
 )
 
 // ─── Save Notification ────────────────────────────────────────────────────────
-const SaveNotification = ({ saveStatus, onClose }: { saveStatus: SaveStatus; onClose: () => void }) => {
+const SaveNotification = ({ saveStatus, errorMessage, onClose }: { saveStatus: SaveStatus; errorMessage?: string; onClose: () => void }) => {
   if (saveStatus !== 'success' && saveStatus !== 'error') return null
   const isSuccess = saveStatus === 'success'
   return (
@@ -380,7 +381,7 @@ const SaveNotification = ({ saveStatus, onClose }: { saveStatus: SaveStatus; onC
         )}
       </div>
       <span className="font-[Montserrat,sans-serif] font-semibold text-[12px] text-white">
-        {isSuccess ? 'Data tersimpan!' : 'Gagal menyimpan!'}
+        {isSuccess ? 'Data tersimpan!' : (errorMessage || 'Gagal menyimpan!')}
       </span>
       <button onClick={onClose} className="hover:opacity-80 transition-opacity">
         <X size={11} className="text-white" />
@@ -441,11 +442,25 @@ const CalendarPicker = ({ value, onChange, onClose }: { value: string; onChange:
       <div className="grid grid-cols-7 gap-y-1">
         {cells.map((day, i) => (
           <div key={i} className="flex items-center justify-center">
-            {day ? (
-              <button onClick={() => handleSelect(day)} className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${isSelected(day) ? 'bg-[#628141] text-white' : 'text-slate-700 hover:bg-[#f0f7e8] hover:text-[#628141]'}`}>
-                {day}
-              </button>
-            ) : <span />}
+            {day ? (() => {
+              const cellDate = new Date(viewYear, viewMonth, day)
+              const isFuture = cellDate > new Date()
+              return (
+                <button
+                  disabled={isFuture}
+                  onClick={() => handleSelect(day)}
+                  className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${
+                    isSelected(day) 
+                      ? 'bg-[#628141] text-white' 
+                      : isFuture 
+                        ? 'text-slate-300 cursor-not-allowed' 
+                        : 'text-slate-700 hover:bg-[#f0f7e8] hover:text-[#628141]'
+                  }`}
+                >
+                  {day}
+                </button>
+              )
+            })() : <span />}
           </div>
         ))}
       </div>
@@ -950,6 +965,7 @@ type LogEntryModalProps = {
   supplementBfTaken: boolean; setSupplementBfTaken: (v: boolean) => void
   nursingCount: string; setNursingCount: (v: string) => void
   fluidError?: string; sleepError?: string; isEditing?: boolean
+  errorMessage?: string
 }
 
 // Pregnant weight warning helper
@@ -968,7 +984,7 @@ const LogEntryModal = (props: LogEntryModalProps) => {
     ttdTaken, setTtdTaken, isMenstruating, setIsMenstruating,
     supplementTaken, setSupplementTaken, momWeight, setMomWeight,
     supplementBfTaken, setSupplementBfTaken, nursingCount, setNursingCount,
-    fluidError, sleepError, isEditing,
+    fluidError, sleepError, isEditing, errorMessage
   } = props
 
   const overlayRef = useRef<HTMLDivElement>(null)
@@ -1025,7 +1041,7 @@ const LogEntryModal = (props: LogEntryModalProps) => {
           <div className="mt-3 flex items-center justify-between gap-3">
             <DateInputField label="Log Date" value={logDate} onChange={setLogDate} />
             {(saveStatus === 'success' || saveStatus === 'error') && (
-              <SaveNotification saveStatus={saveStatus} onClose={onClose} />
+              <SaveNotification saveStatus={saveStatus} errorMessage={errorMessage} onClose={onClose} />
             )}
           </div>
         </div>
@@ -1224,6 +1240,7 @@ export default function HealthLog() {
 
   const [modalOpen,  setModalOpen]  = useState(false)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  const [saveErrorMessage, setSaveErrorMessage] = useState('')
   const [editIndex,  setEditIndex]  = useState<number | null>(null)
 
   // Form state
@@ -1305,6 +1322,15 @@ export default function HealthLog() {
     const moodInt = MOOD_STR_TO_INT[mood] ?? 3
     const isoDate = toISODate(logDate)
 
+    const logDateObj = new Date(isoDate)
+    const todayObj = new Date()
+    todayObj.setHours(0,0,0,0)
+    logDateObj.setHours(0,0,0,0)
+    if (logDateObj > todayObj) {
+      alert("Tanggal catatan kesehatan tidak boleh di masa depan.")
+      return
+    }
+
     const took = activeCategory === 'teenage' ? ttdTaken
       : activeCategory === 'pregnant' ? supplementTaken
       : supplementBfTaken
@@ -1319,6 +1345,7 @@ export default function HealthLog() {
       ...(activeCategory === 'teenage' && { is_menstruating: isMenstruating }),
       ...(activeCategory === 'pregnant' && momWeight ? { weight_kg: parseFloat(momWeight) } : {}),
       ...(activeCategory === 'breastfeeding' && nursingCount ? { breastfeeding_count: parseInt(nursingCount, 10) } : {}),
+      is_edit: editIndex !== null,
     }
 
     try {
@@ -1338,11 +1365,21 @@ export default function HealthLog() {
         return { ...prev, [activeCategory]: arr }
       })
 
+      const todayIso = new Date().toISOString().split('T')[0]
+      if (saved.date === todayIso) {
+        setTodayLog(saved)
+      }
+
       setSaveStatus('success')
       setTimeout(() => { setSaveStatus('idle'); setModalOpen(false); setEditIndex(null) }, 2000)
-    } catch {
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Gagal menyimpan!'
+      setSaveErrorMessage(msg)
       setSaveStatus('error')
-      setTimeout(() => setSaveStatus('idle'), 2000)
+      setTimeout(() => {
+        setSaveStatus('idle')
+        setSaveErrorMessage('')
+      }, 3500)
     }
   }
 
@@ -1398,11 +1435,28 @@ export default function HealthLog() {
   const meta     = CATEGORY_META[activeCategory]
 
   const CategoryTabs = () => (
-    <div className="flex items-center gap-1 p-[4px] rounded-full" style={{ background: '#f5f5f4', border: '1px solid #e7e5e4', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+    <div className="flex items-center gap-1 p-[4px] rounded-full relative" style={{ background: '#f5f5f4', border: '1px solid #e7e5e4', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
       {(['teenage', 'pregnant', 'breastfeeding'] as CategoryType[]).map(cat => (
-        <button key={cat} onClick={() => handleCategoryChange(cat)}
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all font-[Inter,sans-serif] ${activeCategory === cat ? 'bg-white text-[#65a30d] shadow-sm' : 'text-[#78716c] hover:text-[#57534e]'}`}>
-          {CATEGORY_META[cat].tab}
+        <button 
+          key={cat} 
+          onClick={() => handleCategoryChange(cat)}
+          className="px-3 py-1.5 rounded-full text-xs font-semibold font-[Inter,sans-serif] relative transition-colors duration-200"
+          style={{
+            background: 'transparent',
+            color: activeCategory === cat ? '#65a30d' : '#78716c',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <span className="relative z-10">{CATEGORY_META[cat].tab}</span>
+          {activeCategory === cat && (
+            <motion.span
+              layoutId="activeCategoryTab"
+              className="absolute inset-0 bg-white rounded-full shadow-sm"
+              style={{ zIndex: 0 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            />
+          )}
         </button>
       ))}
     </div>
@@ -1430,11 +1484,26 @@ export default function HealthLog() {
                 <span className="text-xs text-[#78716c] font-[Inter,sans-serif]">• Pantau jurnal kesehatanmu.</span>
               </div>
             </div>
-            <div className="flex items-center gap-1 p-[4px] rounded-full w-full" style={{ background: '#f5f5f4', border: '1px solid #e7e5e4', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+            <div className="flex items-center gap-1 p-[4px] rounded-full w-full relative" style={{ background: '#f5f5f4', border: '1px solid #e7e5e4', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
               {(['teenage', 'pregnant', 'breastfeeding'] as CategoryType[]).map(cat => (
                 <button key={cat} onClick={() => handleCategoryChange(cat)}
-                  className={`flex-1 py-1.5 rounded-full text-[10px] font-semibold transition-all font-[Inter,sans-serif] ${activeCategory === cat ? 'bg-white text-[#65a30d] shadow-sm' : 'text-[#78716c] hover:text-[#57534e]'}`}>
-                  {CATEGORY_META[cat].tab}
+                  className="flex-1 py-1.5 rounded-full text-[10px] font-semibold font-[Inter,sans-serif] relative transition-colors duration-200"
+                  style={{
+                    background: 'transparent',
+                    color: activeCategory === cat ? '#65a30d' : '#78716c',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span className="relative z-10">{CATEGORY_META[cat].tab}</span>
+                  {activeCategory === cat && (
+                    <motion.span
+                      layoutId="activeCategoryTabMobile"
+                      className="absolute inset-0 bg-white rounded-full shadow-sm"
+                      style={{ zIndex: 0 }}
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
                 </button>
               ))}
             </div>
@@ -1485,6 +1554,7 @@ export default function HealthLog() {
         onClose={() => { setModalOpen(false); setEditIndex(null) }}
         category={activeCategory}
         saveStatus={saveStatus}
+        errorMessage={saveErrorMessage}
         onSave={validateAndSave}
         mood={mood} setMood={setMood}
         fluid={fluid} setFluid={(v) => { setFluid(v); if (fluidError) setFluidError(undefined) }}
