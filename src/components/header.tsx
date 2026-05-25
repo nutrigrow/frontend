@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import NutriGrowLogo    from '../assets/logo/logo-nutrigrow.svg'
 import DropdownIcon     from '../assets/icons/icon-dropdown.svg'
@@ -78,12 +78,15 @@ const Header = () => {
     return () => window.removeEventListener('resize', fn)
   }, [])
 
+  const location = useLocation()
+  const isFeaturesActive = location.pathname.startsWith('/growth-tracker') || location.pathname.startsWith('/health-log')
+
   // ─── Nav data ──────────────────────────────────────────────────────────────
   const navItems = [
-    { label: 'Tentang Kami',          href: '/',           active: false },
-    { label: 'NutriShop',         href: '/nutrishop',          active: false },
-    { label: 'Tele-Nutritionist', href: '/tele-nutritionist',  active: false },
-    { label: 'Artikel',           href: '/artikel',            active: false },
+    { label: 'Tentang Kami',      href: '/',                 active: location.pathname === '/' },
+    { label: 'NutriShop',         href: '/nutrishop',        active: location.pathname.startsWith('/nutrishop') || location.pathname.startsWith('/product/') || location.pathname === '/cart' || location.pathname === '/checkout' },
+    { label: 'Tele-Nutritionist', href: '/tele-nutritionist', active: location.pathname.startsWith('/tele-nutritionist') || location.pathname.startsWith('/detail-spesialis') || location.pathname.startsWith('/booking-konsultasi') || location.pathname === '/konsultasi-saya' },
+    { label: 'Artikel',           href: '/artikel',          active: location.pathname.startsWith('/artikel') || location.pathname.startsWith('/baca-artikel') },
   ]
   const dropdownItems = [
     { label: "Pemantau Pertumbuhan",  href: '/growth-tracker'  },
@@ -127,7 +130,7 @@ const Header = () => {
 
             {/* Features dropdown */}
             <div ref={featuresRef} className="relative h-full flex items-center">
-              <DesktopFeaturesBtn open={featuresOpen} onClick={() => setFeaturesOpen(p => !p)} />
+              <DesktopFeaturesBtn open={featuresOpen} onClick={() => setFeaturesOpen(p => !p)} active={isFeaturesActive} />
               {featuresOpen && (
                 <div
                   className="absolute top-full left-0 bg-white rounded-xl overflow-hidden z-50"
@@ -139,11 +142,14 @@ const Header = () => {
                   }}
                   role="menu"
                 >
-                  {dropdownItems.map((d) => (
-                    <DropdownItem key={d.label} href={d.href} onClick={() => setFeaturesOpen(false)}>
-                      {d.label}
-                    </DropdownItem>
-                  ))}
+                  {dropdownItems.map((d) => {
+                    const isItemActive = location.pathname === d.href
+                    return (
+                      <DropdownItem key={d.label} href={d.href} active={isItemActive} onClick={() => setFeaturesOpen(false)}>
+                        {d.label}
+                      </DropdownItem>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -249,6 +255,7 @@ const Header = () => {
               open={mobileFeaturesOpen}
               onToggle={() => setMobileFeaturesOpen(p => !p)}
               items={dropdownItems}
+              active={isFeaturesActive}
               onItemClick={() => setMobileOpen(false)}
             />
             {navItems.slice(1).map((item) => (
@@ -300,9 +307,9 @@ const DesktopNavLink = ({ href, active, children }: { href: string; active: bool
 }
 
 // ─── DesktopFeaturesBtn ───────────────────────────────────────────────────────
-const DesktopFeaturesBtn = ({ open, onClick }: { open: boolean; onClick: () => void }) => {
+const DesktopFeaturesBtn = ({ open, onClick, active }: { open: boolean; onClick: () => void; active: boolean }) => {
   const [hovered, setHovered] = useState(false)
-  const highlighted = open || hovered
+  const highlighted = open || hovered || active
   return (
     <button
       onClick={onClick}
@@ -317,14 +324,19 @@ const DesktopFeaturesBtn = ({ open, onClick }: { open: boolean; onClick: () => v
     >
       Features
       <img src={DropdownIcon} alt="" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 200ms ease' }} />
-      <span style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px', background: 'var(--color-nutri-green-light)', opacity: highlighted ? 1 : 0, transition: 'all 150ms ease' }} />
+      <span style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px',
+        background: 'var(--color-nutri-green-light)',
+        opacity: highlighted ? 1 : 0, transform: highlighted ? 'scaleX(1)' : 'scaleX(0.5)', transition: 'all 150ms ease',
+      }} />
     </button>
   )
 }
 
 // ─── DropdownItem ─────────────────────────────────────────────────────────────
-const DropdownItem = ({ href, children, onClick }: { href: string; children: React.ReactNode; onClick: () => void }) => {
+const DropdownItem = ({ href, children, active, onClick }: { href: string; children: React.ReactNode; active?: boolean; onClick: () => void }) => {
   const [hovered, setHovered] = useState(false)
+  const highlighted = active || hovered
   return (
     <Link
       to={href} onClick={onClick}
@@ -333,9 +345,9 @@ const DropdownItem = ({ href, children, onClick }: { href: string; children: Rea
       className="text-sm md:text-base"
       style={{
         display: 'block', padding: '12px 20px', textDecoration: 'none',
-        fontFamily: 'var(--font-heading)', fontWeight: hovered ? 600 : 500,
-        color: hovered ? 'var(--color-nutri-green)' : 'var(--color-nutri-slate)',
-        background: hovered ? 'var(--color-nutri-green-soft)' : 'transparent',
+        fontFamily: 'var(--font-heading)', fontWeight: highlighted ? 600 : 500,
+        color: highlighted ? 'var(--color-nutri-green)' : 'var(--color-nutri-slate)',
+        background: highlighted ? 'var(--color-nutri-green-soft)' : 'transparent',
       }}
     >
       {children}
@@ -368,9 +380,10 @@ const MobileNavLink = ({ href, active, children, onClick }: { href: string; acti
 }
 
 // ─── MobileFeaturesAccordion ──────────────────────────────────────────────────
-const MobileFeaturesAccordion = ({ open, onToggle, items, onItemClick }: any) => {
+const MobileFeaturesAccordion = ({ open, onToggle, items, active, onItemClick }: any) => {
   const [hovered, setHovered] = useState(false)
-  const highlighted = open || hovered
+  const highlighted = open || hovered || active
+  const location = useLocation()
   return (
     <div>
       <button
@@ -391,7 +404,7 @@ const MobileFeaturesAccordion = ({ open, onToggle, items, onItemClick }: any) =>
       {open && (
         <div style={{ paddingLeft: '24px' }}>
           {items.map((item: any) => (
-            <MobileNavLink key={item.label} href={item.href} active={false} onClick={onItemClick}>{item.label}</MobileNavLink>
+            <MobileNavLink key={item.label} href={item.href} active={location.pathname === item.href} onClick={onItemClick}>{item.label}</MobileNavLink>
           ))}
         </div>
       )}

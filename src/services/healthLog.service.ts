@@ -114,6 +114,7 @@ export const healthLogService = {
     is_menstruating?: boolean;
     weight_kg?: number;
     breastfeeding_count?: number;
+    is_edit?: boolean;
   }): Promise<ApiHealthLog> => {
     const { data } = await apiClient.post('/api/health-logs', payload);
     return data.data as ApiHealthLog;

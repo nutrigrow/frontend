@@ -8,9 +8,10 @@ export interface ProductCardProps {
   title: string
   description: string
   price: number
+  stock?: number
 }
 
-export const CardNutrishop = ({ id, image, title, description, price }: ProductCardProps) => {
+export const CardNutrishop = ({ id, image, title, description, price, stock }: ProductCardProps) => {
   const navigate = useNavigate()
 
   const formatPrice = (p: number) => p.toLocaleString('id-ID')
@@ -51,14 +52,35 @@ export const CardNutrishop = ({ id, image, title, description, price }: ProductC
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          position: 'relative',
         }}
       >
+        {stock === 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 12,
+              left: 12,
+              backgroundColor: '#EF4444',
+              color: '#FFFFFF',
+              padding: '6px 12px',
+              borderRadius: 20,
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: 'Montserrat, sans-serif',
+              boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)',
+              zIndex: 10,
+            }}
+          >
+            Stok Habis
+          </div>
+        )}
         {hasImage ? (
           <img src={image!} alt={title}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: stock === 0 ? 0.6 : 1 }}
             onError={() => setImgError(true)} />
         ) : (
-          <svg width="48" height="48" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="48" height="48" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ opacity: stock === 0 ? 0.6 : 1 }}>
             <rect width="56" height="56" rx="12" fill="#E8EDE3"/>
             <path d="M14 38L22 26L28 34L34 28L42 38H14Z" fill="#A8C090"/>
             <circle cx="38" cy="20" r="5" fill="#C5D9B0"/>

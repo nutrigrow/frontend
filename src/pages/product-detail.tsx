@@ -194,9 +194,14 @@ export default function ProductDetail() {
       await shopService.addToCart(product.id, 1)
       setCartAdded(true)
       setTimeout(() => setCartAdded(false), 2000)
-    } catch {
+    } catch (err: any) {
       setCartAdded(false)
-      navigate('/sign-in')
+      if (err.response?.status === 401) {
+        navigate('/sign-in')
+      } else {
+        const msg = err.response?.data?.message ?? 'Gagal menambahkan ke keranjang.'
+        alert(msg)
+      }
     } finally {
       setAddingToCart(false)
     }
@@ -512,6 +517,7 @@ export default function ProductDetail() {
                       animate={{ scale: 1, opacity: 1 }}
                       exit={{ scale: 0.97, opacity: 0 }}
                       transition={{ duration: 0.2 }}
+                      disabled={product.stock === 0 || addingToCart}
                       onClick={handleAddToCart}
                       style={{
                         flex: 1,
@@ -522,23 +528,24 @@ export default function ProductDetail() {
                         gap: 8,
                         padding: '16px 28px',
                         background: '#fff',
-                        border: `2px solid ${cartAdded ? '#628141' : '#3F6212'}`,
+                        border: `2px solid ${product.stock === 0 ? '#E7E5E4' : (cartAdded ? '#628141' : '#3F6212')}`,
                         borderRadius: 12,
                         fontFamily: 'var(--font-heading), sans-serif',
                         fontSize: 15,
                         fontWeight: 600,
-                        color: cartAdded ? '#628141' : '#3F6212',
-                        cursor: 'pointer',
+                        color: product.stock === 0 ? '#A8A29E' : (cartAdded ? '#628141' : '#3F6212'),
+                        cursor: product.stock === 0 ? 'not-allowed' : 'pointer',
+                        opacity: product.stock === 0 ? 0.6 : 1,
                         transition: 'all 0.2s',
                       }}
                       onMouseEnter={e => {
-                        if (!cartAdded) {
+                        if (!cartAdded && product.stock > 0) {
                           const el = e.currentTarget as HTMLElement
                           el.style.background = '#F0F7E8'
                         }
                       }}
                       onMouseLeave={e => {
-                        if (!cartAdded) {
+                        if (!cartAdded && product.stock > 0) {
                           const el = e.currentTarget as HTMLElement
                           el.style.background = '#fff'
                         }
@@ -565,8 +572,9 @@ export default function ProductDetail() {
 
                   {/* Buy Now */}
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={product.stock === 0 ? {} : { scale: 1.02 }}
+                    whileTap={product.stock === 0 ? {} : { scale: 0.98 }}
+                    disabled={product.stock === 0}
                     onClick={handleBuyNow}
                     style={{
                       flex: 1,
@@ -576,19 +584,28 @@ export default function ProductDetail() {
                       justifyContent: 'center',
                       gap: 8,
                       padding: '16px 28px',
-                      background: '#3F6212',
+                      background: product.stock === 0 ? '#E7E5E4' : '#3F6212',
                       border: 'none',
                       borderRadius: 12,
                       fontFamily: 'var(--font-heading), sans-serif',
                       fontSize: 15,
                       fontWeight: 600,
-                      color: '#fff',
-                      cursor: 'pointer',
-                      boxShadow: '0 10px 15px -3px rgba(54,83,20,0.2), 0 4px 6px -4px rgba(54,83,20,0.2)',
+                      color: product.stock === 0 ? '#A8A29E' : '#fff',
+                      cursor: product.stock === 0 ? 'not-allowed' : 'pointer',
+                      opacity: product.stock === 0 ? 0.6 : 1,
+                      boxShadow: product.stock === 0 ? 'none' : '0 10px 15px -3px rgba(54,83,20,0.2), 0 4px 6px -4px rgba(54,83,20,0.2)',
                       transition: 'background 0.2s',
                     }}
-                    onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = '#2D4A18')}
-                    onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#3F6212')}
+                    onMouseEnter={e => {
+                      if (product.stock > 0) {
+                        (e.currentTarget as HTMLElement).style.background = '#2D4A18'
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (product.stock > 0) {
+                        (e.currentTarget as HTMLElement).style.background = '#3F6212'
+                      }
+                    }}
                   >
                     Beli Sekarang
                   </motion.button>
@@ -740,6 +757,7 @@ export default function ProductDetail() {
                         title={p.title}
                         description={p.description}
                         price={p.price}
+                        stock={p.stock}
                       />
                     </div>
                   ))}

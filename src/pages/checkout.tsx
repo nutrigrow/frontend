@@ -343,9 +343,19 @@ export default function Checkout() {
                     : '-'}
                 </p>
               </div>
-              <button onClick={() => setShowAddressPicker(true)} disabled={addresses.length === 0} className="mt-3 text-sm text-[#4d7c0f] font-semibold hover:underline disabled:text-gray-400 disabled:no-underline">
-                Ganti Alamat →
-              </button>
+              {addresses.length === 0 ? (
+                <button
+                  type="button"
+                  onClick={() => navigate('/profile', { state: { activeMenu: 'alamat' } })}
+                  className="mt-3 text-sm text-[#4d7c0f] font-bold hover:underline flex items-center gap-1.5 bg-transparent border-none cursor-pointer"
+                >
+                  + Tambah Alamat Baru
+                </button>
+              ) : (
+                <button onClick={() => setShowAddressPicker(true)} className="mt-3 text-sm text-[#4d7c0f] font-semibold hover:underline bg-transparent border-none cursor-pointer">
+                  Ganti Alamat →
+                </button>
+              )}
             </section>
 
             {/* Shipping Method */}
