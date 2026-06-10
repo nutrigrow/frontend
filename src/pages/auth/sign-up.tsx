@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BowlImg from '../../assets/images/img-bowl.png'
 import GreenGradientAsset from '../../assets/asset/asset-green-gradient.svg'
@@ -46,6 +46,52 @@ const AvatarBubbles = () => (
     ))}
   </div>
 )
+
+type FormErrors = {
+  email: string;
+  name: string;
+  password: string;
+  confirmPassword: string;
+}
+
+type ApiErrorBody = {
+  message?: string;
+  errors?: Array<{ message?: string }>;
+}
+
+type ApiRequestError = {
+  code?: string;
+  response?: {
+    data?: ApiErrorBody;
+  };
+}
+
+const buildValidationErrors = (
+  email: string,
+  name: string,
+  password: string,
+  confirmPassword: string,
+): FormErrors => {
+  const newErrors = { email: '', name: '', password: '', confirmPassword: '' }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (email && !emailRegex.test(email)) {
+      newErrors.email = 'Format email tidak valid';
+  }
+  if (name && name.length < 2) {
+      newErrors.name = 'Nama minimal 2 karakter';
+  }
+  if (password && password.length < 8) {
+      newErrors.password = 'Password minimal 8 karakter';
+  } else if (password && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      newErrors.password = 'Password harus mengandung huruf besar, huruf kecil, dan angka';
+  }
+  if (confirmPassword && confirmPassword !== password) {
+      newErrors.confirmPassword = 'Password tidak cocok';
+  }
+
+  return newErrors
+}
 
 // ─── Left Panel ───────────────────────────────────────────────────────────────
 const LeftPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
@@ -174,13 +220,6 @@ const RightPanel = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
   const [password, setPassword]               = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
-  const [errors, setErrors] = useState({
-    email: '',
-    name: '',
-    password: '',
-    confirmPassword: '',
-  })
-
   const [showPassword, setShowPassword]       = useState(false)
   const [showConfirm, setShowConfirm]         = useState(false)
   const [keepSigned, setKeepSigned]           = useState(false)
@@ -193,14 +232,34 @@ const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
   const [success, setSuccess] = useState('')
 
+  const errors = useMemo(
+    () => buildValidationErrors(email, name, password, confirmPassword),
+    [email, name, password, confirmPassword],
+  )
+
+  const getApiErrorMessage = (err: unknown) => {
+    const requestError = err as ApiRequestError;
+    const data = requestError.response?.data;
+    const validationMessage = data?.errors?.[0]?.message;
+
+    if (validationMessage) return validationMessage;
+    if (data?.message) return data.message;
+    if (requestError.code === 'ECONNABORTED') return 'Request terlalu lama. Silakan coba lagi.';
+    if (!requestError.response) return 'Tidak bisa terhubung ke server. Periksa koneksi atau konfigurasi API.';
+
+    return 'Gagal mendaftar. Silakan coba lagi.';
+  }
+
   const handleSignUp = async () => {
     if (!name || !email || !password || !confirmPassword) {
       setError('Semua form wajib diisi.');
       return;
     }
 
-    if (password !== confirmPassword) { 
-      setError('Password tidak cocok.'); 
+    const currentErrors = buildValidationErrors(email, name, password, confirmPassword);
+    const firstError = Object.values(currentErrors).find(Boolean);
+    if (firstError) {
+      setError(firstError);
       return; 
     }
 
@@ -211,39 +270,12 @@ const [loading, setLoading] = useState(false)
     try {
       await authService.register(name, email, password);
       setSuccess('Pendaftaran berhasil! Cek email kamu untuk verifikasi akun.');
-    } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Gagal mendaftar. Silakan coba lagi.');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
-
-  const validate = () => {
-    const newErrors = { email: '', name: '', password: '', confirmPassword: '' }
-    
-    // Email regex
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (email && !emailRegex.test(email)) {
-        newErrors.email = 'Please enter a valid email address';
-    }
-    // Name check
-    if (name && name.length < 3) {
-        newErrors.name = 'Name must be at least 3 characters long';
-    }
-    // Password strength
-    if (password && password.length < 8) {
-        newErrors.password = 'Password must be at least 8 characters long';
-    }
-    // Confirm password match
-    if (confirmPassword && confirmPassword !== password) {
-        newErrors.confirmPassword = 'Passwords do not match';
-    }
-    setErrors(newErrors)
-  }
-
-  useEffect(() => {
-    validate()
-  }, [email, name, password, confirmPassword])
 
   const getBorderColor = (field: keyof typeof errors, isFocused: boolean) => {
     if (errors[field]) return '#EF4444' 
