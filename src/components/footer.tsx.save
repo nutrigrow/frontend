@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import NutriGrowLogo2 from '../assets/logo/logo-nutrigrow-2.svg'
 import EllipseAsset   from '../assets/asset/asset-ellipse.svg'
 import EmailIcon      from '../assets/icons/icon-email.svg'
+import WhatsappIcon   from '../assets/icons/icon-whatsapp.svg'
+import XIcon           from '../assets/icons/icon-x.svg'
+import InstagramIcon  from '../assets/icons/icon-instagram.svg'
 
 // ─── Breakpoint helper ────────────────────────────────────────────────────────
 const useBreakpoint = () => {
@@ -74,7 +77,10 @@ const ContactItem = ({ icon, label, href, underline, bp }: ContactItemProps & { 
 
 // ─── Contact data ─────────────────────────────────────────────────────────────
 const contacts: ContactItemProps[] = [
-  { icon: EmailIcon,     label: 'support@nutrigrow.me', href: 'mailto:support@nutrigrow.me',      underline: true  },
+  { icon: EmailIcon,     label: 'nutrigrow.@gmail.com', href: 'mailto:nutrigrow@gmail.com',      underline: true  },
+  { icon: WhatsappIcon,  label: '+62 856-9966-999',    href: 'https://wa.me/6285699669999',     underline: false },
+  { icon: XIcon,         label: '@nutrigrow',           href: 'https://x.com/nutrigrow',         underline: false },
+  { icon: InstagramIcon, label: '@nutrigrow',           href: 'https://instagram.com/nutrigrow', underline: false },
 ]
 
 // ─── Main Footer ──────────────────────────────────────────────────────────────

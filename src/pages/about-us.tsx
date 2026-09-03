@@ -516,7 +516,7 @@ const SectionReady = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
         <button
           onClick={() => { window.scrollTo(0, 0); if (isLoggedIn()) { navigate('/growth-tracker'); } else { navigate('/sign-in'); } }}
-          className="btn-white"
+	  className="btn-white"
           style={{ display: 'inline-flex', padding: isMobile ? '13px 28px' : '16px 40px', borderRadius: 12, background: BRAND.white, border: 'none', cursor: 'pointer' }}
         >
           <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: isMobile ? 14 : 16, color: BRAND.stone900, whiteSpace: 'nowrap' }}>Mulai Pemantauan</span>
