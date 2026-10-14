@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import NutriGrowLogo    from '../assets/logo/logo-nutrigrow.svg'
 import DropdownIcon     from '../assets/icons/icon-dropdown.svg'
+import NotificationBell from './notification-bell'
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 // Tipe lokal untuk Avatar — memetakan 'nama' dari AuthContext ke 'name'
@@ -164,6 +165,8 @@ const Header = () => {
           {/* ── Desktop action icons + auth ── */}
           <div className="hidden lg:flex items-center" style={{ gap: '16px' }}>
 
+            {isLoggedIn && authUser?.role?.toUpperCase() === 'USER' && <NotificationBell />}
+
             {/* Profile dropdown / Sign In */}
             {isLoggedIn && user ? (
               <div ref={profileRef} className="relative">
@@ -196,16 +199,19 @@ const Header = () => {
             )}
           </div>
 
-          {/* ── Hamburger (mobile only) ── */}
-          <button
-            className="lg:hidden flex items-center justify-center rounded-lg flex-shrink-0 transition-colors duration-150"
-            style={{ width: '40px', height: '40px', background: 'var(--color-nutri-icon-bg)' }}
-            onClick={() => setMobileOpen(p => !p)}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--color-nutri-icon-bg-hover)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--color-nutri-icon-bg)' }}
-          >
-            <HamburgerIcon open={mobileOpen} />
-          </button>
+          {/* ── Lonceng + Hamburger (mobile only) ── */}
+          <div className="lg:hidden flex items-center gap-2">
+            {isLoggedIn && authUser?.role?.toUpperCase() === 'USER' && <NotificationBell />}
+            <button
+              className="lg:hidden flex items-center justify-center rounded-lg flex-shrink-0 transition-colors duration-150"
+              style={{ width: '40px', height: '40px', background: 'var(--color-nutri-icon-bg)' }}
+              onClick={() => setMobileOpen(p => !p)}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--color-nutri-icon-bg-hover)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--color-nutri-icon-bg)' }}
+            >
+              <HamburgerIcon open={mobileOpen} />
+            </button>
+          </div>
         </div>
       </header>
 
