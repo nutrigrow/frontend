@@ -2049,6 +2049,7 @@ export default function HealthLog() {
   const { user } = useAuth()
   const userName = user?.nama?.split(' ')[0] ?? 'Kamu'
 
+  const [allLogs, setAllLogs] = useState<ApiHealthLog[]>([])
   const [activeCategory, setActiveCategory] = useState<CategoryType>('teenage')
   const [pendingCategory, setPendingCategory] = useState<CategoryType | null>(null)
 
@@ -2062,8 +2063,6 @@ export default function HealthLog() {
       setActiveCategory(cat)
     }
   }
-
-  const [allLogs, setAllLogs] = useState<ApiHealthLog[]>([])
   const [logsLoading, setLogsLoading] = useState(true)
   const [todayLog, setTodayLog] = useState<ApiHealthLog | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -2191,6 +2190,25 @@ export default function HealthLog() {
       alert("Tanggal catatan kesehatan tidak boleh di masa depan.")
       return
     }
+    if (activeCategory === 'pregnant') {
+      const w = parseFloat(momWeight)
+      if (!momWeight.trim() || isNaN(w) || w <= 0) {
+        setSaveErrorMessage('Masukkan berat badan yang valid (contoh: 58.5).')
+        setSaveStatus('error')
+        setTimeout(() => { setSaveStatus('idle'); setSaveErrorMessage('') }, 3500)
+        return
+      }
+    }
+    if (activeCategory === 'breastfeeding') {
+      const c = parseInt(nursingCount, 10)
+      if (!nursingCount.trim() || isNaN(c) || c < 0) {
+        setSaveErrorMessage('Masukkan frekuensi menyusui berupa bilangan bulat (contoh: 8).')
+        setSaveStatus('error')
+        setTimeout(() => { setSaveStatus('idle'); setSaveErrorMessage('') }, 3500)
+        return
+      }
+    }
+
     const took = activeCategory === 'teenage' ? ttdTaken
       : activeCategory === 'pregnant' ? supplementTaken
         : supplementBfTaken
