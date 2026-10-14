@@ -1,12 +1,14 @@
 import { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate} from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext' 
+import { MonitoringProvider } from './context/MonitoringContext'
 import { AnimatePresence } from 'motion/react'
 import AnimatedPage from './components/AnimatedPage'
 import NotFound from './pages/not-found'
 
 import Header from './components/header'
 import Footer from './components/footer'
+import MonitoringToast from './components/monitoring-toast'
 import AboutUs from './pages/about-us'
 import SignIn from './pages/auth/sign-in'
 import SignUp from './pages/auth/sign-up'
@@ -60,6 +62,7 @@ function AppLayout() {
     <div className={isAdminRoute ? '' : 'min-h-screen bg-white flex flex-col'}>
       {/* Header global TIDAK tampil di halaman admin */}
       {!isAdminRoute && <Header />}
+      {!isAdminRoute && <MonitoringToast />}
 
       <div className={isAdminRoute ? '' : 'flex-grow'}>
         <AnimatePresence mode="wait">
@@ -119,7 +122,9 @@ function App() {
     <Router>
       <ScrollToTop />
       <AuthProvider>
-        <AppLayout />
+        <MonitoringProvider>
+          <AppLayout />
+        </MonitoringProvider>
       </AuthProvider>
     </Router>
   )
