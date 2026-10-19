@@ -17,6 +17,7 @@ import {
   transformBmiChartData,
   transformPercentileToMeasurements,
   transformToSubChartData,
+  type ApiGrowthSummary,
 } from '../services/children.service'
 
 // ─── Breakpoint helper ────────────────────────────────────────────────────────
@@ -477,22 +478,15 @@ const LogNewGrowthSection = ({
 // ─── Stunting Category Helper ─────────────────────────────────────────────────
 type StuntingCategory = 'low' | 'moderate' | 'high'
 
-const getStuntingCategory = (aiLabel?: string | null, confidence?: number | null): StuntingCategory => {
-  if (!aiLabel) return 'low' // no data = assume safe
+const getStuntingCategory = (riskLevel?: string | null, aiLabel?: string | null): StuntingCategory => {
+  if (riskLevel === 'HIGH_ALERT') return 'high'
+  if (riskLevel === 'WARNING') return 'moderate'
+  if (riskLevel === 'NORMAL') return 'low'
 
+  if (!aiLabel) return 'low'
   const lowAlpha = String(aiLabel).toLowerCase()
-
-  // AI model only outputs: 'Normal' or 'Stunting'
-  if (lowAlpha === 'normal' || lowAlpha.includes('normal')) return 'low'
-
-  if (lowAlpha === 'stunting' || lowAlpha.includes('stunting') || lowAlpha.includes('high')) {
-    // Differentiate high vs moderate based on confidence
-    // confidence < 65%: borderline/moderate (uncertain), >= 65%: high (confident stunting)
-    const conf = confidence ?? 100
-    return conf >= 65 ? 'high' : 'moderate'
-  }
-
-  // Fallback for any other string
+  if (lowAlpha.includes('melambat') || lowAlpha.includes('high') || lowAlpha.includes('tinggi')) return 'high'
+  if (lowAlpha.includes('warning') || lowAlpha.includes('sedang') || lowAlpha.includes('perhatian') || lowAlpha.includes('stunting')) return 'moderate'
   return 'low'
 }
 
@@ -526,7 +520,7 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
   }
 }> = {
   low: {
-    label: 'Rendah',
+    label: 'Pola Pertumbuhan Optimal',
     bgColor: '#F1F8E9',
     borderColor: '#C5E1A5',
     badgeBg: '#E8F5E9',
@@ -536,23 +530,23 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
     icon: '✅',
     insights: {
       reason: [
-        "Tinggi badan anak berada di atas persentil ke-25 kurva WHO, menandakan pertumbuhan linier yang baik.",
-        "Rasio berat/tinggi (weight-for-height) dalam rentang normal — indikator kecukupan asupan kalori harian.",
-        "Tidak ada riwayat penyakit infeksi berulang yang signifikan yang dapat mengganggu absorpsi nutrisi.",
+        "Tinggi badan anak berada pada kurva WHO yang sesuai, menandakan pertumbuhan linier berjalan baik.",
+        "Rasio berat terhadap tinggi badan dalam rentang yang seimbang.",
+        "Tidak terdeteksi indikasi pelambatan pertumbuhan pada pemantauan berkala.",
       ],
       impact: [
-        "Risiko stunting rendah berarti perkembangan kognitif dan fisik berjalan sesuai jalurnya.",
-        "Anak dengan status ini umumnya memiliki sistem imun yang lebih baik dan performa akademik yang optimal.",
+        "Pertumbuhan optimal mendukung perkembangan kognitif, motorik, dan imunitas anak.",
+        "Menurunkan risiko penyakit infeksi berulang dan gangguan metabolik di kemudian hari.",
       ],
       prevention: [
-        "Lanjutkan pemantauan rutin setiap 3 bulan untuk mendeteksi perubahan dini.",
-        "Pastikan pola makan seimbang dengan cukup protein hewani, zinc, dan zat besi.",
-        "Pertahankan jadwal imunisasi dan kunjungan posyandu secara konsisten.",
+        "Pertahankan asupan makanan bergizi seimbang kaya protein hewani dan mikronutrien.",
+        "Lanjutkan pemantauan rutin setiap bulan di posyandu atau fasilitas kesehatan.",
+        "Jaga jadwal imunisasi dasar dan pola hidup bersih sehat.",
       ],
     },
   },
   moderate: {
-    label: 'Sedang',
+    label: 'Keyword Warning Terdeteksi',
     bgColor: '#FFF3E0',
     borderColor: '#FFE0B2',
     badgeBg: '#FFF3E0',
@@ -562,25 +556,23 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
     icon: '⚠️',
     insights: {
       reason: [
-        "Tinggi badan anak mulai berada di bawah median WHO, mengindikasikan potensi pertumbuhan yang melambat.",
-        "Asupan nutrisi makro atau mikro (terutama zinc, protein) mungkin belum optimal dalam 3–6 bulan terakhir.",
-        "Penyakit infeksi ringan yang berulang dapat menjadi faktor penyebab gangguan penyerapan nutrisi.",
+        "Terdeteksi kata kunci atau pola yang mengindikasikan laju pertumbuhan perlu dipantau lebih dekat.",
+        "Grafik tinggi badan atau berat badan mendekati ambang batas deviasi standar WHO.",
+        "Asupan nutrisi makro/mikro harian kemungkinan memerlukan penyesuaian.",
       ],
       impact: [
-        "Stunting moderat dapat memengaruhi perkembangan otak dan kapasitas belajar jika tidak ditangani.",
-        "Anak berisiko mengalami keterlambatan perkembangan motorik halus dan kasar.",
-        "Dalam jangka panjang, stunting berkorelasi dengan produktivitas ekonomi yang lebih rendah.",
+        "Pelambatan yang tidak segera ditangani berpotensi memengaruhi laju tumbuh kembang.",
+        "Kapasitas eksplorasi dan daya tahan tubuh dapat menurun jika asupan tidak dioptimalkan.",
       ],
       prevention: [
-        "Konsultasikan dengan ahli gizi untuk penyesuaian diet MPASI atau makanan keluarga.",
-        "Tambahkan sumber protein hewani: telur, ikan, daging, atau susu setiap hari.",
-        "Perketat monitoring — lakukan pengukuran setiap bulan dan catat tren pertumbuhan.",
-        "Pertimbangkan suplementasi zinc dan zat besi sesuai rekomendasi dokter anak.",
+        "Konsultasikan menu MPASI atau pola makan anak dengan ahli gizi melalui Tele-Nutritionist.",
+        "Tingkatkan konsumsi sumber protein hewani (telur, ikan, daging) dan zinc setiap hari.",
+        "Lakukan pengukuran ulang secara rutin dan catat riwayat pertumbuhan dengan konsisten.",
       ],
     },
   },
   high: {
-    label: 'Risiko tinggi stunting',
+    label: 'Indikator Melambat Signifikan',
     bgColor: '#FFEBEE',
     borderColor: '#FFCDD2',
     badgeBg: '#FFCDD2',
@@ -590,21 +582,18 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
     icon: '🚨',
     insights: {
       reason: [
-        "Tinggi badan anak berada di bawah -2 SD (standar deviasi) kurva pertumbuhan WHO — zona merah stunting.",
-        "Defisit asupan energi dan protein kronis selama masa 1000 Hari Pertama Kehidupan (HPK) merupakan penyebab utama.",
-        "Kemungkinan terdapat faktor penyerta: sanitasi buruk, infeksi parasit, atau kondisi sosioekonomis tertentu.",
+        "Pola pengukuran menunjukkan penurunan z-score atau tinggi badan di bawah -2 SD standar WHO.",
+        "Terindikasi defisit pertumbuhan linier kronis yang memerlukan evaluasi tenaga kesehatan.",
+        "Perlu pemeriksaan mendalam terkait infeksi penyerta atau absorpsi nutrisi.",
       ],
       impact: [
-        "Stunting berdampak permanen pada struktur otak — neuron yang tidak berkembang optimal tidak dapat dipulihkan sepenuhnya.",
-        "Risiko tinggi mengalami gangguan metabolik (obesitas, diabetes tipe 2) di usia dewasa.",
-        "Penurunan IQ rata-rata 5–11 poin dibanding anak dengan pertumbuhan normal (data WHO, 2020).",
-        "Imunitas tubuh lebih lemah, rentan terhadap penyakit infeksi berat.",
+        "Dapat memengaruhi perkembangan struktur saraf dan sistem kekebalan tubuh.",
+        "Risiko keterlambatan motorik dan gangguan konsentrasi belajar di masa depan.",
       ],
       prevention: [
-        "Segera konsultasikan dengan dokter anak dan ahli gizi klinik — diperlukan intervensi medis.",
-        "Program therapeutic feeding dengan RUTF (Ready-to-Use Therapeutic Food) dapat dipertimbangkan.",
-        "Pastikan akses air bersih dan sanitasi untuk mencegah diare dan infeksi yang memperburuk kondisi.",
-        "Pantau berat dan tinggi badan setiap 2 minggu dengan bantuan tenaga kesehatan.",
+        "Segera jadwalkan konsultasi dengan dokter anak atau ahli gizi NutriGrow via Tele-Nutritionist.",
+        "Lakukan evaluasi pola makan, kecukupan kalori, dan kemungkinan suplementasi terapeutik.",
+        "Pastikan higienitas air dan sanitasi lingkungan keluarga tetap terjaga.",
       ],
     },
   },
@@ -612,9 +601,9 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
 
 // ─── Stunting Insight Modal ───────────────────────────────────────────────────
 const StuntingInsightModal = ({
-  open, onClose, aiLabel, confidence,
+  open, onClose, summary, aiLabel,
 }: {
-  open: boolean; onClose: () => void; aiLabel?: string | null; confidence?: number | null
+  open: boolean; onClose: () => void; summary?: ApiGrowthSummary | null; aiLabel?: string | null
 }) => {
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
@@ -623,8 +612,12 @@ const StuntingInsightModal = ({
 
   if (!open) return null
 
-  const category = getStuntingCategory(aiLabel, confidence)
+  const riskLevel = summary?.ai_assessment?.risk_level
+  const category = getStuntingCategory(riskLevel, aiLabel)
   const config   = STUNTING_CONFIG[category] || STUNTING_CONFIG.low
+  const labelText = summary?.ai_assessment?.risk_label || config.label
+  const warnings = summary?.ai_assessment?.keyword_warnings || []
+  const anthro = summary?.child_info?.latest_anthropometry
 
   const SectionBlock = ({
     title, items, color,
@@ -652,7 +645,7 @@ const StuntingInsightModal = ({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[75vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -664,14 +657,14 @@ const StuntingInsightModal = ({
             <div className="flex items-center gap-2">
               <span className="text-xl">{config.icon}</span>
               <span className="font-[Montserrat,sans-serif] font-black text-lg text-slate-900">
-                Analisis Risiko Stunting
+                Skrining Pola Pertumbuhan (AI)
               </span>
             </div>
             <span
               className="self-start font-[Montserrat,sans-serif] font-bold text-xs px-2.5 py-1 rounded-full"
               style={{ background: config.badgeBg, color: config.badgeText, border: `1px solid ${config.badgeBorder}` }}
             >
-              {config.label}{confidence != null ? ` · ${confidence.toFixed(1)}%` : ''}
+              {labelText}
             </span>
           </div>
           <button
@@ -684,6 +677,37 @@ const StuntingInsightModal = ({
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+          {/* Keyword Warnings from Backend */}
+          {warnings.length > 0 && (
+            <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200">
+              <span className="font-[Montserrat,sans-serif] font-bold text-xs uppercase tracking-wider text-amber-800 flex items-center gap-1.5 mb-2">
+                ⚠️ Keyword Warning & Indikator Pola
+              </span>
+              <ul className="flex flex-col gap-1.5 m-0 pl-0 list-none">
+                {warnings.map((w, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-xs text-amber-900 font-medium">
+                    <span className="font-bold">•</span>
+                    <span>{w}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Anthropometry summary */}
+          {anthro && (
+            <div className="grid grid-cols-2 gap-2.5 p-3.5 rounded-xl bg-slate-50 border border-slate-200/70 text-xs">
+              <div>
+                <span className="text-slate-500 font-medium">Tinggi Badan:</span>
+                <p className="font-bold text-slate-800 m-0">{anthro.height_cm} cm {summary?.ai_assessment?.z_score_height_for_age != null ? `(Z: ${Number(summary.ai_assessment.z_score_height_for_age).toFixed(1)})` : ''}</p>
+              </div>
+              <div>
+                <span className="text-slate-500 font-medium">Berat Badan:</span>
+                <p className="font-bold text-slate-800 m-0">{anthro.weight_kg} kg {summary?.ai_assessment?.z_score_weight_for_age != null ? `(Z: ${Number(summary.ai_assessment.z_score_weight_for_age).toFixed(1)})` : ''}</p>
+              </div>
+            </div>
+          )}
+
           <SectionBlock
             title="🔍 Mengapa kategori ini?"
             items={config.insights.reason}
@@ -701,8 +725,20 @@ const StuntingInsightModal = ({
             items={config.insights.prevention}
             color={config.badgeText}
           />
-          <p className="font-[Montserrat,sans-serif] font-normal text-[11px] text-slate-400 leading-5 m-0 border-t border-slate-100 pt-4">
-            * Informasi ini berdasarkan standar WHO Child Growth Standards. Konsultasikan dengan dokter anak untuk diagnosis dan penanganan medis yang tepat.
+
+          {/* Action CTA to Tele-Nutritionist */}
+          <div className="pt-2">
+            <a
+              href="/tele-nutritionist"
+              className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-[#4d7c0f] hover:bg-[#3f6212] transition-all no-underline shadow-sm"
+            >
+              <span>Konsultasi dengan Ahli Gizi (Tele-Nutritionist)</span>
+              <span>→</span>
+            </a>
+          </div>
+
+          <p className="font-[Montserrat,sans-serif] font-normal text-[11px] text-slate-400 leading-5 m-0 border-t border-slate-100 pt-3">
+            {summary?.disclaimer || "* AI adalah alat skrining awal dan bukan pengganti diagnosis medis profesional. Konsultasikan dengan dokter spesialis anak atau ahli gizi untuk diagnosis dan evaluasi klinis yang tepat."}
           </p>
         </div>
       </div>
@@ -742,16 +778,17 @@ const StatCard = ({ icon, label, value, unit, delta, deltaUp, sub, bp }: {
 
 // ─── Stunting Card (clickable, pastel background by category) ─────────────────
 const StuntingCard = ({ 
-  stuntingValue, stuntingSub, bp, aiLabel, confidence
+  stuntingValue, stuntingSub, bp, summary, aiLabel
 }: { 
   stuntingValue: string; stuntingSub: string; bp: 'mobile' | 'tablet' | 'desktop'
-  aiLabel?: string | null; confidence?: number | null
+  summary?: ApiGrowthSummary | null; aiLabel?: string | null
 }) => {
   const [modalOpen, setModalOpen] = useState(false)
   const isTablet = bp === 'tablet'
 
-  const category = getStuntingCategory(aiLabel, confidence)
-  const config    = STUNTING_CONFIG[category] || STUNTING_CONFIG.low
+  const riskLevel = summary?.ai_assessment?.risk_level
+  const category = getStuntingCategory(riskLevel, aiLabel)
+  const config = STUNTING_CONFIG[category] || STUNTING_CONFIG.low
 
   return (
     <>
@@ -804,7 +841,7 @@ const StuntingCard = ({
           {/* Sub label */}
           <span
             className="font-[Montserrat,sans-serif] font-medium text-[11px] leading-tight"
-            style={{ color: config.badgeText, opacity: 0.7 }}
+            style={{ color: config.badgeText, opacity: 0.8 }}
           >
             {config.icon} {stuntingSub}
           </span>
@@ -814,47 +851,47 @@ const StuntingCard = ({
       <StuntingInsightModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+        summary={summary}
         aiLabel={aiLabel}
-        confidence={confidence}
       />
     </>
   )
 }
 
 const KeyStatsSection = ({
-  bp, height, weight, lastUpdated, measurements
+  bp, height, weight, lastUpdated, measurements, growthSummary,
 }: {
   bp: 'mobile' | 'tablet' | 'desktop'
   height: string; weight: string; lastUpdated: string; measurements: Measurement[]
+  growthSummary?: ApiGrowthSummary | null
 }) => {
-  // Derive dynamic stunting risk from latest measurement
+  // Derive dynamic stunting risk from backend growthSummary or latest measurement
   let stuntingValue = "—"
   let stuntingSub = "Data belum tersedia"
   let aiLabel: string | null = null
-  let confidence: number | null = null
 
-  if (measurements.length > 0) {
+  if (growthSummary?.ai_assessment) {
+    const risk = growthSummary.ai_assessment.risk_level
+    stuntingValue = risk === 'HIGH_ALERT' ? 'Tinggi' : risk === 'WARNING' ? 'Sedang' : 'Rendah'
+    stuntingSub = growthSummary.ai_assessment.risk_label || (risk === 'HIGH_ALERT' ? 'Indikator Melambat Signifikan' : risk === 'WARNING' ? 'Keyword Warning Terdeteksi' : 'Pola Pertumbuhan Optimal')
+    aiLabel = stuntingSub
+  } else if (measurements.length > 0) {
     const last = measurements[0]
     aiLabel = last.risikoStuntingMl
-    confidence = last.mlConfidence ?? null
 
     if (aiLabel) {
-      // AI label is 'Normal' or 'Stunting'
-      // Category (Low/Moderate/High) is derived via getStuntingCategory using confidence
-      const cat = getStuntingCategory(aiLabel, confidence)
+      const cat = getStuntingCategory(null, aiLabel)
       stuntingValue = cat === 'high' ? 'Tinggi' : cat === 'moderate' ? 'Sedang' : 'Rendah'
-      // Sub-label: show AI prediction + confidence for context
-      if (aiLabel.toLowerCase().includes('stunting')) {
-        stuntingSub = confidence != null ? `Stunting · ${confidence.toFixed(1)}% tingkat kepercayaan` : 'Stunting terdeteksi'
-      } else {
-        stuntingSub = confidence != null ? `Normal · ${confidence.toFixed(1)}% tingkat kepercayaan` : 'Pertumbuhan Normal'
-      }
+      stuntingSub = aiLabel.toLowerCase().includes('melambat')
+        ? 'Indikator Melambat Signifikan'
+        : aiLabel.toLowerCase().includes('warning')
+        ? 'Keyword Warning Terdeteksi'
+        : 'Pola Pertumbuhan Optimal'
     } else {
-      // Fallback: use percentile when no AI prediction
       const pNum = extractPercentileNumber(last.heightPct)
       const cat = pNum != null ? getStuntingCategoryFromPercentile(pNum) : 'low'
       stuntingValue = cat === 'high' ? 'Tinggi' : cat === 'moderate' ? 'Sedang' : 'Rendah'
-      stuntingSub = cat === 'high' ? 'Pantau secara rutin' : cat === 'moderate' ? 'Perlu perhatian' : 'Pertumbuhan Normal'
+      stuntingSub = cat === 'high' ? 'Pantau secara rutin' : cat === 'moderate' ? 'Perlu perhatian' : 'Pola Pertumbuhan Optimal'
     }
   }
 
@@ -862,7 +899,7 @@ const KeyStatsSection = ({
     <div className={`w-full mb-8 grid gap-6 ${bp === 'mobile' ? 'grid-cols-1' : 'grid-cols-3'}`}>
       <StatCard icon={<IconHeightSvg />} label="Tinggi Badan Sekarang" value={height} unit="cm" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
       <StatCard icon={<IconWeightSvg />} label="Berat Badan Sekarang" value={weight} unit="kg" delta="" deltaUp={true} sub={lastUpdated} bp={bp} />
-      <StuntingCard stuntingValue={stuntingValue} stuntingSub={stuntingSub} aiLabel={aiLabel} confidence={confidence} bp={bp} />
+      <StuntingCard stuntingValue={stuntingValue} stuntingSub={stuntingSub} summary={growthSummary} aiLabel={aiLabel} bp={bp} />
     </div>
   )
 }
@@ -1313,6 +1350,7 @@ const GrowthTracker = () => {
   const [latestWeight, setLatestWeight] = useState('—')
   const [lastUpdated, setLastUpdated] = useState('')
   const [chartsLoading, setChartsLoading] = useState(false)
+  const [growthSummary, setGrowthSummary] = useState<ApiGrowthSummary | null>(null)
 
   // ── Form state ──
   const [heightVal, setHeightVal] = useState('')
@@ -1351,7 +1389,8 @@ const GrowthTracker = () => {
       childrenService.getLatestGrowth(selectedChildId),
       childrenService.getBmiChart(selectedChildId),
       childrenService.getPercentile(selectedChildId),
-    ]).then(([latest, bmi, percentile]) => {
+      childrenService.getGrowthSummary(selectedChildId).catch(() => null),
+    ]).then(([latest, bmi, percentile, summary]) => {
       if (cancelled) return
       if (latest) {
         setLatestHeight(parseFloat(String(latest.tinggiBadan)).toFixed(1))
@@ -1365,6 +1404,7 @@ const GrowthTracker = () => {
       setHeightData(transformToSubChartData(percentile, 'height'))
       setWeightData(transformToSubChartData(percentile, 'weight'))
       setMeasurements(transformPercentileToMeasurements(percentile))
+      setGrowthSummary(summary)
     }).catch(() => {}).finally(() => { if (!cancelled) setChartsLoading(false) })
 
     return () => { cancelled = true }
@@ -1394,10 +1434,11 @@ const GrowthTracker = () => {
       
       // Refresh charts after delete
       if (selectedChildId) {
-        const [latest, bmi, percentile] = await Promise.all([
+        const [latest, bmi, percentile, summary] = await Promise.all([
           childrenService.getLatestGrowth(selectedChildId),
           childrenService.getBmiChart(selectedChildId),
           childrenService.getPercentile(selectedChildId),
+          childrenService.getGrowthSummary(selectedChildId).catch(() => null),
         ])
         if (latest) {
           setLatestHeight((Number(latest.tinggiBadan) || 0).toFixed(1))
@@ -1411,6 +1452,7 @@ const GrowthTracker = () => {
         setHeightData(transformToSubChartData(percentile, 'height'))
         setWeightData(transformToSubChartData(percentile, 'weight'))
         setMeasurements(transformPercentileToMeasurements(percentile))
+        setGrowthSummary(summary)
       }
     } catch (err) {
       alert('Gagal menghapus data pengukuran')
@@ -1451,10 +1493,11 @@ const GrowthTracker = () => {
       }
 
       // Refresh charts
-      const [latest, bmi, percentile] = await Promise.all([
+      const [latest, bmi, percentile, summary] = await Promise.all([
         childrenService.getLatestGrowth(selectedChildId),
         childrenService.getBmiChart(selectedChildId),
         childrenService.getPercentile(selectedChildId),
+        childrenService.getGrowthSummary(selectedChildId).catch(() => null),
       ])
       if (latest) {
         setLatestHeight((Number(latest.tinggiBadan) || 0).toFixed(1))
@@ -1466,6 +1509,7 @@ const GrowthTracker = () => {
       setHeightData(transformToSubChartData(percentile, 'height'))
       setWeightData(transformToSubChartData(percentile, 'weight'))
       setMeasurements(transformPercentileToMeasurements(percentile))
+      setGrowthSummary(summary)
 
       setSaveStatus('success')
       setTimeout(() => setSaveStatus('idle'), 2500)
@@ -1607,6 +1651,7 @@ const GrowthTracker = () => {
                   weight={latestWeight}
                   measurements={measurements}
                   lastUpdated={lastUpdated}
+                  growthSummary={growthSummary}
                 />
                 <GrowthChartSection bp={bp} bmiData={bmiData} childName={childName} />
                 <SubChartsSection bp={bp} heightData={heightData} weightData={weightData} childName={childName} />

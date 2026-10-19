@@ -38,6 +38,32 @@ export interface ApiPercentileItem {
   mlConfidence: number | null;
 }
 
+export interface ApiGrowthSummary {
+  child_info: {
+    child_id: string;
+    name: string;
+    age_months: number | null;
+    gender: 'LAKI_LAKI' | 'PEREMPUAN';
+    latest_anthropometry: {
+      height_cm: number;
+      weight_kg: number;
+      measured_at: string;
+    } | null;
+  };
+  ai_assessment: {
+    risk_level: 'NORMAL' | 'WARNING' | 'HIGH_ALERT';
+    risk_label: string;
+    z_score_height_for_age: number | null;
+    z_score_weight_for_age: number | null;
+    keyword_warnings: string[];
+  };
+  recent_health_logs: {
+    avg_daily_fluid_glasses: number | null;
+    mpasi_compliance: string | null;
+  };
+  disclaimer: string;
+}
+
 // ─── Transformers ─────────────────────────────────────────────────────────────
 const formatAgeLabel = (days: number): string => {
   if (days < 31)  return `${days}d`;
@@ -152,6 +178,11 @@ export const childrenService = {
   getPercentile: async (childId: number): Promise<ApiPercentileItem[]> => {
     const { data } = await apiClient.get(`/api/children/${childId}/growth/percentile`);
     return data.data as ApiPercentileItem[];
+  },
+
+  getGrowthSummary: async (childId: number): Promise<ApiGrowthSummary> => {
+    const { data } = await apiClient.get(`/api/children/${childId}/growth/summary`);
+    return data.data as ApiGrowthSummary;
   },
   
   updateGrowthRecord: async (
