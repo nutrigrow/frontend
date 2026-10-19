@@ -14,8 +14,15 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  FileText,
+  ClipboardCheck,
 } from 'lucide-react'
-import { teleNutritionistService } from '../services/teleNutritionist.service'
+import { useAuth } from '../context/AuthContext'
+import {
+  teleNutritionistService,
+  type ConsultationUserSummary,
+  type UserFollowUp,
+} from '../services/teleNutritionist.service'
 import { loadMidtransSnapScript } from '../services/shop.service'
 
 interface Konsultasi {
@@ -31,6 +38,13 @@ interface Konsultasi {
   rawJadwalSesi: string
   durasiMenit: number
   linkMeeting?: string | null
+  followUp?: {
+    id: number;
+    nutritionStatusEvaluation: string;
+    dietaryRecommendations: string;
+    nextEvaluationDate: string;
+    specialNotes?: string | null;
+  } | null
   transaksi?: {
     id: number;
     statusBayar: string;
@@ -142,6 +156,7 @@ const mapConsultation = (c: any): Konsultasi => ({
     statusBayar: c.transaksi.statusBayar,
     snapToken: c.transaksi.snapToken,
   } : undefined,
+  followUp: c.followUp,
 });
 
 const STATUS_TABS: StatusType[] = ['Akan Datang', 'Selesai', 'Rescheduled', 'Canceled']
@@ -578,19 +593,564 @@ const CancelModal = ({
   )
 }
 
+// ─── User Condition Summary Modal (For Ahli Gizi) ───────────────────────────
+const UserSummaryModal = ({
+  consultationId,
+  open,
+  onClose,
+}: {
+  consultationId: number | null
+  open: boolean
+  onClose: () => void
+}) => {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [summary, setSummary] = useState<ConsultationUserSummary | null>(null)
+
+  useEffect(() => {
+    if (!open || !consultationId) return
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    teleNutritionistService.getUserSummary(consultationId)
+      .then(res => {
+        if (!cancelled) setSummary(res)
+      })
+      .catch(err => {
+        if (!cancelled) setError(err.response?.data?.message || 'Gagal memuat ringkasan kondisi pasien.')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [open, consultationId])
+
+  if (!open) return null
+
+  const anthro = summary?.child_info?.latest_anthropometry
+  const riskLevel = summary?.ai_assessment?.risk_level
+  const riskBadgeColor = riskLevel === 'HIGH_ALERT' ? { bg: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' }
+    : riskLevel === 'WARNING' ? { bg: '#FEF3C7', text: '#92400E', border: '#FCD34D' }
+    : { bg: '#DCFCE7', text: '#166534', border: '#86EFAC' }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '20px',
+      }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        style={{
+          background: '#fff', borderRadius: 20, maxWidth: 560, width: '100%',
+          maxHeight: '85vh', overflowY: 'auto', padding: '24px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FileText size={20} color={NG.primary} />
+            <h3 style={{ margin: 0, fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: 17, color: '#1C1917' }}>
+              Ringkasan Kondisi Pasien
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#A8A29E' }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
+            <div style={{ width: 32, height: 32, border: '3px solid #628141', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+            <p style={{ margin: 0, fontSize: 13 }}>Memuat data pasien...</p>
+          </div>
+        ) : error ? (
+          <div style={{ padding: 14, background: '#FEF2F2', borderRadius: 12, border: '1px solid #FECACA', color: '#991B1B', fontSize: 13 }}>
+            {error}
+          </div>
+        ) : summary ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Child Info */}
+            <div style={{ background: '#F8FAF5', border: `1px solid ${NG.border}`, borderRadius: 14, padding: '14px 16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: NG.dark, textTransform: 'uppercase', letterSpacing: 0.5 }}>Profil Anak</span>
+                <span style={{ fontSize: 12, color: '#78716C' }}>{summary.child_info.gender === 'LAKI_LAKI' ? 'Laki-laki' : 'Perempuan'}</span>
+              </div>
+              <p style={{ margin: '4px 0 2px', fontFamily: 'Montserrat, sans-serif', fontSize: 16, fontWeight: 800, color: '#1C1917' }}>
+                {summary.child_name}
+              </p>
+              <p style={{ margin: 0, fontSize: 12, color: '#78716C' }}>
+                Usia: {summary.child_info.age_months != null ? `${summary.child_info.age_months} bulan` : '—'}
+              </p>
+            </div>
+
+            {/* Antropometri */}
+            <div style={{ border: '1px solid #E7E5E4', borderRadius: 14, padding: '14px 16px' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#78716C', textTransform: 'uppercase', letterSpacing: 0.5 }}>Antropometri Terakhir</span>
+              {anthro ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginTop: 8 }}>
+                  <div style={{ background: '#F5F5F4', borderRadius: 10, padding: 10 }}>
+                    <span style={{ fontSize: 11, color: '#78716C' }}>Tinggi Badan</span>
+                    <p style={{ margin: '2px 0 0', fontWeight: 800, fontSize: 15, color: '#1C1917' }}>
+                      {anthro.height_cm} cm
+                      {summary.ai_assessment.z_score_height_for_age != null && (
+                        <span style={{ fontSize: 11, fontWeight: 500, color: '#78716C', marginLeft: 4 }}>
+                          (Z: {Number(summary.ai_assessment.z_score_height_for_age).toFixed(1)})
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div style={{ background: '#F5F5F4', borderRadius: 10, padding: 10 }}>
+                    <span style={{ fontSize: 11, color: '#78716C' }}>Berat Badan</span>
+                    <p style={{ margin: '2px 0 0', fontWeight: 800, fontSize: 15, color: '#1C1917' }}>
+                      {anthro.weight_kg} kg
+                      {summary.ai_assessment.z_score_weight_for_age != null && (
+                        <span style={{ fontSize: 11, fontWeight: 500, color: '#78716C', marginLeft: 4 }}>
+                          (Z: {Number(summary.ai_assessment.z_score_weight_for_age).toFixed(1)})
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ margin: '8px 0 0', fontSize: 13, color: '#A8A29E' }}>Belum ada data pengukuran antropometri.</p>
+              )}
+            </div>
+
+            {/* AI Risk Assessment */}
+            <div style={{ border: '1px solid #E7E5E4', borderRadius: 14, padding: '14px 16px' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#78716C', textTransform: 'uppercase', letterSpacing: 0.5 }}>Penilaian Pola Pertumbuhan AI</span>
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{
+                    padding: '4px 10px', borderRadius: 9999, fontSize: 12, fontWeight: 700,
+                    background: riskBadgeColor.bg, color: riskBadgeColor.text, border: `1px solid ${riskBadgeColor.border}`,
+                  }}
+                >
+                  {summary.ai_assessment.risk_label || summary.ai_assessment.risk_level}
+                </span>
+              </div>
+              {summary.ai_assessment.keyword_warnings && summary.ai_assessment.keyword_warnings.length > 0 && (
+                <div style={{ marginTop: 10, background: '#FFFBEB', borderRadius: 10, padding: 10, border: '1px solid #FDE68A' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#92400E' }}>Keyword Warnings:</span>
+                  <ul style={{ margin: '4px 0 0', paddingLeft: 16, fontSize: 12, color: '#92400E' }}>
+                    {summary.ai_assessment.keyword_warnings.map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Health Log */}
+            <div style={{ border: '1px solid #E7E5E4', borderRadius: 14, padding: '14px 16px' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#78716C', textTransform: 'uppercase', letterSpacing: 0.5 }}>Riwayat Health Log (7 Hari)</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginTop: 8, fontSize: 13 }}>
+                <div>
+                  <span style={{ color: '#78716C' }}>Rata-rata Cairan: </span>
+                  <span style={{ fontWeight: 700, color: '#1C1917' }}>
+                    {summary.recent_health_logs.avg_daily_fluid_glasses != null ? `${summary.recent_health_logs.avg_daily_fluid_glasses} gelas/hari` : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span style={{ color: '#78716C' }}>Kepatuhan Suplemen: </span>
+                  <span style={{ fontWeight: 700, color: '#1C1917', textTransform: 'capitalize' }}>
+                    {summary.recent_health_logs.mpasi_compliance || '—'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <p style={{ margin: 0, fontSize: 11, color: '#94A3B8', lineHeight: 1.4, borderTop: '1px solid #F1F5F9', paddingTop: 10 }}>
+              * Data ini disediakan sebagai referensi klinis awal untuk sesi konsultasi gizi.
+            </p>
+          </div>
+        ) : null}
+      </motion.div>
+    </div>
+  )
+}
+
+// ─── Nutritionist Follow-Up Modal (Input & Edit) ───────────────────────────
+const NutritionistFollowUpModal = ({
+  consultation,
+  open,
+  onClose,
+  onSuccess,
+}: {
+  consultation: Konsultasi | null
+  open: boolean
+  onClose: () => void
+  onSuccess: () => void
+}) => {
+  const [evaluation, setEvaluation] = useState('')
+  const [recommendations, setRecommendations] = useState('')
+  const [nextDate, setNextDate] = useState('')
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open || !consultation) return
+    setError(null)
+    if (consultation.followUp) {
+      setEvaluation(consultation.followUp.nutritionStatusEvaluation || '')
+      setRecommendations(consultation.followUp.dietaryRecommendations || '')
+      setNextDate(consultation.followUp.nextEvaluationDate ? new Date(consultation.followUp.nextEvaluationDate).toISOString().slice(0, 10) : '')
+      setNotes(consultation.followUp.specialNotes || '')
+    } else {
+      setEvaluation('')
+      setRecommendations('')
+      const d = new Date()
+      d.setDate(d.getDate() + 14)
+      setNextDate(d.toISOString().slice(0, 10))
+      setNotes('')
+    }
+  }, [open, consultation])
+
+  if (!open || !consultation) return null
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!consultation.rawId) return
+    if (!evaluation.trim() || !recommendations.trim() || !nextDate) {
+      setError('Field Evaluasi, Rekomendasi Diet, dan Jadwal Evaluasi wajib diisi.')
+      return
+    }
+
+    setSaving(true)
+    setError(null)
+    try {
+      await teleNutritionistService.createFollowUp(consultation.rawId, {
+        nutrition_status_evaluation: evaluation.trim(),
+        dietary_recommendations: recommendations.trim(),
+        next_evaluation_date: nextDate,
+        special_notes: notes.trim() || undefined,
+      })
+      onSuccess()
+      onClose()
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Gagal menyimpan catatan follow-up.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '20px',
+      }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        style={{
+          background: '#fff', borderRadius: 20, maxWidth: 560, width: '100%',
+          maxHeight: '90vh', overflowY: 'auto', padding: '24px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ClipboardCheck size={20} color={NG.primary} />
+            <h3 style={{ margin: 0, fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: 17, color: '#1C1917' }}>
+              {consultation.followUp ? 'Perbarui Catatan Follow-up' : 'Form Catatan Follow-up'}
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#A8A29E' }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {error && (
+          <div style={{ padding: '10px 14px', background: '#FEF2F2', borderRadius: 10, border: '1px solid #FECACA', color: '#991B1B', fontSize: 13, marginBottom: 14 }}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#44403C', marginBottom: 6 }}>
+              Evaluasi Status Gizi *
+            </label>
+            <input
+              type="text"
+              value={evaluation}
+              onChange={e => setEvaluation(e.target.value)}
+              placeholder="Contoh: Berat badan stabil, pertumbuhan linier optimal"
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #D6D3D1',
+                fontSize: 13, fontFamily: 'var(--font-heading), sans-serif', boxSizing: 'border-box',
+              }}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#44403C', marginBottom: 6 }}>
+              Rekomendasi Diet & Nutrisi *
+            </label>
+            <textarea
+              rows={4}
+              value={recommendations}
+              onChange={e => setRecommendations(e.target.value)}
+              placeholder="Tuliskan anjuran menu makanan, frekuensi, kecukupan protein hewani, dsb."
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #D6D3D1',
+                fontSize: 13, fontFamily: 'var(--font-heading), sans-serif', boxSizing: 'border-box',
+              }}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#44403C', marginBottom: 6 }}>
+              Jadwal Evaluasi Berikutnya *
+            </label>
+            <input
+              type="date"
+              value={nextDate}
+              onChange={e => setNextDate(e.target.value)}
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #D6D3D1',
+                fontSize: 13, fontFamily: 'var(--font-heading), sans-serif', boxSizing: 'border-box',
+              }}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#44403C', marginBottom: 6 }}>
+              Catatan Khusus (Opsional)
+            </label>
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Catatan tambahan untuk keluarga atau pantauan klinis khusus."
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #D6D3D1',
+                fontSize: 13, fontFamily: 'var(--font-heading), sans-serif', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                flex: 1, padding: '12px', background: '#F5F5F4', color: '#44403C', border: 'none',
+                borderRadius: 10, fontFamily: 'Montserrat, sans-serif', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                flex: 1, padding: '12px', background: NG.primary, color: '#fff', border: 'none',
+                borderRadius: 10, fontFamily: 'Montserrat, sans-serif', fontSize: 14, fontWeight: 700,
+                cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1,
+              }}
+            >
+              {saving ? 'Menyimpan...' : 'Simpan Catatan'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  )
+}
+
+// ─── User Follow-Up Modal (Viewing follow-up results) ───────────────────────
+const UserFollowUpModal = ({
+  consultationId,
+  open,
+  onClose,
+}: {
+  consultationId: number | null
+  open: boolean
+  onClose: () => void
+}) => {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [followUp, setFollowUp] = useState<UserFollowUp | null>(null)
+
+  useEffect(() => {
+    if (!open || !consultationId) return
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    teleNutritionistService.getUserFollowUp(consultationId)
+      .then(res => {
+        if (!cancelled) setFollowUp(res)
+      })
+      .catch(err => {
+        if (!cancelled) {
+          if (err.response?.status === 404) {
+            setFollowUp(null)
+          } else {
+            setError(err.response?.data?.message || 'Gagal memuat catatan follow-up.')
+          }
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [open, consultationId])
+
+  if (!open) return null
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '20px',
+      }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        style={{
+          background: '#fff', borderRadius: 20, maxWidth: 540, width: '100%',
+          maxHeight: '85vh', overflowY: 'auto', padding: '24px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ClipboardCheck size={20} color={NG.primary} />
+            <h3 style={{ margin: 0, fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: 17, color: '#1C1917' }}>
+              Hasil Follow-up Konsultasi
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#A8A29E' }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
+            <div style={{ width: 32, height: 32, border: '3px solid #628141', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+            <p style={{ margin: 0, fontSize: 13 }}>Memuat catatan tindak lanjut...</p>
+          </div>
+        ) : error ? (
+          <div style={{ padding: 14, background: '#FEF2F2', borderRadius: 12, border: '1px solid #FECACA', color: '#991B1B', fontSize: 13 }}>
+            {error}
+          </div>
+        ) : followUp ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ background: '#F0F7E8', border: `1px solid ${NG.border}`, borderRadius: 14, padding: '12px 16px' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: NG.dark, textTransform: 'uppercase' }}>Ahli Gizi Pembina</span>
+              <p style={{ margin: '2px 0 0', fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 15, color: '#1C1917' }}>
+                {followUp.nutritionist_name}
+              </p>
+              <span style={{ fontSize: 12, color: '#78716C' }}>Tanggal Sesi: {followUp.consultation_date}</span>
+            </div>
+
+            <div style={{ border: '1px solid #E7E5E4', borderRadius: 14, padding: '14px 16px' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#78716C', textTransform: 'uppercase' }}>Evaluasi Status Gizi</span>
+              <p style={{ margin: '6px 0 0', fontSize: 14, color: '#1C1917', fontWeight: 600 }}>
+                {followUp.evaluation_summary.status_label}
+              </p>
+            </div>
+
+            <div style={{ border: '1px solid #E7E5E4', borderRadius: 14, padding: '14px 16px' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#78716C', textTransform: 'uppercase' }}>Rekomendasi Diet & Pola Makan</span>
+              <p style={{ margin: '6px 0 0', fontSize: 13, color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                {followUp.evaluation_summary.recommendations}
+              </p>
+            </div>
+
+            <div style={{ border: '1px solid #E7E5E4', borderRadius: 14, padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#78716C', textTransform: 'uppercase' }}>Jadwal Evaluasi Berikutnya</span>
+                <p style={{ margin: '2px 0 0', fontSize: 14, fontWeight: 700, color: '#1C1917' }}>
+                  {new Date(followUp.evaluation_summary.next_evaluation_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+              <Calendar size={20} color={NG.primary} />
+            </div>
+
+            {followUp.evaluation_summary.special_notes && (
+              <div style={{ border: '1px solid #E7E5E4', borderRadius: 14, padding: '14px 16px' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#78716C', textTransform: 'uppercase' }}>Catatan Khusus</span>
+                <p style={{ margin: '6px 0 0', fontSize: 13, color: '#44403C', lineHeight: 1.5 }}>
+                  {followUp.evaluation_summary.special_notes}
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '30px 10px' }}>
+            <ClipboardCheck size={40} color="#94a3b8" style={{ margin: '0 auto 12px' }} />
+            <h4 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700, color: '#334155' }}>Belum Ada Catatan Follow-up</h4>
+            <p style={{ margin: 0, fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
+              Ahli gizi belum menambahkan catatan evaluasi untuk sesi konsultasi ini. Catatan akan tampil otomatis di sini setelah diisi oleh ahli gizi.
+            </p>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  )
+}
+
 // ─── Consultation Card ────────────────────────────────────────────────────────
 const KonsultasiCard = ({
   konsultasi,
   isMobile,
+  isNutritionist,
   onReschedule,
   onCancel,
   onPay,
+  onViewSummary,
+  onOpenFollowUpForm,
+  onViewFollowUp,
 }: {
   konsultasi: Konsultasi
   isMobile: boolean
+  isNutritionist: boolean
   onReschedule: (k: Konsultasi) => void
   onCancel: (k: Konsultasi) => void
   onPay: (k: Konsultasi) => void
+  onViewSummary?: (k: Konsultasi) => void
+  onOpenFollowUpForm?: (k: Konsultasi) => void
+  onViewFollowUp?: (k: Konsultasi) => void
 }) => {
   const [now, setNow] = useState(new Date())
 
@@ -805,17 +1365,78 @@ const KonsultasiCard = ({
             </button>
           </div>
           )}
+          {/* Untuk Ahli Gizi: Akses Ringkasan Pasien sebelum sesi */}
+          {isNutritionist && (
+            <button
+              onClick={() => onViewSummary?.(konsultasi)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 6, padding: '10px 14px', background: '#F0F7E8', color: NG.dark,
+                border: `1.5px solid ${NG.border}`, borderRadius: 10,
+                fontFamily: 'Montserrat, sans-serif', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              <FileText size={14} />
+              Lihat Kondisi Pasien (Summary)
+            </button>
+          )}
         </div>
       )}
 
       {/* Selesai / Canceled */}
       {(konsultasi.status === 'Selesai' || konsultasi.status === 'Canceled') && (
-        <div style={{ padding: '0 20px 20px' }}>
+        <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ textAlign: 'center', padding: '12px', background: '#F9FAFB', borderRadius: 12, border: '1px dashed #E5E7EB' }}>
             <p style={{ margin: 0, fontSize: 13, color: '#9CA3AF', fontWeight: 600, fontFamily: 'var(--font-heading), sans-serif' }}>
               {konsultasi.status === 'Selesai' ? 'Sesi ini telah selesai' : 'Sesi ini telah dibatalkan'}
             </p>
           </div>
+
+          {konsultasi.status === 'Selesai' && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {isNutritionist ? (
+                <>
+                  <button
+                    onClick={() => onViewSummary?.(konsultasi)}
+                    style={{
+                      flex: 1, minWidth: 140, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: 6, padding: '11px 14px', background: '#F0F7E8', color: NG.dark,
+                      border: `1.5px solid ${NG.border}`, borderRadius: 10,
+                      fontFamily: 'Montserrat, sans-serif', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >
+                    <FileText size={14} />
+                    Ringkasan Pasien
+                  </button>
+                  <button
+                    onClick={() => onOpenFollowUpForm?.(konsultasi)}
+                    style={{
+                      flex: 1, minWidth: 140, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: 6, padding: '11px 14px', background: NG.primary, color: '#fff',
+                      border: 'none', borderRadius: 10,
+                      fontFamily: 'Montserrat, sans-serif', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >
+                    <ClipboardCheck size={14} />
+                    {konsultasi.followUp ? 'Edit Catatan Follow-up' : 'Isi Catatan Follow-up'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => onViewFollowUp?.(konsultasi)}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    gap: 6, padding: '11px 16px', background: '#F0FDF4', color: '#166534',
+                    border: '1.5px solid #BBF7D0', borderRadius: 10,
+                    fontFamily: 'Montserrat, sans-serif', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  }}
+                >
+                  <ClipboardCheck size={14} />
+                  Lihat Hasil Follow-up
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </motion.div>
@@ -871,6 +1492,8 @@ const EmptyState = ({
 
 // ─── Konsultasi Saya Page ─────────────────────────────────────────────────────
 export default function KonsultasiSaya() {
+  const { user } = useAuth()
+  const isNutritionist = user?.role === 'AHLI_GIZI'
   const navigate = useNavigate()
   const bp = useBreakpoint()
   const isMobile = bp === 'mobile'
@@ -883,6 +1506,9 @@ export default function KonsultasiSaya() {
 
   const [rescheduleTarget, setRescheduleTarget] = useState<Konsultasi | null>(null)
   const [cancelTarget, setCancelTarget] = useState<Konsultasi | null>(null)
+  const [summaryTarget, setSummaryTarget] = useState<number | null>(null)
+  const [followUpEditTarget, setFollowUpEditTarget] = useState<Konsultasi | null>(null)
+  const [userFollowUpTarget, setUserFollowUpTarget] = useState<number | null>(null)
 
   const fetchConsultations = async () => {
     setLoading(true)
@@ -1109,9 +1735,13 @@ export default function KonsultasiSaya() {
                         key={k.id}
                         konsultasi={k}
                         isMobile={isMobile}
+                        isNutritionist={isNutritionist}
                         onReschedule={setRescheduleTarget}
                         onCancel={setCancelTarget}
                         onPay={handlePay}
+                        onViewSummary={(item) => setSummaryTarget(item.rawId || Number(item.id.replace('LM-', '')))}
+                        onOpenFollowUpForm={(item) => setFollowUpEditTarget(item)}
+                        onViewFollowUp={(item) => setUserFollowUpTarget(item.rawId || Number(item.id.replace('LM-', '')))}
                       />
                     ))
                   ) : (
@@ -1240,9 +1870,13 @@ export default function KonsultasiSaya() {
                           key={k.id}
                           konsultasi={k}
                           isMobile={isMobile}
+                          isNutritionist={isNutritionist}
                           onReschedule={setRescheduleTarget}
                           onCancel={setCancelTarget}
                           onPay={handlePay}
+                          onViewSummary={(item) => setSummaryTarget(item.rawId || Number(item.id.replace('LM-', '')))}
+                          onOpenFollowUpForm={(item) => setFollowUpEditTarget(item)}
+                          onViewFollowUp={(item) => setUserFollowUpTarget(item.rawId || Number(item.id.replace('LM-', '')))}
                         />
                       ))
                     ) : (
@@ -1276,6 +1910,43 @@ export default function KonsultasiSaya() {
             konsultasi={cancelTarget}
             onClose={() => setCancelTarget(null)}
             onConfirm={handleCancelConfirm}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── User Condition Summary Modal (Ahli Gizi) ── */}
+      <AnimatePresence>
+        {summaryTarget && (
+          <UserSummaryModal
+            key='summary'
+            consultationId={summaryTarget}
+            open={!!summaryTarget}
+            onClose={() => setSummaryTarget(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Nutritionist Follow-Up Modal (Input/Edit) ── */}
+      <AnimatePresence>
+        {followUpEditTarget && (
+          <NutritionistFollowUpModal
+            key='nutritionist-follow-up'
+            consultation={followUpEditTarget}
+            open={!!followUpEditTarget}
+            onClose={() => setFollowUpEditTarget(null)}
+            onSuccess={() => fetchConsultations()}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── User Follow-Up Modal (Patient View) ── */}
+      <AnimatePresence>
+        {userFollowUpTarget && (
+          <UserFollowUpModal
+            key='user-follow-up'
+            consultationId={userFollowUpTarget}
+            open={!!userFollowUpTarget}
+            onClose={() => setUserFollowUpTarget(null)}
           />
         )}
       </AnimatePresence>
