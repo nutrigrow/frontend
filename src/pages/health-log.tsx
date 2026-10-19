@@ -2070,7 +2070,7 @@ export default function HealthLog() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [saveErrorMessage, setSaveErrorMessage] = useState('')
   const [editIndex, setEditIndex] = useState<number | null>(null)
-  const [fieldPeriod, setFieldPeriod] = useState<FieldPeriod>('month')
+  const [fieldPeriod, setFieldPeriod] = useState<FieldPeriod>('week')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
 
