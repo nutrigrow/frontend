@@ -11,6 +11,7 @@ import editsign     from "../assets/images/images-editsign.png";
 import { useAuth }         from "../context/AuthContext";
 import { shopService }     from "../services/shop.service";
 import { childrenService } from "../services/children.service";
+import { rewardService }   from "../services/reward.service";
 import { apiClient }       from "../services/api";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -302,6 +303,43 @@ const TX_ICON_TONE: Record<PointTransaction["tone"], string> = {
 };
 
 const formatPoin = (n: number) => n.toLocaleString("id-ID");
+
+const renderRewardIcon = (iconName?: string | ReactNode) => {
+  if (typeof iconName !== "string") return iconName ?? <IconCheckCircle className="w-5 h-5" />;
+  switch (iconName) {
+    case "IconTag": return <IconTag className="w-5 h-5" />;
+    case "IconShoppingBag": return <IconShoppingBag className="w-5 h-5" />;
+    case "IconStethoscope": return <IconStethoscope className="w-5 h-5" />;
+    case "IconPackage": return <IconPackage className="w-5 h-5" />;
+    case "IconScale": return <IconScale className="w-5 h-5" />;
+    case "IconUtensils": return <IconUtensils className="w-5 h-5" />;
+    case "IconBookOpen": return <IconBookOpen className="w-5 h-5" />;
+    case "IconVideo": return <IconVideo className="w-5 h-5" />;
+    case "IconFlame": return <IconFlame className="w-5 h-5" />;
+    case "IconPlusCircle": return <IconPlusCircle className="w-5 h-5" />;
+    case "IconGift": return <IconGift className="w-5 h-5" />;
+    case "IconCheckCircle":
+    default:
+      return <IconCheckCircle className="w-5 h-5" />;
+  }
+};
+
+const formatTxTime = (timeStr: string | Date) => {
+  try {
+    const d = new Date(timeStr);
+    if (isNaN(d.getTime())) return String(timeStr);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const timeFormatted = d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }).replace(".", ":");
+    if (isToday) return `Hari ini • ${timeFormatted} WIB`;
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 1) return `Kemarin • ${timeFormatted} WIB`;
+    if (diffDays > 1 && diffDays < 30) return `${diffDays} hari yang lalu • ${timeFormatted} WIB`;
+    return `${d.toLocaleDateString("id-ID")} • ${timeFormatted} WIB`;
+  } catch {
+    return String(timeStr);
+  }
+};
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const mapAddr = (a: BackendAddress): Address => ({
@@ -667,12 +705,13 @@ function HistoryModal({ transactions, onClose }: {
 }
 
 // ── Rewards Panel ("Hadiah") ───────────────────────────────────────────────
-function RewardsPanel({ summary, missions, catalog, transactions, notice, onRedeem, onNavigate }: {
+function RewardsPanel({ summary, missions, catalog, transactions, notice, loading, onRedeem, onNavigate }: {
   summary: RewardSummary;
   missions: Mission[];
   catalog: RewardItem[];
   transactions: PointTransaction[];
   notice: string;
+  loading?: boolean;
   onRedeem: (reward: RewardItem) => void;
   onNavigate: (path: string) => void;
 }) {
@@ -680,6 +719,15 @@ function RewardsPanel({ summary, missions, catalog, transactions, notice, onRede
   const { points, levelName, nextLevelName, nextLevelTarget, streakDays, streakBonus } = summary;
   const progressPct   = Math.min(100, Math.round((points / nextLevelTarget) * 100));
   const pointsToLevel = Math.max(0, nextLevelTarget - points);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div className="w-10 h-10 border-4 border-[#4d7c0f] border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-sm font-semibold text-gray-600">Memuat data poin & hadiah...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -765,7 +813,11 @@ function RewardsPanel({ summary, missions, catalog, transactions, notice, onRede
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {missions.map(m => {
+          {missions.length === 0 ? (
+            <div className="col-span-1 md:col-span-2 py-8 text-center text-sm text-gray-500 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+              Belum ada misi aktif hari ini.
+            </div>
+          ) : missions.map(m => {
             const done = m.status === "done";
             return (
               <div
@@ -813,7 +865,11 @@ function RewardsPanel({ summary, missions, catalog, transactions, notice, onRede
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {catalog.map(r => {
+          {catalog.length === 0 ? (
+            <div className="col-span-1 md:col-span-2 py-8 text-center text-sm text-gray-500 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+              Katalog hadiah saat ini belum tersedia.
+            </div>
+          ) : catalog.map(r => {
             const affordable = points >= r.cost;
             const shortfall  = r.cost - points;
             const pct        = Math.min(100, Math.round((points / r.cost) * 100));
@@ -898,8 +954,13 @@ function RewardsPanel({ summary, missions, catalog, transactions, notice, onRede
           </button>
         </div>
 
-        <ul className="divide-y divide-gray-100">
-          {transactions.slice(0, RECENT_TX_LIMIT).map(t => {
+        {transactions.length === 0 ? (
+          <div className="py-8 text-center text-sm text-gray-500 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+            Belum ada riwayat transaksi poin. Selesaikan aktivitas harian untuk mulai mengumpulkan poin!
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {transactions.slice(0, RECENT_TX_LIMIT).map(t => {
             const positive = t.amount > 0;
             return (
               <li key={t.id} className="flex items-center gap-3 sm:gap-4 py-4">
@@ -919,6 +980,7 @@ function RewardsPanel({ summary, missions, catalog, transactions, notice, onRede
             );
           })}
         </ul>
+        )}
       </section>
 
       {historyOpen && (
@@ -954,7 +1016,10 @@ export default function EditProfile() {
 
   // Reward state
   const [rewardSummary, setRewardSummary] = useState<RewardSummary>(REWARD_SUMMARY);
+  const [missions, setMissions]           = useState<Mission[]>(MISSIONS);
+  const [catalog, setCatalog]             = useState<RewardItem[]>(REWARD_CATALOG);
   const [transactions, setTransactions]   = useState<PointTransaction[]>(POINT_TRANSACTIONS);
+  const [rewardLoading, setRewardLoading] = useState(false);
   const [redeemTarget, setRedeemTarget]   = useState<RewardItem | null>(null);
   const [redeemSaving, setRedeemSaving]   = useState(false);
   const [rewardNotice, setRewardNotice]   = useState("");
@@ -1103,32 +1168,92 @@ export default function EditProfile() {
   };
 
   // ── Reward handlers ──
+  const loadRewardData = async () => {
+    setRewardLoading(true);
+    try {
+      const [sumRes, catRes, misRes, histRes] = await Promise.all([
+        rewardService.getSummary(),
+        rewardService.getCatalog(),
+        rewardService.getMissions(),
+        rewardService.getHistory(),
+      ]);
+
+      if (sumRes) {
+        setRewardSummary({
+          points: sumRes.points ?? 0,
+          levelName: sumRes.levelName || "Pemula",
+          nextLevelName: sumRes.nextLevelName || "Konsisten",
+          nextLevelTarget: sumRes.nextLevelTarget || 500,
+          streakDays: sumRes.streakDays ?? 0,
+          streakBonus: sumRes.streakBonus ?? 15,
+        });
+      }
+
+      if (Array.isArray(catRes)) {
+        setCatalog(catRes.map(item => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          cost: item.cost,
+          icon: renderRewardIcon((item as any).icon || "IconTag"),
+        })));
+      }
+
+      if (Array.isArray(misRes)) {
+        setMissions(misRes.map(m => ({
+          id: m.id,
+          title: m.title,
+          subtitle: m.subtitle,
+          tone: ((m as any).tone || "green") as Tone,
+          icon: renderRewardIcon((m as any).icon || "IconScale"),
+          status: m.status,
+          actionLabel: m.actionLabel,
+          to: m.to,
+        })));
+      }
+
+      if (Array.isArray(histRes)) {
+        setTransactions(histRes.map(tx => ({
+          id: tx.id,
+          title: tx.title,
+          time: formatTxTime(tx.time),
+          amount: tx.amount,
+          tone: ((tx as any).tone || (tx.amount > 0 ? "green" : "red")) as "yellow" | "green" | "red",
+          icon: renderRewardIcon((tx as any).icon || (tx.amount > 0 ? "IconCheckCircle" : "IconGift")),
+        })));
+      }
+    } catch (err) {
+      console.error("Gagal memuat data reward:", err);
+    } finally {
+      setRewardLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeMenu === "hadiah") {
+      loadRewardData();
+    }
+  }, [activeMenu]);
+
   const handleRedeemReward = (reward: RewardItem) => setRedeemTarget(reward);
 
   const confirmRedeem = async () => {
     if (!redeemTarget) return;
-    if (rewardSummary.points < redeemTarget.cost) { setRedeemTarget(null); return; }
+    if (rewardSummary.points < redeemTarget.cost) {
+      alert("Saldo poin tidak mencukupi untuk menukar hadiah ini.");
+      setRedeemTarget(null);
+      return;
+    }
 
     setRedeemSaving(true);
     try {
-      // TODO: await apiClient.post("/api/rewards/redeem", { rewardId: redeemTarget.id });
-      // Setelah endpoint tersedia, gunakan saldo & riwayat dari response server.
-      const now = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }).replace(".", ":");
-
-      setRewardSummary(prev => ({ ...prev, points: prev.points - redeemTarget.cost }));
-      setTransactions(prev => [{
-        id: `redeem-${Date.now()}`,
-        title: `Tukar ${redeemTarget.title}`,
-        time: `Hari ini • ${now} WIB`,
-        amount: -redeemTarget.cost,
-        tone: "red",
-        icon: <IconGift className="w-5 h-5" />,
-      }, ...prev]);
-      setRewardNotice(`Berhasil menukar "${redeemTarget.title}". Sisa saldo ${formatPoin(rewardSummary.points - redeemTarget.cost)} poin.`);
+      const res = await rewardService.redeem(redeemTarget.id);
+      setRewardNotice(`Berhasil menukar "${res.reward.title}". Sisa saldo ${formatPoin(res.remainingPoints)} poin.`);
       setRedeemTarget(null);
-    } catch {
-      setRewardNotice("");
-      alert("Gagal menukar hadiah. Coba lagi.");
+      await loadRewardData();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || "Gagal menukar hadiah. Coba lagi.";
+      alert(msg);
     } finally {
       setRedeemSaving(false);
     }
@@ -1463,10 +1588,11 @@ export default function EditProfile() {
                 >
                   <RewardsPanel
                     summary={rewardSummary}
-                    missions={MISSIONS}
-                    catalog={REWARD_CATALOG}
+                    missions={missions}
+                    catalog={catalog}
                     transactions={transactions}
                     notice={rewardNotice}
+                    loading={rewardLoading}
                     onRedeem={handleRedeemReward}
                     onNavigate={navigate}
                   />

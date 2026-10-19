@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { type ArticleSection } from '../data/articles'
 import { articleService, type ArticleDetail, type ArticleCard } from '../services/article.service'
+import { rewardService } from '../services/reward.service'
 import { CardArtikel } from '../components/card-artikel'
 
 // ─── Breakpoint Hook ──────────────────────────────────────────────────────────
@@ -331,6 +332,15 @@ export default function BacaArtikel() {
     }
     fetchArticle()
   }, [id])
+
+  // Rekam riwayat baca untuk gamification (+5 poin, maks 3 artikel/hari)
+  useEffect(() => {
+    if (!article?.id) return
+    const timer = setTimeout(() => {
+      rewardService.readArticle(article.id).catch(() => {})
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [article?.id])
 
   const categoryColor = article
     ? (CATEGORY_COLOR[article.category] ?? CATEGORY_COLOR['MPASI'])
