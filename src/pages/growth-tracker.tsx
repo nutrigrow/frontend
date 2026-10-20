@@ -315,12 +315,21 @@ const validateInputs = (height: string, weight: string, date: string) => {
     if (parts.length !== 3 || parts.some(p => p === '') || isNaN(new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime())) {
       errors.date = 'Masukkan tanggal yang valid (HH/BB/TTTT).'
     } else {
-      const selectedDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      const selectedDate = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
       const today = new Date();
       today.setHours(0,0,0,0);
       selectedDate.setHours(0,0,0,0);
-      if (selectedDate > today) {
-        errors.date = 'Tanggal pengukuran tidak boleh di masa depan.'
+      let maxToday = today;
+      try {
+        const wibStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+        const [wy, wm, wd] = wibStr.split('-').map(Number);
+        const wibDate = new Date(wy, wm - 1, wd);
+        if (wibDate > maxToday) maxToday = wibDate;
+      } catch (_) {
+        // Fallback to local date if Intl is unavailable
+      }
+      if (selectedDate > maxToday) {
+        errors.date = 'Tanggal pengukuran tidak boleh di masa depan.';
       }
     }
   }

@@ -148,9 +148,16 @@ const BULAN_ID: Record<string, string> = {
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 const pad2 = (n: number): string => String(n).padStart(2, '0')
 
-/** Tanggal lokal perangkat dalam format YYYY-MM-DD (bukan UTC). */
-export const getLocalISODate = (date: Date = new Date()): string =>
-  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+/** Tanggal hari ini dalam format YYYY-MM-DD dengan memperhitungkan zona waktu Indonesia (WIB/Asia/Jakarta) dan lokal perangkat. */
+export const getLocalISODate = (date: Date = new Date()): string => {
+  const localStr = `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+  try {
+    const wibStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(date)
+    return wibStr > localStr ? wibStr : localStr
+  } catch {
+    return localStr
+  }
+}
 
 /** YYYY-MM-DD -> DD/MM/YYYY */
 export const isoToDDMMYYYY = (iso: string): string => {

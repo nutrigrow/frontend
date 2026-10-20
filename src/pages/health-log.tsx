@@ -2183,11 +2183,21 @@ export default function HealthLog() {
     const profile = CATEGORY_TO_PROFILE[activeCategory]
     const moodInt = MOOD_STR_TO_INT[mood] ?? 3
     const isoDate = toISODate(logDate)
-    const logDateObj = new Date(isoDate)
+    const [dd, mm, yyyy] = logDate.split('/').map(Number)
+    const logDateObj = new Date(yyyy, mm - 1, dd)
     const todayObj = new Date()
     todayObj.setHours(0, 0, 0, 0)
     logDateObj.setHours(0, 0, 0, 0)
-    if (logDateObj > todayObj) {
+    let maxToday = todayObj
+    try {
+      const wibStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())
+      const [wy, wm, wd] = wibStr.split('-').map(Number)
+      const wibDate = new Date(wy, wm - 1, wd)
+      if (wibDate > maxToday) maxToday = wibDate
+    } catch (_) {
+      // Fallback to local date if Intl is unavailable
+    }
+    if (logDateObj > maxToday) {
       alert("Tanggal catatan kesehatan tidak boleh di masa depan.")
       return
     }
