@@ -12,7 +12,7 @@ export interface NotificationKindStyle {
 export const NOTIFICATION_KIND_STYLE: Record<MonitoringKind, NotificationKindStyle> = {
   warning:  { label: 'Peringatan',         icon: AlertTriangle, color: '#DC2626', softBg: '#FEF2F2' },
   streak:   { label: 'Streak',             icon: Flame,         color: '#EA580C', softBg: '#FFF7ED' },
-  session:  { label: 'Tele-Nutritionist',  icon: Stethoscope,   color: '#0E7490', softBg: '#ECFEFF' },
+  session:  { label: 'Tele-Consultation',  icon: Stethoscope,   color: '#0E7490', softBg: '#ECFEFF' },
   reminder: { label: 'Pengingat Sehat',    icon: CalendarClock, color: 'var(--color-nutri-green)', softBg: 'var(--color-nutri-green-soft)' },
   info:     { label: 'Pengingat Harian',   icon: Bell,          color: '#D97706', softBg: '#FFFBEB' },
 }

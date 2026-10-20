@@ -6,7 +6,7 @@ import { teleNutritionistService, type Consultation } from './teleNutritionist.s
 // reminder  → interval normal terlewati      (Kondisi 1)
 // warning   → interval kritis terlewati      (Kondisi 2)
 // streak    → H-1 sebelum streak putus       (Kondisi 3)
-// session   → 3 hari setelah sesi Tele-Nutritionist (Kondisi 4)
+// session   → 3 hari setelah sesi Tele-Consultation (Kondisi 4)
 // info      → notifikasi harian dari backend (/api/health-logs/notifications)
 export type MonitoringKind = 'reminder' | 'warning' | 'streak' | 'session' | 'info';
 
@@ -236,7 +236,7 @@ const buildPostSessionNotification = (
     kind: 'session',
     title: `Bagaimana hasil sesi dengan ${nutritionist}?`,
     message: 'Yuk catat perkembangan terbaru untuk melihat apakah saran nutrisinya sudah berdampak!',
-    meta: `${days} hari setelah sesi Tele-Nutritionist`,
+    meta: `${days} hari setelah sesi Tele-Consultation`,
     cta: hasChildren
       ? { label: 'Catat Sekarang', href: '/growth-tracker' }
       : { label: 'Catat Sekarang', href: '/health-log' },

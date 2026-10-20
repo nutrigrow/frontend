@@ -396,7 +396,7 @@ export default function TransaksiTeleNutri() {
 
     } catch (error) {
       console.error("Failed to load consultations", error);
-      toast.error("Gagal memuat log tele-nutritionist");
+      toast.error("Gagal memuat log tele-consultation");
     } finally {
       setLoading(false);
     }
@@ -533,7 +533,7 @@ export default function TransaksiTeleNutri() {
       <div className="space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Konsultasi Tele-Nutritionist</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Konsultasi Tele-Consultation</h1>
             <p className="text-sm text-gray-500 mt-1">Pantau sesi konsultasi aktif, reschedule jadwal, update link, dan kelola resume medis</p>
           </div>
         </div>
@@ -670,7 +670,7 @@ export default function TransaksiTeleNutri() {
             {loading ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-[#4a7c59]" />
-                <p className="text-sm text-gray-400 font-medium">Memuat log sesi tele-nutritionist...</p>
+                <p className="text-sm text-gray-400 font-medium">Memuat log sesi tele-consultation...</p>
               </div>
             ) : (
               <table className="w-full text-sm">

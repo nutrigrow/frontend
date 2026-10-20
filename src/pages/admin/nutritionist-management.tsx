@@ -550,7 +550,7 @@ export default function NutritionistManagement() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Manajemen Ahli Gizi</h1>
-          <p className="text-sm text-gray-500 mt-1">Kelola semua ahli gizi dan penjadwalan konsultasi Tele-Nutritionist</p>
+          <p className="text-sm text-gray-500 mt-1">Kelola semua ahli gizi dan penjadwalan konsultasi Tele-Consultation</p>
         </div>
         <button onClick={() => setModal({ open: true, mode: "add" })} className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#4a7c59] text-white rounded-lg text-sm font-semibold hover:bg-[#3d6849] transition-colors shadow-sm shrink-0">
           <Plus size={16} /> Tambah Ahli Gizi

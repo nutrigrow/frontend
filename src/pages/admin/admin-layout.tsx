@@ -37,7 +37,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Pengguna", path: "/admin/users", icon: <Users size={17} /> },
       { label: "NutriShop", path: "/admin/products", icon: <ShoppingBag size={17} /> },
-      { label: "Tele-Nutritionist", path: "/admin/nutritionists", icon: <UserCheck size={17} /> },
+      { label: "Tele-Consultation", path: "/admin/nutritionists", icon: <UserCheck size={17} /> },
       { label: "Artikel", path: "/admin/articles", icon: <BookOpen size={17} /> },
     ],
   },
@@ -45,7 +45,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: "TRANSAKSI",
     items: [
       { label: "Transaksi NutriShop", path: "/admin/nutrishop", icon: <ShoppingCart size={17} /> },
-      { label: "Transaksi Tele-Nutritionist", path: "/admin/tele", icon: <Phone size={17} /> },
+      { label: "Transaksi Tele-Consultation", path: "/admin/tele", icon: <Phone size={17} /> },
     ],
   },
 ];

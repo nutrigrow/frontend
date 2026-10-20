@@ -24,7 +24,7 @@ const quickActions = [
   { label: "Tambah\nNutritionist",  icon: <UserCheck size={22} />,     color: "text-purple-500", bg: "bg-purple-50", to: "/admin/nutritionists"     },
   { label: "Buat\nArtikel",         icon: <BookOpen size={22} />,      color: "text-orange-500", bg: "bg-orange-50", to: "/admin/articles"          },
   { label: "Transaksi\nNutriShop",  icon: <ShoppingBag size={22} />,   color: "text-teal-500",   bg: "bg-teal-50",   to: "/admin/nutrishop" },
-  { label: "Transaksi\nTele-Nutritionist", icon: <ClipboardList size={22} />, color: "text-pink-500",   bg: "bg-pink-50",   to: "/admin/tele" },
+  { label: "Transaksi\nTele-Consultation", icon: <ClipboardList size={22} />, color: "text-pink-500",   bg: "bg-pink-50",   to: "/admin/tele" },
 ];
 
 function getRelativeTime(isoString: string): string {
@@ -136,7 +136,7 @@ export default function AdminDashboard() {
             <p className="text-xs text-green-600 font-medium mt-1">Transaksi penjualan sukses</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-            <p className="text-xs text-gray-500 font-semibold tracking-wider uppercase">Pendapatan Tele-Nutritionist</p>
+            <p className="text-xs text-gray-500 font-semibold tracking-wider uppercase">Pendapatan Tele-Consultation</p>
             <p className="text-2xl font-bold text-gray-900 mt-2">Rp {(stats?.revenue.teleNutritionist || 0).toLocaleString("id-ID")}</p>
             <p className="text-xs text-green-600 font-medium mt-1">Konsultasi ahli gizi sukses</p>
           </div>
