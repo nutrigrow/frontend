@@ -216,7 +216,7 @@ const HeroSection = ({ bp }: { bp: 'mobile' | 'tablet' | 'desktop' }) => {
               textTransform: 'uppercase',
             }}
           >
-            TELE-NUTRITIONIST
+            TELE-CONSULTATION
           </span>
         </div>
 

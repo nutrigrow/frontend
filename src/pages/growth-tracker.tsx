@@ -574,7 +574,7 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
         "Kapasitas eksplorasi dan daya tahan tubuh dapat menurun jika asupan tidak dioptimalkan.",
       ],
       prevention: [
-        "Konsultasikan menu MPASI atau pola makan anak dengan ahli gizi melalui Tele-Nutritionist.",
+        "Konsultasikan menu MPASI atau pola makan anak dengan ahli gizi melalui Tele-Consultation.",
         "Tingkatkan konsumsi sumber protein hewani (telur, ikan, daging) dan zinc setiap hari.",
         "Lakukan pengukuran ulang secara rutin dan catat riwayat pertumbuhan dengan konsisten.",
       ],
@@ -600,7 +600,7 @@ const STUNTING_CONFIG: Record<StuntingCategory, {
         "Risiko keterlambatan motorik dan gangguan konsentrasi belajar di masa depan.",
       ],
       prevention: [
-        "Segera jadwalkan konsultasi dengan dokter anak atau ahli gizi NutriGrow via Tele-Nutritionist.",
+        "Segera jadwalkan konsultasi dengan dokter anak atau ahli gizi NutriGrow via Tele-Consultation.",
         "Lakukan evaluasi pola makan, kecukupan kalori, dan kemungkinan suplementasi terapeutik.",
         "Pastikan higienitas air dan sanitasi lingkungan keluarga tetap terjaga.",
       ],
@@ -735,13 +735,13 @@ const StuntingInsightModal = ({
             color={config.badgeText}
           />
 
-          {/* Action CTA to Tele-Nutritionist */}
+          {/* Action CTA to Tele-Consultation */}
           <div className="pt-2">
             <a
               href="/tele-nutritionist"
               className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-[#4d7c0f] hover:bg-[#3f6212] transition-all no-underline shadow-sm"
             >
-              <span>Konsultasi dengan Ahli Gizi (Tele-Nutritionist)</span>
+              <span>Konsultasi dengan Ahli Gizi (Tele-Consultation)</span>
               <span>→</span>
             </a>
           </div>

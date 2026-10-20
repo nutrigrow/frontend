@@ -321,7 +321,7 @@ export default function DetailSpesialis() {
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = NG.primary)}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = '#78716C')}
             >
-              Tele-Nutritionist
+              Tele-Consultation
             </Link>
             <ChevronRight size={13} color='#A8A29E' />
             <span

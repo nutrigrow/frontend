@@ -86,7 +86,7 @@ const Header = () => {
   const navItems = [
     { label: 'Tentang Kami',      href: '/',                 active: location.pathname === '/' },
     { label: 'NutriShop',         href: '/nutrishop',        active: location.pathname.startsWith('/nutrishop') || location.pathname.startsWith('/product/') || location.pathname === '/cart' || location.pathname === '/checkout' },
-    { label: 'Tele-Nutritionist', href: '/tele-nutritionist', active: location.pathname.startsWith('/tele-nutritionist') || location.pathname.startsWith('/detail-spesialis') || location.pathname.startsWith('/booking-konsultasi') || location.pathname === '/konsultasi-saya' },
+    { label: 'Tele-Consultation', href: '/tele-nutritionist', active: location.pathname.startsWith('/tele-nutritionist') || location.pathname.startsWith('/detail-spesialis') || location.pathname.startsWith('/booking-konsultasi') || location.pathname === '/konsultasi-saya' },
     { label: 'Artikel',           href: '/artikel',          active: location.pathname.startsWith('/artikel') || location.pathname.startsWith('/baca-artikel') },
   ]
   const dropdownItems = [
