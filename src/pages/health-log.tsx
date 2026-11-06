@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { Plus, X } from 'lucide-react'
 import { motion } from 'motion/react'
+import { useNavigate } from 'react-router-dom'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 import {
@@ -10,6 +11,7 @@ import {
   MOOD_STR_TO_INT,
   CATEGORY_TO_PROFILE,
   toISODate,
+  getLocalISODate,
   type ContextualInsight,
   type InsightActionType,
   type InsightCategory,
@@ -99,22 +101,71 @@ const HARI_ID: Record<string, string> = {
   Saturday: 'Sab',
 }
 
+const PERIOD_DAYS: Record<'week' | '15days' | 'month', number> = { week: 7, '15days': 15, month: 30 }
+
+const shiftISODate = (iso: string, days: number): string => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10)
+}
+
+/**
+ * Catatan pada periode terpilih, diurutkan dari yang terbaru.
+ * "7 Hari Terakhir" = hari ini (WIB) + 6 hari sebelumnya, sehingga jumlah harinya tepat 7.
+ */
 const filterLogsByPeriod = (logs: ApiHealthLog[], period: FieldPeriod, customStart?: string, customEnd?: string): ApiHealthLog[] => {
-  if (period === 'all') return logs
+  const newestFirst = [...logs].sort((a, b) => b.date.localeCompare(a.date))
+  if (period === 'all') return newestFirst
   if (period === 'custom') {
-    if (!customStart || !customEnd) return logs
-    const start = new Date(customStart + 'T00:00:00Z')
-    const end = new Date(customEnd + 'T23:59:59Z')
-    return logs.filter(l => {
-      const d = new Date(l.date + 'T00:00:00Z')
-      return d >= start && d <= end
-    })
+    if (!customStart || !customEnd) return newestFirst
+    return newestFirst.filter(l => l.date >= customStart && l.date <= customEnd)
   }
-  const days = period === 'week' ? 7 : period === '15days' ? 15 : 30
-  const cutoff = new Date()
-  cutoff.setUTCHours(0, 0, 0, 0)
-  cutoff.setUTCDate(cutoff.getUTCDate() - days)
-  return logs.filter(l => new Date(l.date + 'T00:00:00Z') >= cutoff)
+  const today = getLocalISODate()
+  const cutoff = shiftISODate(today, -(PERIOD_DAYS[period] - 1))
+  return newestFirst.filter(l => l.date >= cutoff && l.date <= today)
+}
+
+const periodText = (period: FieldPeriod, customStart?: string, customEnd?: string): string =>
+  period === 'custom' ? `rentang ${customStart} s/d ${customEnd}` : PERIOD_LABELS[period]
+
+// ─── Aksi & disclaimer bersama ────────────────────────────────────────────────
+const CONSULT_ACTION: { type: InsightActionType; label: string } = { type: 'consult', label: 'Konsultasi via Tele-Consultation' }
+const FIELD_DISCLAIMER = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
+
+/**
+ * Insight kartu field ketika periode terpilih belum memiliki catatan.
+ * Tanpa ini, rata-rata 0 membuat kartu langsung berstatus "Segera Konsultasi".
+ */
+const emptyFieldInsight = (
+  id: string,
+  field: InsightFieldKey,
+  label: string,
+  period: FieldPeriod,
+  customStart?: string,
+  customEnd?: string,
+): ContextualInsight => {
+  const periodLabel = periodText(period, customStart, customEnd)
+  const title = `Belum Ada Catatan ${label}`
+  return {
+    id: `${id}-${period}-empty`,
+    fields: [field],
+    category: 'Cek Data',
+    status: 'info',
+    title,
+    message: `Belum ada catatan ${label.toLowerCase()} pada ${periodLabel}. Tambahkan catatan agar pola dapat dilihat.`,
+    based_on: [],
+    action: { type: 'log', label: 'Catat Sekarang' },
+    disclaimer: FIELD_DISCLAIMER,
+    detail: {
+      title,
+      pattern_summary: `Tidak ada catatan ${label.toLowerCase()} pada ${periodLabel}.`,
+      period: periodLabel,
+      data_used: [`Periode: ${periodLabel}`, 'Total catatan: 0 hari'],
+      history: [],
+      reason: 'Insight belum dapat dibentuk karena tidak ada catatan pada periode yang dipilih.',
+      action_text: 'Tambahkan catatan harian, atau pilih periode lain yang memiliki catatan.',
+      disclaimer: FIELD_DISCLAIMER,
+    },
+  }
 }
 
 const average = (values: number[]): number =>
@@ -131,23 +182,24 @@ function getSupplementInsight(logs: ApiHealthLog[], role: RoleType, period: Fiel
   const total = filtered.length
   const taken = filtered.filter(l => l.took_supplement).length
   const pct = total > 0 ? Math.round((taken / total) * 100) : 0
-  const periodLabel = period === 'custom' ? `rentang ${customStart} s/d ${customEnd}` : PERIOD_LABELS[period]
+  const periodLabel = periodText(period, customStart, customEnd)
   const label = ROLE_SUPPLEMENT_LABEL[role]
+  if (total === 0) return emptyFieldInsight('supplement', 'supplement', 'Suplemen', period, customStart, customEnd)
 
   const roleContext =
     role === 'teen'
-      ? 'Konsumsi TTD rutin sangat penting untuk mencegah anemia pada remaja putri, terutama saat menstruasi.'
+      ? 'TTD dianjurkan dikonsumsi rutin oleh remaja putri, terutama saat haid.'
       : role === 'pregnant'
-        ? 'Asam folat, zat besi, dan kalsium sangat penting untuk pertumbuhan janin dan kesehatan ibu hamil.'
-        : 'ASI Booster dan zat besi membantu menjaga kualitas dan kuantitas ASI ibu menyusui.'
+        ? 'Suplemen kehamilan (seperti asam folat dan zat besi) dianjurkan dikonsumsi rutin sesuai arahan tenaga kesehatan.'
+        : 'Suplemen menyusui dianjurkan dikonsumsi rutin sesuai arahan tenaga kesehatan.'
 
   const disclaimer = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
 
   let status: StatusLevel = 'danger'
   let category: InsightCategory = 'Segera Konsultasi'
-  let title = `Konsumsi ${label} Sangat Rendah`
-  let message = `Kepatuhan ${pct}% pada ${periodLabel} - risiko kesehatan meningkat.`
-  let action: { type: InsightActionType; label: string } = { type: 'consult', label: 'Konsultasi via Tele-nutrition' }
+  let title = `Konsumsi ${label} Jarang Tercatat`
+  let message = `Kepatuhan ${pct}% pada ${periodLabel}, di bawah 50%. Pola ini sebaiknya dikonsultasikan dengan tenaga kesehatan.`
+  let action: { type: InsightActionType; label: string } = CONSULT_ACTION
   let reasonText = ''
   let recommendation = ''
 
@@ -168,7 +220,7 @@ function getSupplementInsight(logs: ApiHealthLog[], role: RoleType, period: Fiel
     reasonText = `Tingkat kepatuhan konsumsi ${label} Anda hanya ${pct}%, yang berada di bawah ambang batas 80%. Sistem mendeteksi bahwa pola konsumsi belum konsisten dan perlu perbaikan.`
     recommendation = 'Aktifkan pengingat harian di ponsel. Tempatkan suplemen di tempat yang mudah terlihat setiap pagi. Lanjutkan mencatat konsumsi harian agar pola Anda dapat dipantau.'
   } else {
-    reasonText = `Tingkat kepatuhan konsumsi ${label} Anda hanya ${pct}%, yang berada di bawah ambang batas 50%. Sistem mendeteksi risiko defisiensi nutrisi yang signifikan jika dibiarkan.`
+    reasonText = `Tingkat kepatuhan konsumsi ${label} Anda hanya ${pct}%, yang berada di bawah ambang batas 50%. Pola konsumsi ini sebaiknya didiskusikan dengan tenaga kesehatan.`
     recommendation = 'Konsultasikan ke bidan atau dokter untuk evaluasi lebih lanjut. Mulai kembali konsumsi suplemen hari ini dan catat secara konsisten.'
   }
 
@@ -220,22 +272,23 @@ function getFluidInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPeri
   const avg = average(values)
   const ratio = total > 0 ? avg / target : 0
   const daysMet = filtered.filter(l => l.water_glasses >= target).length
-  const periodLabel = period === 'custom' ? `rentang ${customStart} s/d ${customEnd}` : PERIOD_LABELS[period]
+  const periodLabel = periodText(period, customStart, customEnd)
+  if (total === 0) return emptyFieldInsight('hydration', 'hydration', 'Asupan Cairan', period, customStart, customEnd)
 
   const roleContext =
     role === 'teen'
-      ? 'Cairan cukup membantu konsentrasi belajar dan menjaga siklus haid tetap teratur.'
+      ? 'Asupan cairan yang cukup membantu menjaga energi dan konsentrasi saat beraktivitas.'
       : role === 'pregnant'
-        ? 'Cairan cukup mencegah dehidrasi, infeksi saluran kemih, dan kontraksi dini.'
-        : 'Cairan cukup sangat penting untuk produksi ASI yang stabil.'
+        ? 'Kebutuhan cairan ibu hamil lebih tinggi dibanding biasanya.'
+        : 'Kebutuhan cairan ibu menyusui lebih tinggi dibanding biasanya.'
 
   const disclaimer = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
 
   let status: StatusLevel = 'danger'
   let category: InsightCategory = 'Segera Konsultasi'
-  let title = 'Asupan Cairan Sangat Rendah'
+  let title = 'Asupan Cairan Jauh di Bawah Target'
   let message = `Rata-rata ${round1(avg)} gelas/hari, jauh di bawah target ${target} gelas.`
-  let action: { type: InsightActionType; label: string } = { type: 'consult', label: 'Konsultasi via Tele-nutrition' }
+  let action: { type: InsightActionType; label: string } = CONSULT_ACTION
   let reasonText = ''
   let recommendation = ''
 
@@ -256,7 +309,7 @@ function getFluidInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPeri
     reasonText = `Rata-rata asupan cairan Anda hanya ${round1(avg)} gelas per hari, yang berada di bawah target ${target} gelas. Sistem mendeteksi bahwa pola hidrasi belum optimal dan perlu ditingkatkan.`
     recommendation = 'Minum segelas air setiap jam dan setelah setiap makan. Bawa tumbler sebagai pengingat visual asupan cairan harian Anda.'
   } else {
-    reasonText = `Rata-rata asupan cairan Anda hanya ${round1(avg)} gelas per hari, yang jauh di bawah target ${target} gelas. Sistem mendeteksi risiko dehidrasi yang dapat mengganggu fungsi tubuh Anda.`
+    reasonText = `Rata-rata asupan cairan Anda hanya ${round1(avg)} gelas per hari, yang jauh di bawah target ${target} gelas (kurang dari 60% target). Pola ini sebaiknya didiskusikan dengan tenaga kesehatan bila berlanjut.`
     recommendation = 'Minum minimal 2 gelas air sekarang, kemudian satu gelas setiap 30 menit. Jika ada pusing berat atau urin sangat gelap, segera hubungi tenaga kesehatan.'
   }
 
@@ -308,7 +361,8 @@ function getRestInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPerio
   const avg = average(values)
   const total = filtered.length
   const daysMet = filtered.filter(l => l.sleep_hours >= minOk).length
-  const periodLabel = period === 'custom' ? `rentang ${customStart} s/d ${customEnd}` : PERIOD_LABELS[period]
+  const periodLabel = periodText(period, customStart, customEnd)
+  if (total === 0) return emptyFieldInsight('sleep', 'sleep', 'Tidur', period, customStart, customEnd)
 
   const roleContext =
     role === 'teen'
@@ -321,9 +375,9 @@ function getRestInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPerio
 
   let status: StatusLevel = 'danger'
   let category: InsightCategory = 'Segera Konsultasi'
-  let title = 'Kurang Tidur Parah'
-  let message = `Rata-rata ${round1(avg)} jam/hari - di bawah ambang batas aman.`
-  let action: { type: InsightActionType; label: string } = { type: 'consult', label: 'Konsultasi via Tele-nutrition' }
+  let title = 'Durasi Tidur Jauh di Bawah Target'
+  let message = `Rata-rata ${round1(avg)} jam/hari, lebih dari 1 jam di bawah target ${minOk} jam.`
+  let action: { type: InsightActionType; label: string } = CONSULT_ACTION
   let reasonText = ''
   let recommendation = ''
 
@@ -340,11 +394,13 @@ function getRestInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPerio
     category = 'Perlu Diperhatikan'
     title = 'Tidur di Bawah Ideal'
     message = `Rata-rata ${round1(avg)} jam/hari, disarankan minimal ${minOk} jam. ${roleContext}`
-    action = { type: 'consult', label: 'Konsultasi via Tele-nutrition' }
+    action = CONSULT_ACTION
     reasonText = `Rata-rata durasi tidur Anda hanya ${round1(avg)} jam per hari, yang berada di bawah rekomendasi minimal ${minOk} jam. Sistem mendeteksi pola tidur yang kurang optimal dan dapat memengaruhi energi Anda.`
-    recommendation = 'Coba tidur 30 menit lebih awal malam ini. Minta bantuan pasangan atau keluarga untuk giliran jaga bayi jika diperlukan, agar Anda bisa mendapatkan istirahat yang cukup.'
+    recommendation = role === 'breastfeeding'
+      ? 'Coba tidur 30 menit lebih awal malam ini. Minta bantuan pasangan atau keluarga untuk giliran jaga bayi agar Anda bisa beristirahat cukup.'
+      : 'Coba tidur 30 menit lebih awal malam ini dan batasi penggunaan layar sebelum tidur.'
   } else {
-    reasonText = `Rata-rata durasi tidur Anda hanya ${round1(avg)} jam per hari, yang jauh di bawah ambang batas aman (${minOk} jam). Sistem mendeteksi risiko kurang tidur kronis yang dapat berdampak buruk pada kesehatan fisik dan mental.`
+    reasonText = `Rata-rata durasi tidur Anda hanya ${round1(avg)} jam per hari, lebih dari 1 jam di bawah target ${minOk} jam. Pola tidur ini sebaiknya didiskusikan dengan tenaga kesehatan bila berlanjut.`
     recommendation = 'Prioritaskan tidur siang minimal 20-30 menit jika malam kurang. Bicarakan dengan dokter atau bidan jika Anda sering kurang tidur dalam seminggu.'
   }
 
@@ -396,7 +452,8 @@ function getMoodInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPerio
   const neutralDays = filtered.filter(l => l.mood === 3).length
   const positiveDays = filtered.filter(l => l.mood >= 4).length
   const avg = average(filtered.map(l => l.mood))
-  const periodLabel = period === 'custom' ? `rentang ${customStart} s/d ${customEnd}` : PERIOD_LABELS[period]
+  const periodLabel = periodText(period, customStart, customEnd)
+  if (total === 0) return emptyFieldInsight('mood', 'mood', 'Mood', period, customStart, customEnd)
   const dominant =
     negativeDays >= neutralDays && negativeDays >= positiveDays
       ? 'Negatif'
@@ -426,8 +483,8 @@ function getMoodInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPerio
     category = 'Segera Konsultasi'
     title = 'Mood Cenderung Negatif'
     message = `Mood negatif tercatat ${negativeDays} dari ${total} hari pada ${periodLabel}. ${roleContext}`
-    action = { type: 'consult', label: 'Konsultasi via Tele-nutrition' }
-    reasonText = `Mood negatif (lelah atau sedih) tercatat pada ${negativeDays} dari ${total} hari, yang berada di atas setengah periode pemantauan. Sistem mendeteksi pola mood yang perlu perhatian serius dan mungkin memerlukan dukungan profesional.`
+    action = CONSULT_ACTION
+    reasonText = `Mood negatif (lelah atau sedih) tercatat pada ${negativeDays} dari ${total} hari, yang berada di atas setengah periode pemantauan. Pola ini sebaiknya dibicarakan dengan tenaga kesehatan agar Anda mendapat dukungan yang tepat.`
     recommendation = 'Bicarakan perasaanmu ke orang yang kamu percaya. Pertimbangkan konsultasi ke tenaga kesehatan mental untuk mendapatkan dukungan yang tepat.'
   } else if (negativeDays > 0 || neutralDays > total / 2) {
     status = 'caution'
@@ -488,7 +545,8 @@ function getCycleInsight(logs: ApiHealthLog[], period: FieldPeriod, customStart?
   const filtered = filterLogsByPeriod(logs, period, customStart, customEnd)
   const total = filtered.length
   const menstruasiDays = filtered.filter(l => l.is_menstruating).length
-  const periodLabel = period === 'custom' ? `rentang ${customStart} s/d ${customEnd}` : PERIOD_LABELS[period]
+  const periodLabel = periodText(period, customStart, customEnd)
+  if (total === 0) return emptyFieldInsight('cycle', 'cycle', 'Siklus Haid', period, customStart, customEnd)
   const isMenstruating = menstruasiDays > 0
   const disclaimer = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
 
@@ -497,13 +555,13 @@ function getCycleInsight(logs: ApiHealthLog[], period: FieldPeriod, customStart?
   const title = isMenstruating ? 'Sedang Haid' : 'Tidak Haid'
   const message = isMenstruating
     ? `Tercatat haid ${menstruasiDays} dari ${total} hari pada ${periodLabel}. Kebutuhan zat besi meningkat saat haid, pastikan asupan TTD tercukupi.`
-    : `Tidak ada catatan haid pada ${periodLabel}. Siklus terpantau baik dan Anda bisa fokus pada pemeliharaan kesehatan rutin.`
+    : `Tidak ada catatan haid pada ${periodLabel}. Lanjutkan pencatatan untuk memantau siklus Anda.`
   const action: { type: InsightActionType; label: string } = isMenstruating
     ? { type: 'log', label: 'Catat' }
     : { type: 'article', label: 'Baca Artikel' }
   const reasonText = isMenstruating
-    ? `Tercatat haid pada ${menstruasiDays} dari ${total} hari. Sistem mendeteksi kebutuhan zat besi ekstra selama periode haid untuk mencegah anemia.`
-    : `Tidak ada catatan haid pada ${periodLabel}. Sistem mendeteksi siklus yang terpantau baik dan tidak ada indikasi masalah pada periode ini.`
+    ? `Tercatat haid pada ${menstruasiDays} dari ${total} hari. Kebutuhan zat besi meningkat saat haid, sehingga konsumsi TTD perlu dijaga.`
+    : `Tidak ada catatan haid pada ${periodLabel}. Insight ini hanya mencatat ada atau tidaknya haid, bukan menilai keteraturan siklus.`
   const recommendation = isMenstruating
     ? 'Pastikan TTD tidak terlewat. Konsumsi makanan kaya zat besi seperti hati ayam, daging merah, bayam, dan tempe. Istirahat cukup dan jaga hidrasi.'
     : 'Tetap konsumsi TTD setiap minggu di luar masa haid sesuai anjuran Kemenkes. Catat tanggal mulai haid tiap bulan untuk memantau keteraturan siklus.'
@@ -531,7 +589,7 @@ function getCycleInsight(logs: ApiHealthLog[], period: FieldPeriod, customStart?
     disclaimer,
     detail: {
       title,
-      pattern_summary: `Selama ${periodLabel}, tercatat haid pada ${menstruasiDays} dari total ${total} hari. Kebutuhan zat besi meningkat saat haid, sehingga TTD perlu dipastikan tidak terlewat untuk menjaga kadar hemoglobin.`,
+      pattern_summary: `Selama ${periodLabel}, tercatat haid pada ${menstruasiDays} dari total ${total} hari. Kebutuhan zat besi meningkat saat haid, sehingga TTD perlu dipastikan tidak terlewat.`,
       period: periodLabel,
       data_used: total > 0 ? [
         `Periode: ${periodLabel}`,
@@ -554,18 +612,19 @@ function getMomWeightInsight(logs: ApiHealthLog[], period: FieldPeriod, customSt
   const min = values.length > 0 ? Math.min(...values) : 0
   const max = values.length > 0 ? Math.max(...values) : 0
   const latest = values.length > 0 ? values[0] : 0
-  const periodLabel = period === 'custom' ? `rentang ${customStart} s/d ${customEnd}` : PERIOD_LABELS[period]
+  const periodLabel = periodText(period, customStart, customEnd)
+  if (total === 0) return emptyFieldInsight('weight', 'weight', 'Berat Badan', period, customStart, customEnd)
   const disclaimer = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
 
   const status: StatusLevel = 'safe'
   const category = 'Perkembangan Baik'
   const title = 'Berat Badan Terpantau'
   const message = total > 0
-    ? `Rata-rata ${round1(avg)} kg dari ${total} catatan pada ${periodLabel}. Kenaikan BB yang teratur menandakan pertumbuhan janin yang sehat.`
+    ? `Rata-rata ${round1(avg)} kg dari ${total} catatan pada ${periodLabel}. Diskusikan target kenaikan berat badan dengan bidan atau dokter.`
     : `Belum ada catatan berat badan pada ${periodLabel}. Mulai catat untuk memantau perkembangan.`
   const action: { type: InsightActionType; label: string } = { type: 'article', label: 'Baca Artikel' }
   const reasonText = total > 0
-    ? `Tercatat ${total} kali pengukuran berat badan dengan rata-rata ${round1(avg)} kg. Sistem memantau tren kenaikan BB selama kehamilan untuk memastikan pertumbuhan janin yang optimal.`
+    ? `Tercatat ${total} kali pengukuran berat badan dengan rata-rata ${round1(avg)} kg. Sistem hanya merangkum catatan berat badan dan belum menilai kenaikan berat badan selama kehamilan.`
     : `Belum ada catatan berat badan pada ${periodLabel}. Sistem belum dapat menganalisis tren kenaikan berat badan Anda.`
   const recommendation = 'Lanjutkan pola makan bergizi seimbang dengan porsi kecil tapi sering. Timbang BB minimal seminggu sekali di waktu yang sama. Diskusikan target kenaikan dengan bidan/dokter.'
 
@@ -593,7 +652,7 @@ function getMomWeightInsight(logs: ApiHealthLog[], period: FieldPeriod, customSt
     detail: {
       title,
       pattern_summary: total > 0
-        ? `Selama ${periodLabel}, tercatat ${total} kali pengukuran berat badan. Rata-rata ${round1(avg)} kg, dengan rentang ${min} - ${max} kg. Pengukuran terbaru menunjukkan ${latest} kg. Kenaikan BB yang teratur menandakan pertumbuhan janin yang sehat.`
+        ? `Selama ${periodLabel}, tercatat ${total} kali pengukuran berat badan. Rata-rata ${round1(avg)} kg, dengan rentang ${min} - ${max} kg. Pengukuran terbaru menunjukkan ${latest} kg.`
         : `Belum ada catatan berat badan pada ${periodLabel}.`,
       period: periodLabel,
       data_used: total > 0 ? [
@@ -617,35 +676,36 @@ function getPumpingInsight(logs: ApiHealthLog[], period: FieldPeriod, customStar
   const values = filtered.map(l => l.breastfeeding_count as number)
   const avg = average(values)
   const daysMet = values.filter(v => v >= 8).length
-  const periodLabel = period === 'custom' ? `rentang ${customStart} s/d ${customEnd}` : PERIOD_LABELS[period]
+  const periodLabel = periodText(period, customStart, customEnd)
+  if (total === 0) return emptyFieldInsight('breastfeeding', 'breastfeeding', 'Menyusui/Pumping', period, customStart, customEnd)
   const disclaimer = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
 
   let status: StatusLevel = 'danger'
   let category: InsightCategory = 'Segera Konsultasi'
-  let title = 'Frekuensi Pumping Sangat Rendah'
-  let message = `Rata-rata ${round1(avg)} sesi/hari - produksi ASI berisiko menurun drastis.`
-  let action: { type: InsightActionType; label: string } = { type: 'consult', label: 'Konsultasi via Tele-nutrition' }
+  let title = 'Frekuensi Menyusui/Pumping Jauh di Bawah Rekomendasi'
+  let message = `Rata-rata ${round1(avg)} sesi/hari, di bawah 6 sesi. Sebaiknya dikonsultasikan dengan tenaga kesehatan atau konselor laktasi.`
+  let action: { type: InsightActionType; label: string } = CONSULT_ACTION
   let reasonText = ''
   let recommendation = ''
 
   if (avg >= 8) {
     status = 'safe'
     category = 'Perkembangan Baik'
-    title = 'Frekuensi Menyusui Optimal'
-    message = `Luar biasa! Rata-rata ${round1(avg)} sesi/hari, memenuhi standar laktasi.`
+    title = 'Frekuensi Menyusui/Pumping Sesuai Rekomendasi'
+    message = `Luar biasa! Rata-rata ${round1(avg)} sesi/hari, memenuhi rekomendasi minimal 8 sesi.`
     action = { type: 'article', label: 'Baca Artikel' }
-    reasonText = `Rata-rata frekuensi menyusui/pumping Anda mencapai ${round1(avg)} sesi per hari, yang memenuhi standar laktasi (≥8 sesi). Sistem mendeteksi pola menyusui yang optimal dan produksi ASI yang terjaga.`
+    reasonText = `Rata-rata frekuensi menyusui/pumping Anda mencapai ${round1(avg)} sesi per hari, yang memenuhi rekomendasi minimal 8 sesi. Pola menyusui Anda sudah konsisten.`
     recommendation = 'Jaga interval antar sesi tidak lebih dari 3-4 jam di siang hari. Pijat payudara ringan sebelum pumping untuk meningkatkan aliran ASI.'
   } else if (avg >= 6) {
     status = 'caution'
     category = 'Perlu Diperhatikan'
-    title = 'Frekuensi Pumping Kurang'
+    title = 'Frekuensi Menyusui/Pumping Perlu Ditingkatkan'
     message = `Rata-rata ${round1(avg)} sesi/hari, di bawah rekomendasi 8 sesi.`
-    action = { type: 'consult', label: 'Konsultasi via Tele-nutrition' }
-    reasonText = `Rata-rata frekuensi menyusui/pumping Anda hanya ${round1(avg)} sesi per hari, yang berada di bawah rekomendasi 8 sesi. Sistem mendeteksi risiko penurunan produksi ASI jika tidak segera ditingkatkan.`
+    action = CONSULT_ACTION
+    reasonText = `Rata-rata frekuensi menyusui/pumping Anda hanya ${round1(avg)} sesi per hari, yang berada di bawah rekomendasi 8 sesi. Frekuensi ini perlu ditingkatkan.`
     recommendation = 'Tambah 1-2 sesi pumping di pagi hari. Gunakan power pumping selama 1 jam 1x sehari untuk menstimulasi produksi ASI.'
   } else {
-    reasonText = `Rata-rata frekuensi menyusui/pumping Anda hanya ${round1(avg)} sesi per hari, yang jauh di bawah rekomendasi. Sistem mendeteksi risiko penurunan produksi ASI yang drastis.`
+    reasonText = `Rata-rata frekuensi menyusui/pumping Anda hanya ${round1(avg)} sesi per hari, yang berada di bawah 6 sesi. Pola ini sebaiknya dikonsultasikan dengan tenaga kesehatan atau konselor laktasi.`
     recommendation = 'Mulai tambah sesi pumping hari ini - setiap 2-3 jam selama payudara terasa penuh. Konsultasikan dengan konselor laktasi bersertifikat (IBCLC).'
   }
 
@@ -673,7 +733,7 @@ function getPumpingInsight(logs: ApiHealthLog[], period: FieldPeriod, customStar
     disclaimer,
     detail: {
       title,
-      pattern_summary: `Selama ${periodLabel}, rata-rata frekuensi menyusui/pumping Anda adalah ${round1(avg)} sesi per hari dari ${total} catatan. Standar laktasi adalah ≥8 sesi per hari, dan Anda mencapai target pada ${daysMet} dari ${total} hari.`,
+      pattern_summary: `Selama ${periodLabel}, rata-rata frekuensi menyusui/pumping Anda adalah ${round1(avg)} sesi per hari dari ${total} catatan. Rekomendasi minimal adalah 8 sesi per hari, dan Anda mencapai target pada ${daysMet} dari ${total} hari.`,
       period: periodLabel,
       data_used: total > 0 ? [
         `Periode: ${periodLabel}`,
@@ -706,7 +766,7 @@ function generateContextualInsight(
   const role = sorted[0].profile_type as RoleType
   const sameProfile = sorted.filter(l => l.profile_type === role)
   const total = sameProfile.length
-  const periodLabel = period === 'custom' ? `rentang ${customStart} s/d ${customEnd}` : PERIOD_LABELS[period]
+  const periodLabel = periodText(period, customStart, customEnd)
   const roleLabel = ROLE_LABELS[role]
 
   const avgSleep = average(sameProfile.map(l => l.sleep_hours))
@@ -782,7 +842,7 @@ function generateContextualInsight(
         `Rata-rata tidur ${round1(avgSleep)} jam`,
         `Rata-rata cairan ${round1(avgWater)} gelas`,
       ],
-      action: { type: 'consult', label: 'Konsultasi via Tele-nutrition' },
+      action: CONSULT_ACTION,
       disclaimer,
       detail: {
         title,
@@ -802,10 +862,10 @@ function generateContextualInsight(
         reason: `Insight ini muncul karena dua kondisi terpenuhi secara bersamaan: (1) mood negatif tercatat ≥3 hari, dan (2) rata-rata tidur atau cairan di bawah ambang yang disarankan untuk peran ${roleLabel}. Kombinasi ini menunjukkan pola kelelahan yang perlu ditangani.`,
         action_text:
           role === 'breastfeeding'
-            ? 'Pertimbangkan untuk berkonsultasi dengan konselor laktasi atau dokter. Sementara itu, coba tidur minimal 7 jam, minum 12 gelas air per hari, dan minta bantuan pasangan untuk giliran jaga bayi.'
+            ? `Pertimbangkan untuk berkonsultasi dengan konselor laktasi atau dokter. Sementara itu, coba tidur minimal ${minSleep} jam, minum ${minWater} gelas air per hari, dan minta bantuan pasangan untuk giliran jaga bayi.`
             : role === 'pregnant'
-              ? 'Pertimbangkan untuk berkonsultasi dengan bidan atau dokter kandungan. Sementara itu, coba tidur minimal 8 jam dan minum 10 gelas air per hari.'
-              : 'Pertimbangkan untuk berkonsultasi dengan tenaga kesehatan. Sementara itu, coba tidur minimal 8 jam dan minum 8 gelas air per hari.',
+              ? `Pertimbangkan untuk berkonsultasi dengan bidan atau dokter kandungan. Sementara itu, coba tidur minimal ${minSleep} jam dan minum ${minWater} gelas air per hari.`
+              : `Pertimbangkan untuk berkonsultasi dengan tenaga kesehatan. Sementara itu, coba tidur minimal ${minSleep} jam dan minum ${minWater} gelas air per hari.`,
         disclaimer,
       },
     }
@@ -877,11 +937,11 @@ function generateContextualInsight(
         `Rata-rata tidur ${round1(avgSleep)} jam`,
         `Rata-rata cairan ${round1(avgWater)} gelas`,
       ],
-      action: { type: 'consult', label: 'Konsultasi via Tele-nutrition' },
+      action: CONSULT_ACTION,
       disclaimer,
       detail: {
         title,
-        pattern_summary: `Selama ${periodLabel}, rata-rata durasi tidur Anda adalah ${round1(avgSleep)} jam per hari dan rata-rata asupan cairan Anda adalah ${round1(avgWater)} gelas per hari. ${lowSleep && lowWater ? `Keduanya berada di bawah ambang yang disarankan untuk peran ${roleLabel} (tidur minimal ${minSleep} jam, cairan minimal ${minWater} gelas).` : lowSleep ? `Durasi tidur Anda berada di bawah ambang yang disarankan untuk peran ${roleLabel} (minimal ${minSleep} jam per hari).` : `Asupan cairan Anda berada di bawah ambang yang disarankan untuk peran ${roleLabel} (minimal ${minWater} gelas per hari).`}`,
+        pattern_summary: `Selama ${periodLabel}, rata-rata durasi tidur Anda adalah ${round1(avgSleep)} jam per hari dan rata-rata asupan cairan Anda adalah ${round1(avgWater)} gelas per hari. ${lowSleep && lowWater ? `Keduanya berada di bawah ambang untuk peran ${roleLabel} (tidur kurang dari ${minSleep - 1} jam dan cairan kurang dari ${minWater - 2} gelas; target ${minSleep} jam dan ${minWater} gelas).` : lowSleep ? `Durasi tidur Anda kurang dari ${minSleep - 1} jam, lebih dari 1 jam di bawah target ${minSleep} jam untuk peran ${roleLabel}.` : `Asupan cairan Anda kurang dari ${minWater - 2} gelas, lebih dari 2 gelas di bawah target ${minWater} gelas untuk peran ${roleLabel}.`}`,
         period: periodLabel,
         data_used: [
           `Peran: ${roleLabel}`,
@@ -889,17 +949,17 @@ function generateContextualInsight(
           `Total catatan: ${total} hari`,
           `Rata-rata tidur: ${round1(avgSleep)} jam`,
           `Rata-rata cairan: ${round1(avgWater)} gelas`,
-          `Ambang tidur: ${minSleep} jam/hari`,
-          `Ambang cairan: ${minWater} gelas/hari`,
+          `Ambang tidur: <${minSleep - 1} jam/hari (target ${minSleep} jam)`,
+          `Ambang cairan: <${minWater - 2} gelas/hari (target ${minWater} gelas)`,
         ],
         history: historyEntries,
         reason: `Insight ini muncul karena rata-rata ${lowSleep && lowWater ? 'tidur dan cairan' : lowSleep ? 'tidur' : 'cairan'} Anda berada di bawah ambang batas yang disarankan untuk peran ${roleLabel}. Meskipun tidak disertai kelelahan berulang, pola ini tetap perlu diperhatikan karena dapat memengaruhi energi, konsentrasi, dan kesehatan Anda secara keseluruhan.`,
         action_text:
           role === 'breastfeeding'
-            ? 'Coba tidur 30 menit lebih awal dan minum segelas air setiap jam. Untuk ibu menyusui, target cairan adalah 12 gelas per hari. Jika kondisi ini berlanjut, konsultasikan dengan konselor laktasi.'
+            ? `Coba tidur 30 menit lebih awal dan minum segelas air setiap jam. Untuk ibu menyusui, target cairan adalah ${minWater} gelas per hari. Jika kondisi ini berlanjut, konsultasikan dengan konselor laktasi.`
             : role === 'pregnant'
-              ? 'Coba tidur 30 menit lebih awal dan minum segelas air setiap jam. Untuk ibu hamil, target cairan adalah 10 gelas per hari. Jika kondisi ini berlanjut, konsultasikan dengan bidan.'
-              : 'Coba tidur 30 menit lebih awal dan minum segelas air setiap jam. Target cairan untuk remaja adalah 8 gelas per hari.',
+              ? `Coba tidur 30 menit lebih awal dan minum segelas air setiap jam. Untuk ibu hamil, target cairan adalah ${minWater} gelas per hari. Jika kondisi ini berlanjut, konsultasikan dengan bidan.`
+              : `Coba tidur 30 menit lebih awal dan minum segelas air setiap jam. Target cairan untuk remaja adalah ${minWater} gelas per hari.`,
         disclaimer,
       },
     }
@@ -1195,7 +1255,7 @@ const StatCardBase = ({
   children: React.ReactNode; sub: React.ReactNode; fieldInsight?: ContextualInsight
 }) => {
   const [modalOpen, setModalOpen] = useState(false)
-  const c = STATUS_COLORS[fieldInsight?.status ?? 'safe']
+  const c = STATUS_COLORS[fieldInsight?.status ?? 'info']
   return (
     <>
       <div
@@ -1407,27 +1467,30 @@ const StatsGrid = ({
 }
 
 // ─── Contextual Health Insight Card ──────────────────────────────────────────
-const TELE_NUTRITION_PATH = '/tele-nutrition'
+const TELE_CONSULTATION_PATH = '/tele-nutritionist'
 const ARTICLES_PATH = '/artikel'
 
 const ContextualInsightCard = ({
-  insight, period, onLogClick, onDetail, allLogs,
+  insight, period, customStart, customEnd, onLogClick, onDetail, allLogs,
 }: {
   insight: ContextualInsight
   period: FieldPeriod
+  customStart?: string
+  customEnd?: string
   onLogClick: () => void
   onDetail: () => void
   allLogs: ApiHealthLog[]
 }) => {
+  const navigate = useNavigate()
   const c = STATUS_COLORS[insight.status]
   const handleAction = () => {
     if (insight.action.type === 'log') onLogClick()
-    else if (insight.action.type === 'consult') window.location.assign(TELE_NUTRITION_PATH)
-    else window.location.assign(ARTICLES_PATH)
+    else if (insight.action.type === 'consult') navigate(TELE_CONSULTATION_PATH)
+    else navigate(ARTICLES_PATH)
   }
 
-  // Hitung rata-rata sesuai periode global
-  const filtered = filterLogsByPeriod(allLogs, period)
+  // Ringkasan angka memakai periode yang sama dengan insight (termasuk rentang kustom)
+  const filtered = filterLogsByPeriod(allLogs, period, customStart, customEnd)
   const profile = filtered.length > 0 ? filtered[0].profile_type : null
   const sameProfile = profile ? filtered.filter(l => l.profile_type === profile) : []
   const totalLogs = sameProfile.length
@@ -1509,10 +1572,12 @@ const ContextualInsightCard = ({
 }
 
 const ContextualInsightSection = ({
-  insights, period, onLogClick, allLogs,
+  insights, period, customStart, customEnd, onLogClick, allLogs,
 }: {
   insights: ContextualInsight[]
   period: FieldPeriod
+  customStart?: string
+  customEnd?: string
   onLogClick: () => void
   allLogs: ApiHealthLog[]
 }) => {
@@ -1526,7 +1591,7 @@ const ContextualInsightSection = ({
             Contextual Health Insight
           </h2>
           <p className="font-[Montserrat,sans-serif] text-xs text-slate-500 m-0">
-            Analisis gabungan berdasarkan seluruh riwayat catatan Anda
+            Analisis gabungan dari catatan pada periode yang dipilih, untuk peran pada catatan terbaru
           </p>
         </div>
       </div>
@@ -1536,6 +1601,8 @@ const ContextualInsightSection = ({
             key={insight.id}
             insight={insight}
             period={period}
+            customStart={customStart}
+            customEnd={customEnd}
             onLogClick={onLogClick}
             onDetail={() => setDetailInsight(insight)}
             allLogs={allLogs}
@@ -2102,7 +2169,7 @@ export default function HealthLog() {
         const sorted = [...apiLogs].sort((a, b) => b.date.localeCompare(a.date))
         setAllLogs(sorted)
         
-        const todayIso = new Date().toISOString().split('T')[0]
+        const todayIso = getLocalISODate()
         const todayEntry = sorted.find(l => l.date === todayIso)
         setTodayLog(todayEntry ?? null)
         
@@ -2124,7 +2191,6 @@ export default function HealthLog() {
 
   const activeRole: RoleType = CATEGORY_TO_PROFILE[activeCategory] as RoleType
   
-  // PERBAIKAN: Turunkan (derive) data dari allLogs yang sudah terurut
   const activeCategoryLogs = useMemo(
     () => allLogs.filter(l => l.profile_type === CATEGORY_TO_PROFILE[activeCategory]),
     [allLogs, activeCategory]
@@ -2187,7 +2253,16 @@ export default function HealthLog() {
     const todayObj = new Date()
     todayObj.setHours(0, 0, 0, 0)
     logDateObj.setHours(0, 0, 0, 0)
-    if (logDateObj > todayObj) {
+    let maxToday = todayObj
+    try {
+      const wibStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())
+      const [wy, wm, wd] = wibStr.split('-').map(Number)
+      const wibDate = new Date(wy, wm - 1, wd)
+      if (wibDate > maxToday) maxToday = wibDate
+    } catch (_) {
+      // Fallback to local date if Intl is unavailable
+    }
+    if (logDateObj > maxToday) {
       alert("Tanggal catatan kesehatan tidak boleh di masa depan.")
       return
     }
@@ -2211,13 +2286,12 @@ export default function HealthLog() {
     try {
       const saved = await healthLogService.createOrUpdate(payload)
       
-      // PERBAIKAN: Cukup update allLogs dan pastikan urutannya benar
       setAllLogs(prev => {
         const filtered = prev.filter(l => l.id !== saved.id)
         return [saved, ...filtered].sort((a, b) => b.date.localeCompare(a.date))
       })
       
-      const todayIso = new Date().toISOString().split('T')[0]
+      const todayIso = getLocalISODate()
       if (saved.date === todayIso) {
         setTodayLog(saved)
       }
@@ -2235,7 +2309,6 @@ export default function HealthLog() {
   }
 
   const handleEdit = (index: number) => {
-    // PERBAIKAN: Gunakan activeCategoryRows yang sudah terurut
     const row = activeCategoryRows[index]
     if (!row) return
     
@@ -2266,7 +2339,6 @@ export default function HealthLog() {
   const confirmDelete = async () => {
     if (deleteIndex === null || deleting) return
     const index = deleteIndex
-    // PERBAIKAN: Gunakan activeCategoryIds yang sudah terurut
     const id = activeCategoryIds[index]
     if (id === undefined) {
       setDeleteIndex(null)
@@ -2277,7 +2349,6 @@ export default function HealthLog() {
     try {
       await healthLogService.deleteLog(id)
       
-      // PERBAIKAN: Cukup update allLogs
       setAllLogs(prev => prev.filter(l => l.id !== id))
       
       if (editIndex === index) setEditIndex(null)
@@ -2469,6 +2540,8 @@ export default function HealthLog() {
             <ContextualInsightSection
               insights={contextualInsights}
               period={fieldPeriod}
+              customStart={customStart}
+              customEnd={customEnd}
               onLogClick={handleOpenModal}
               allLogs={allLogs}
             />
