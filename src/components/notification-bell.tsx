@@ -19,8 +19,16 @@ const NotificationBell = () => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
+    // Tombol Escape juga menutup dropdown (aksesibilitas keyboard)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
     document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('keydown', onKey)
+    }
   }, [])
 
   const toggle = () => {
@@ -43,6 +51,8 @@ const NotificationBell = () => {
       <button
         onClick={toggle}
         aria-label={unreadCount > 0 ? `Notifikasi, ${unreadCount} belum dibaca` : 'Notifikasi'}
+        aria-haspopup="menu"
+        aria-expanded={open}
         className="relative flex items-center justify-center rounded-lg transition-colors duration-150"
         style={{ width: '40px', height: '40px', background: open ? 'var(--color-nutri-icon-bg-active)' : 'var(--color-nutri-icon-bg)', border: 'none', cursor: 'pointer' }}
         onMouseEnter={e => { if (!open) (e.currentTarget as HTMLElement).style.background = 'var(--color-nutri-icon-bg-hover)' }}

@@ -11,7 +11,14 @@ import editsign     from "../assets/images/images-editsign.png";
 import { useAuth }         from "../context/AuthContext";
 import { shopService }     from "../services/shop.service";
 import { childrenService } from "../services/children.service";
-import { rewardService }   from "../services/reward.service";
+import {
+  rewardService,
+  getLevelProgress,
+  getNextStreakMilestone,
+  type RewardSummary,
+  type MissionTone,
+  type TransactionTone,
+} from "../services/reward.service";
 import { apiClient }       from "../services/api";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -53,16 +60,9 @@ interface ChildProfile {
 type ActiveMenu = "data-diri" | "alamat" | "profil-anak" | "hadiah" | "reset-password";
 
 // ── Reward Types ───────────────────────────────────────────────────────────
-type Tone = "green" | "orange" | "blue" | "purple";
-
-interface RewardSummary {
-  points: number;
-  levelName: string;
-  nextLevelName: string;
-  nextLevelTarget: number;
-  streakDays: number;
-  streakBonus: number;
-}
+// RewardSummary diambil dari reward.service (sama dengan respons backend).
+// Tipe di bawah adalah bentuk tampilan: ikon sudah berupa elemen React.
+type Tone = MissionTone;
 
 interface Mission {
   id: string;
@@ -73,6 +73,8 @@ interface Mission {
   status: "done" | "action";
   actionLabel?: string;
   to?: string; // rute tujuan saat tombol aksi ditekan
+  progress: number;
+  max: number;
 }
 
 interface RewardItem {
@@ -89,7 +91,7 @@ interface PointTransaction {
   time: string;
   amount: number;
   icon: ReactNode;
-  tone: "yellow" | "green" | "red";
+  tone: TransactionTone;
 }
 
 // ── Inline SVG Icons ───────────────────────────────────────────────────────
@@ -234,51 +236,10 @@ const IconSparkles = ({ className }: { className?: string }) => (
   </Svg>
 );
 
-// ── Rute tujuan tombol misi ────────────────────────────────────────────────
-// Sesuaikan dengan path di router aplikasi Anda.
-const MISSION_ROUTES = {
-  healthLog: "/health-log",
-  artikel:   "/artikel",
-  tele:      "/tele-nutritionist",
-} as const;
-
 // ── Reward Data ────────────────────────────────────────────────────────────
-// TODO: ganti dengan data dari backend (mis. rewardService.getSummary(), getMissions(), dst).
-// Seluruh angka turunan (persentase, "kurang X poin", status tombol) dihitung dari data ini.
-const REWARD_SUMMARY: RewardSummary = {
-  points: 750,
-  levelName: "Konsisten",
-  nextLevelName: "Berdedikasi",
-  nextLevelTarget: 1000,
-  streakDays: 7,
-  streakBonus: 50,
-};
-
-const MISSIONS: Mission[] = [
-  { id: "log-tb-bb",  title: "Log Tinggi & Berat Badan", subtitle: "+20 Poin per log",        tone: "green",  icon: <IconScale    className="w-5 h-5" />, status: "done" },
-  { id: "log-gizi",   title: "Health Log Asupan Gizi",   subtitle: "+10 Poin (Progres 2/3)",  tone: "orange", icon: <IconUtensils className="w-5 h-5" />, status: "action", actionLabel: "Lanjut", to: MISSION_ROUTES.healthLog },
-  { id: "edu-mpasi",  title: "Baca Edukasi MPASI",       subtitle: "+5 Poin (1/3 Artikel)",   tone: "blue",   icon: <IconBookOpen className="w-5 h-5" />, status: "action", actionLabel: "Baca", to: MISSION_ROUTES.artikel },
-  { id: "tele-nutri", title: "Konsultasi Tele-Nutrition", subtitle: "+50 Poin / Sesi",        tone: "purple", icon: <IconVideo    className="w-5 h-5" />, status: "action", actionLabel: "Jadwal", to: MISSION_ROUTES.tele },
-];
-
-const REWARD_CATALOG: RewardItem[] = [
-  { id: "v-20k",   title: "Voucher NutriShop Rp20.000", description: "Diskon belanja produk bahan pangan bernutrisi di NutriShop.",  cost: 200,  icon: <IconTag         className="w-5 h-5" /> },
-  { id: "v-50k",   title: "Voucher NutriShop Rp50.000", description: "Potongan belanja susu fortified & sereal kaya mikronutrien.",  cost: 500,  icon: <IconShoppingBag className="w-5 h-5" /> },
-  { id: "tele-1",  title: "1 Sesi Tele-Nutrition Gratis", description: "Konsultasi 30 menit bersama dokter spesialis gizi anak NutriGrow.", cost: 800,  icon: <IconStethoscope className="w-5 h-5" /> },
-  { id: "starter", title: "NutriGrow Starter Package",   description: "Box set suplemen zinc, zat besi, dan vitamin D untuk 30 hari.", cost: 1200, icon: <IconPackage     className="w-5 h-5" /> },
-];
-
-const POINT_TRANSACTIONS: PointTransaction[] = [
-  { id: "t1", title: "Bonus Streak 7 Hari Tercapai",     time: "Hari ini • 09:12 WIB",    amount: 50,   tone: "yellow", icon: <IconFlame       className="w-5 h-5" /> },
-  { id: "t2", title: "Log Tinggi & Berat Badan Johan",   time: "Hari ini • 08:00 WIB",    amount: 20,   tone: "green",  icon: <IconPlusCircle  className="w-5 h-5" /> },
-  { id: "t3", title: "Health Log Asupan Gizi",           time: "Kemarin • 19:40 WIB",     amount: 10,   tone: "green",  icon: <IconCheckCircle className="w-5 h-5" /> },
-  { id: "t4", title: "Tukar Voucher NutriShop Rp20.000", time: "4 hari yang lalu • 14:15 WIB", amount: -200, tone: "red",    icon: <IconGift        className="w-5 h-5" /> },
-  { id: "t5", title: "Baca Edukasi MPASI",               time: "6 hari yang lalu • 20:05 WIB",  amount: 5,    tone: "green",  icon: <IconCheckCircle className="w-5 h-5" /> },
-  { id: "t6", title: "Konsultasi Tele-Nutrition",        time: "8 hari yang lalu • 10:30 WIB",  amount: 50,   tone: "green",  icon: <IconCheckCircle className="w-5 h-5" /> },
-  { id: "t7", title: "Log Tinggi & Berat Badan Johan",   time: "9 hari yang lalu • 08:10 WIB",  amount: 20,   tone: "green",  icon: <IconPlusCircle  className="w-5 h-5" /> },
-  { id: "t8", title: "Health Log Asupan Gizi",           time: "10 hari yang lalu • 19:20 WIB", amount: 10,   tone: "green",  icon: <IconCheckCircle className="w-5 h-5" /> },
-];
-
+// Seluruh data poin, misi, katalog, dan riwayat diambil dari backend (rewardService).
+// Tidak ada data contoh, supaya pengguna tidak melihat angka yang bukan miliknya
+// ketika data gagal dimuat.
 const RECENT_TX_LIMIT = 4;
 
 // ── Reward Style Maps ──────────────────────────────────────────────────────
@@ -302,7 +263,20 @@ const TX_ICON_TONE: Record<PointTransaction["tone"], string> = {
   red:    "bg-[#fee2e2] text-[#ef4444]",
 };
 
+const isTone = (v: unknown): v is Tone =>
+  v === "green" || v === "orange" || v === "blue" || v === "purple";
+
+const isTxTone = (v: unknown): v is TransactionTone =>
+  v === "yellow" || v === "green" || v === "red";
+
 const formatPoin = (n: number) => n.toLocaleString("id-ID");
+
+// Katalog backend tidak mengirim ikon, jadi ikon ditentukan dari kategori hadiah
+const REWARD_CATEGORY_ICON: Record<string, string> = {
+  VOUCHER:  "IconShoppingBag",
+  SERVICE:  "IconStethoscope",
+  PHYSICAL: "IconPackage",
+};
 
 const renderRewardIcon = (iconName?: string | ReactNode) => {
   if (typeof iconName !== "string") return iconName ?? <IconCheckCircle className="w-5 h-5" />;
@@ -324,21 +298,26 @@ const renderRewardIcon = (iconName?: string | ReactNode) => {
   }
 };
 
+// Waktu transaksi ditampilkan dalam WIB, dan "Kemarin"/"N hari yang lalu"
+// dihitung dari selisih tanggal kalender WIB, bukan selisih 24 jam.
+const WIB_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" });
+const WIB_CLOCK = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const WIB_FULL_DATE = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", year: "numeric" });
+
+const wibDayIndex = (d: Date) => {
+  const [y, m, day] = WIB_DAY.format(d).split("-").map(Number);
+  return Math.round(Date.UTC(y, m - 1, day) / 86_400_000);
+};
+
 const formatTxTime = (timeStr: string | Date) => {
-  try {
-    const d = new Date(timeStr);
-    if (isNaN(d.getTime())) return String(timeStr);
-    const now = new Date();
-    const isToday = d.toDateString() === now.toDateString();
-    const timeFormatted = d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }).replace(".", ":");
-    if (isToday) return `Hari ini • ${timeFormatted} WIB`;
-    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays === 1) return `Kemarin • ${timeFormatted} WIB`;
-    if (diffDays > 1 && diffDays < 30) return `${diffDays} hari yang lalu • ${timeFormatted} WIB`;
-    return `${d.toLocaleDateString("id-ID")} • ${timeFormatted} WIB`;
-  } catch {
-    return String(timeStr);
-  }
+  const d = new Date(timeStr);
+  if (isNaN(d.getTime())) return String(timeStr);
+  const clock = `${WIB_CLOCK.format(d).replace(".", ":")} WIB`;
+  const diffDays = wibDayIndex(new Date()) - wibDayIndex(d);
+  if (diffDays <= 0) return `Hari ini • ${clock}`;
+  if (diffDays === 1) return `Kemarin • ${clock}`;
+  if (diffDays < 30) return `${diffDays} hari yang lalu • ${clock}`;
+  return `${WIB_FULL_DATE.format(d)} • ${clock}`;
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -542,10 +521,11 @@ function MenuItem({ icon, label, active, onClick }: {
 }
 
 // ── Redeem Modal ───────────────────────────────────────────────────────────
-function RedeemModal({ reward, balance, saving, onConfirm, onClose }: {
+function RedeemModal({ reward, balance, saving, error, onConfirm, onClose }: {
   reward: RewardItem;
   balance: number;
   saving: boolean;
+  error: string;
   onConfirm: () => void;
   onClose: () => void;
 }) {
@@ -587,6 +567,12 @@ function RedeemModal({ reward, balance, saving, onConfirm, onClose }: {
             <dd className="font-bold text-[#15803d]">{formatPoin(balance - reward.cost)} Poin</dd>
           </div>
         </dl>
+
+        {error && (
+          <p role="alert" className="mt-4 text-sm text-[#b91c1c] bg-[#fef2f2] border border-[#fecaca] rounded-xl px-4 py-2.5">
+            {error}
+          </p>
+        )}
 
         <div className="flex justify-end gap-3 mt-6">
           <button onClick={onClose} disabled={saving}
@@ -642,7 +628,7 @@ function HistoryModal({ transactions, onClose }: {
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 id="history-title" className="text-lg font-bold text-gray-900">Riwayat Transaksi Poin</h2>
-              <p className="text-sm text-gray-500">Seluruh catatan perolehan dan penukaran poin Anda</p>
+              <p className="text-sm text-gray-500">{transactions.length} transaksi poin terbaru Anda</p>
             </div>
             <button onClick={onClose} aria-label="Tutup"
               className="w-8 h-8 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 flex items-center justify-center transition shrink-0">
@@ -705,22 +691,37 @@ function HistoryModal({ transactions, onClose }: {
 }
 
 // ── Rewards Panel ("Hadiah") ───────────────────────────────────────────────
-function RewardsPanel({ summary, missions, catalog, transactions, notice, loading, onRedeem, onNavigate }: {
-  summary: RewardSummary;
+function RewardsPanel({ summary, missions, catalog, transactions, notice, loading, error, onRetry, onRedeem, onNavigate }: {
+  summary: RewardSummary | null;
   missions: Mission[];
   catalog: RewardItem[];
   transactions: PointTransaction[];
   notice: string;
   loading?: boolean;
+  error: string;
+  onRetry: () => void;
   onRedeem: (reward: RewardItem) => void;
   onNavigate: (path: string) => void;
 }) {
   const [historyOpen, setHistoryOpen] = useState(false);
-  const { points, levelName, nextLevelName, nextLevelTarget, streakDays, streakBonus } = summary;
-  const progressPct   = Math.min(100, Math.round((points / nextLevelTarget) * 100));
-  const pointsToLevel = Math.max(0, nextLevelTarget - points);
 
-  if (loading) {
+  // Belum ada data sama sekali dan gagal dimuat → tampilkan error state, bukan angka kosong
+  if (!summary && !loading && error) {
+    return (
+      <div className="flex flex-col items-center justify-center text-center py-16 px-6 bg-white rounded-2xl shadow-sm border border-gray-100">
+        <p className="text-base font-bold text-gray-900">Data poin & hadiah belum dapat dimuat</p>
+        <p className="text-sm text-gray-500 mt-1 max-w-sm">{error}</p>
+        <button
+          onClick={onRetry}
+          className="mt-5 bg-[#4d7c0f] text-white text-sm font-semibold px-5 py-2 rounded-xl hover:bg-[#3a5a00] transition"
+        >
+          Coba Lagi
+        </button>
+      </div>
+    );
+  }
+
+  if (loading || !summary) {
     return (
       <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
         <div className="w-10 h-10 border-4 border-[#4d7c0f] border-t-transparent rounded-full animate-spin mb-3" />
@@ -729,8 +730,19 @@ function RewardsPanel({ summary, missions, catalog, transactions, notice, loadin
     );
   }
 
+  const { points, levelName, nextLevelName, streakDays } = summary;
+  const totalEarned = Math.max(0, summary.totalEarnedPoints);
+  const level = getLevelProgress(summary);
+  const nextStreak = getNextStreakMilestone(streakDays);
+
   return (
     <div className="space-y-5">
+      {error && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 text-sm text-[#b91c1c] bg-[#fef2f2] border border-[#fecaca] rounded-xl px-4 py-3">
+          <span>{error}</span>
+          <button onClick={onRetry} className="font-semibold underline">Coba Lagi</button>
+        </div>
+      )}
       {notice && (
         <div role="status" className="flex items-center gap-2 text-sm text-[#15803d] bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl px-4 py-3">
           <IconCheckCircle className="w-5 h-5 shrink-0" />
@@ -754,8 +766,14 @@ function RewardsPanel({ summary, missions, catalog, transactions, notice, loadin
           <div className="flex items-center gap-2.5 self-start rounded-xl border border-[#fde68a] bg-[#fffbeb] px-3.5 py-2 shrink-0">
             <IconFlame className="w-5 h-5 text-[#d97706]" />
             <div className="leading-tight">
-              <p className="text-xs font-bold text-[#92400e]">{streakDays} Hari Streak!</p>
-              <p className="text-xs text-[#b45309]">+{streakBonus} Poin Bonus Mingguan</p>
+              <p className="text-xs font-bold text-[#92400e]">
+                {streakDays > 0 ? `${streakDays} Hari Streak!` : "Belum Ada Streak"}
+              </p>
+              <p className="text-xs text-[#b45309]">
+                {nextStreak
+                  ? `Capai ${nextStreak.days} hari: +${nextStreak.bonus} Poin Bonus`
+                  : "Semua bonus streak tercapai"}
+              </p>
             </div>
           </div>
         </div>
@@ -776,25 +794,32 @@ function RewardsPanel({ summary, missions, catalog, transactions, notice, loadin
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm mb-2">
               <p className="text-gray-600">
-                Level Berikutnya: <span className="font-bold text-gray-900">{nextLevelName}</span>
+                {level.isMaxLevel ? (
+                  <>Level Tertinggi: <span className="font-bold text-gray-900">{levelName}</span></>
+                ) : (
+                  <>Level Berikutnya: <span className="font-bold text-gray-900">{nextLevelName}</span></>
+                )}
               </p>
               <p className="font-bold text-[#4d7c0f]">
-                {formatPoin(points)} / {formatPoin(nextLevelTarget)} Poin ({progressPct}%)
+                {level.isMaxLevel
+                  ? `${formatPoin(totalEarned)} Poin Terkumpul`
+                  : `${formatPoin(totalEarned)} / ${formatPoin(summary.nextLevelTarget)} Poin (${level.percent}%)`}
               </p>
             </div>
             <div
               className="h-2.5 w-full rounded-full bg-gray-100 overflow-hidden"
-              role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPct}
+              role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={level.percent}
+              aria-label="Progres level"
             >
               <div
                 className="h-full rounded-full bg-[#6aa221] transition-all duration-500"
-                style={{ width: `${progressPct}%` }}
+                style={{ width: `${level.percent}%` }}
               />
             </div>
             <p className="text-xs text-gray-400 mt-2">
-              {pointsToLevel > 0
-                ? `Butuh ${formatPoin(pointsToLevel)} poin lagi untuk membuka badge & voucher eksklusif ${nextLevelName}.`
-                : `Selamat! Anda telah mencapai level ${nextLevelName}.`}
+              {level.isMaxLevel
+                ? `Selamat! Anda sudah mencapai level tertinggi, ${levelName}.`
+                : `Butuh ${formatPoin(level.pointsToNext)} poin lagi untuk naik ke level ${nextLevelName}. Level dihitung dari total poin yang pernah diperoleh, sehingga tidak berkurang saat menukar hadiah.`}
             </p>
           </div>
         </div>
@@ -832,6 +857,15 @@ function RewardsPanel({ summary, missions, catalog, transactions, notice, loadin
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{m.title}</p>
                   <p className={`text-xs ${MISSION_SUBTITLE_TONE[m.tone]}`}>{m.subtitle}</p>
+                  {!done && m.max > 1 && (
+                    <div
+                      className="mt-1.5 h-1 w-full max-w-[160px] rounded-full bg-gray-100 overflow-hidden"
+                      role="progressbar" aria-valuemin={0} aria-valuemax={m.max} aria-valuenow={m.progress}
+                      aria-label={`Progres ${m.title}`}
+                    >
+                      <div className="h-full rounded-full bg-[#6aa221]" style={{ width: `${Math.round((m.progress / m.max) * 100)}%` }} />
+                    </div>
+                  )}
                 </div>
                 {done ? (
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#15803d] bg-white border border-[#86efac] rounded-lg px-2.5 py-1.5 shrink-0">
@@ -943,7 +977,7 @@ function RewardsPanel({ summary, missions, catalog, transactions, notice, loadin
         <div className="flex items-start justify-between gap-3 mb-2">
           <div>
             <h3 className="text-base sm:text-lg font-bold text-gray-900">Riwayat Transaksi Poin Terakhir</h3>
-            <p className="text-sm text-gray-500">Catatan perolehan dan penukaran poin Anda 7 hari terakhir</p>
+            <p className="text-sm text-gray-500">Catatan perolehan dan penukaran poin terbaru Anda</p>
           </div>
           <button
             onClick={() => setHistoryOpen(true)}
@@ -1015,13 +1049,15 @@ export default function EditProfile() {
   const [childModal, setChildModal]         = useState<{ open: boolean; editId: number | null }>({ open: false, editId: null });
 
   // Reward state
-  const [rewardSummary, setRewardSummary] = useState<RewardSummary>(REWARD_SUMMARY);
-  const [missions, setMissions]           = useState<Mission[]>(MISSIONS);
-  const [catalog, setCatalog]             = useState<RewardItem[]>(REWARD_CATALOG);
-  const [transactions, setTransactions]   = useState<PointTransaction[]>(POINT_TRANSACTIONS);
+  const [rewardSummary, setRewardSummary] = useState<RewardSummary | null>(null);
+  const [missions, setMissions]           = useState<Mission[]>([]);
+  const [catalog, setCatalog]             = useState<RewardItem[]>([]);
+  const [transactions, setTransactions]   = useState<PointTransaction[]>([]);
   const [rewardLoading, setRewardLoading] = useState(false);
+  const [rewardError, setRewardError]     = useState("");
   const [redeemTarget, setRedeemTarget]   = useState<RewardItem | null>(null);
   const [redeemSaving, setRedeemSaving]   = useState(false);
+  const [redeemError, setRedeemError]     = useState("");
   const [rewardNotice, setRewardNotice]   = useState("");
 
   // Password state
@@ -1170,6 +1206,7 @@ export default function EditProfile() {
   // ── Reward handlers ──
   const loadRewardData = async () => {
     setRewardLoading(true);
+    setRewardError("");
     try {
       const [sumRes, catRes, misRes, histRes] = await Promise.all([
         rewardService.getSummary(),
@@ -1178,52 +1215,48 @@ export default function EditProfile() {
         rewardService.getHistory(),
       ]);
 
-      if (sumRes) {
-        setRewardSummary({
-          points: sumRes.points ?? 0,
-          levelName: sumRes.levelName || "Pemula",
-          nextLevelName: sumRes.nextLevelName || "Konsisten",
-          nextLevelTarget: sumRes.nextLevelTarget || 500,
-          streakDays: sumRes.streakDays ?? 0,
-          streakBonus: sumRes.streakBonus ?? 15,
-        });
-      }
+      setRewardSummary({
+        points: sumRes?.points ?? 0,
+        totalEarnedPoints: sumRes?.totalEarnedPoints ?? 0,
+        levelName: sumRes?.levelName || "Pemula",
+        nextLevelName: sumRes?.nextLevelName ?? null,
+        nextLevelTarget: sumRes?.nextLevelTarget ?? 0,
+        streakDays: sumRes?.streakDays ?? 0,
+        streakBonus: sumRes?.streakBonus ?? 0,
+      });
 
-      if (Array.isArray(catRes)) {
-        setCatalog(catRes.map(item => ({
-          id: item.id,
-          title: item.title,
-          description: item.description,
-          cost: item.cost,
-          icon: renderRewardIcon((item as any).icon || "IconTag"),
-        })));
-      }
+      setCatalog((Array.isArray(catRes) ? catRes : []).map(item => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        cost: item.cost,
+        icon: renderRewardIcon(REWARD_CATEGORY_ICON[item.category ?? ""] ?? "IconTag"),
+      })));
 
-      if (Array.isArray(misRes)) {
-        setMissions(misRes.map(m => ({
-          id: m.id,
-          title: m.title,
-          subtitle: m.subtitle,
-          tone: ((m as any).tone || "green") as Tone,
-          icon: renderRewardIcon((m as any).icon || "IconScale"),
-          status: m.status,
-          actionLabel: m.actionLabel,
-          to: m.to,
-        })));
-      }
+      setMissions((Array.isArray(misRes) ? misRes : []).map(m => ({
+        id: m.id,
+        title: m.title,
+        subtitle: m.subtitle,
+        tone: isTone(m.tone) ? m.tone : "green",
+        icon: renderRewardIcon(m.icon || "IconScale"),
+        status: m.status,
+        actionLabel: m.actionLabel,
+        to: m.to,
+        progress: m.progress ?? 0,
+        max: m.max ?? 1,
+      })));
 
-      if (Array.isArray(histRes)) {
-        setTransactions(histRes.map(tx => ({
-          id: tx.id,
-          title: tx.title,
-          time: formatTxTime(tx.time),
-          amount: tx.amount,
-          tone: ((tx as any).tone || (tx.amount > 0 ? "green" : "red")) as "yellow" | "green" | "red",
-          icon: renderRewardIcon((tx as any).icon || (tx.amount > 0 ? "IconCheckCircle" : "IconGift")),
-        })));
-      }
+      setTransactions((Array.isArray(histRes) ? histRes : []).map(tx => ({
+        id: tx.id,
+        title: tx.title,
+        time: formatTxTime(tx.time),
+        amount: tx.amount,
+        tone: isTxTone(tx.tone) ? tx.tone : (tx.amount > 0 ? "green" : "red"),
+        icon: renderRewardIcon(tx.icon || (tx.amount > 0 ? "IconCheckCircle" : "IconGift")),
+      })));
     } catch (err) {
       console.error("Gagal memuat data reward:", err);
+      setRewardError("Periksa koneksi internet Anda, lalu coba lagi.");
     } finally {
       setRewardLoading(false);
     }
@@ -1235,25 +1268,58 @@ export default function EditProfile() {
     }
   }, [activeMenu]);
 
-  const handleRedeemReward = (reward: RewardItem) => setRedeemTarget(reward);
+  // Level pada kartu profil diambil dari backend sejak halaman dibuka,
+  // tidak perlu menunggu tab Hadiah dibuka.
+  useEffect(() => {
+    if (activeMenu === "hadiah") return;
+    let cancelled = false;
+    rewardService.getSummary()
+      .then(sum => {
+        if (cancelled || !sum) return;
+        setRewardSummary(prev => prev ?? {
+          points: sum.points ?? 0,
+          totalEarnedPoints: sum.totalEarnedPoints ?? 0,
+          levelName: sum.levelName || "Pemula",
+          nextLevelName: sum.nextLevelName ?? null,
+          nextLevelTarget: sum.nextLevelTarget ?? 0,
+          streakDays: sum.streakDays ?? 0,
+          streakBonus: sum.streakBonus ?? 0,
+        });
+      })
+      .catch(() => { /* badge level tidak ditampilkan bila gagal dimuat */ });
+    return () => { cancelled = true; };
+    // hanya sekali saat halaman dibuka
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleRedeemReward = (reward: RewardItem) => {
+    setRedeemError("");
+    setRedeemTarget(reward);
+  };
+
+  const closeRedeemModal = () => {
+    setRedeemTarget(null);
+    setRedeemError("");
+  };
 
   const confirmRedeem = async () => {
-    if (!redeemTarget) return;
+    if (!redeemTarget || !rewardSummary) return;
     if (rewardSummary.points < redeemTarget.cost) {
-      alert("Saldo poin tidak mencukupi untuk menukar hadiah ini.");
-      setRedeemTarget(null);
+      setRedeemError("Saldo poin tidak mencukupi untuk menukar hadiah ini.");
       return;
     }
 
     setRedeemSaving(true);
+    setRedeemError("");
     try {
       const res = await rewardService.redeem(redeemTarget.id);
-      setRewardNotice(`Berhasil menukar "${res.reward.title}". Sisa saldo ${formatPoin(res.remainingPoints)} poin.`);
+      const rewardTitle = res.reward || redeemTarget.title;
+      setRewardNotice(`Berhasil menukar "${rewardTitle}". Sisa saldo ${formatPoin(res.remainingPoints)} poin.`);
       setRedeemTarget(null);
       await loadRewardData();
-    } catch (err: any) {
-      const msg = err.response?.data?.message || "Gagal menukar hadiah. Coba lagi.";
-      alert(msg);
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string } } };
+      setRedeemError(ax?.response?.data?.message || "Gagal menukar hadiah. Coba lagi.");
     } finally {
       setRedeemSaving(false);
     }
@@ -1337,10 +1403,12 @@ export default function EditProfile() {
           </div>
           <p className="font-bold text-gray-900 text-lg">{user?.nama ?? "—"}</p>
           <p className="text-sm text-gray-400">{user?.email ?? ""}</p>
-          <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[#4d7c0f] bg-[#f0fde4] border border-[#d9f2c4] rounded-full px-3 py-1">
-            <IconSparkles className="w-3.5 h-3.5" />
-            Level: {rewardSummary.levelName}
-          </span>
+          {rewardSummary && (
+            <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[#4d7c0f] bg-[#f0fde4] border border-[#d9f2c4] rounded-full px-3 py-1">
+              <IconSparkles className="w-3.5 h-3.5" />
+              Level: {rewardSummary.levelName}
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
@@ -1593,6 +1661,8 @@ export default function EditProfile() {
                     transactions={transactions}
                     notice={rewardNotice}
                     loading={rewardLoading}
+                    error={rewardError}
+                    onRetry={loadRewardData}
                     onRedeem={handleRedeemReward}
                     onNavigate={navigate}
                   />
@@ -1690,13 +1760,14 @@ export default function EditProfile() {
           saving={addrSaving}
         />
       )}
-      {redeemTarget && (
+      {redeemTarget && rewardSummary && (
         <RedeemModal
           reward={redeemTarget}
           balance={rewardSummary.points}
           saving={redeemSaving}
+          error={redeemError}
           onConfirm={confirmRedeem}
-          onClose={() => setRedeemTarget(null)}
+          onClose={closeRedeemModal}
         />
       )}
       {childModal.open && (
