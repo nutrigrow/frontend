@@ -4,7 +4,10 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import {
   DELIVERY_HOURS,
+  getWibTime,
   monitoringService,
+  shiftDate,
+  toWibDate,
   type MonitoringNotification,
 } from '../services/monitoring.service';
 
@@ -41,19 +44,19 @@ const writeJson = (key: string, value: unknown) => {
 };
 
 /**
- * Slot pengiriman terakhir yang sudah lewat (08.00 atau 19.00).
+ * Slot pengiriman terakhir yang sudah lewat (08.00 atau 19.00 WIB).
  * Pop-up hanya muncul sekali per slot, meniru jadwal kirim di dokumen.
+ * Jam dihitung dalam WIB, bukan jam perangkat.
  */
 const currentDeliverySlot = (now = new Date()): string => {
-  const passed = DELIVERY_HOURS.filter((h) => now.getHours() >= h);
+  const today = toWibDate(now);
+  const { hour } = getWibTime(now);
+  const passed = DELIVERY_HOURS.filter((h) => hour >= h);
   if (passed.length > 0) {
-    const hour = passed[passed.length - 1];
-    return `${now.toDateString()}-${hour}`;
+    return `${today}-${passed[passed.length - 1]}`;
   }
-  // Sebelum 08.00 → masih termasuk slot 19.00 kemarin
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  return `${yesterday.toDateString()}-${DELIVERY_HOURS[DELIVERY_HOURS.length - 1]}`;
+  // Sebelum 08.00 WIB → masih termasuk slot 19.00 kemarin
+  return `${shiftDate(today, -1)}-${DELIVERY_HOURS[DELIVERY_HOURS.length - 1]}`;
 };
 
 // ─── Provider ───────────────────────────────────────────────────────────────
@@ -112,11 +115,13 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
 
   const isRead = useCallback((id: string) => readIds.includes(id), [readIds]);
 
+  // Hanya id notifikasi yang masih aktif yang disimpan, supaya data di localStorage
+  // tidak terus bertambah. Notifikasi yang sudah tidak aktif tidak perlu status baca lagi.
   const markAllRead = useCallback(() => {
-    const ids = Array.from(new Set([...readIds, ...notifications.map((n) => n.id)]));
+    const ids = notifications.map((n) => n.id);
     setReadState({ key: readKey, ids });
     writeJson(readKey, ids);
-  }, [notifications, readIds, readKey]);
+  }, [notifications, readKey]);
 
   const value = useMemo<MonitoringContextType>(() => ({
     notifications,

@@ -3,9 +3,13 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Check, X } from 'lucide-react'
 import { useMonitoring } from '../context/MonitoringContext'
 import { NOTIFICATION_KIND_STYLE } from './notification-style'
+import { getWibTime } from '../services/monitoring.service'
 
-const formatTime = (date: Date) =>
-  `${date.getHours().toString().padStart(2, '0')}.${date.getMinutes().toString().padStart(2, '0')} WIB`
+// Jam ditampilkan dalam WIB, tidak mengikuti zona waktu perangkat
+const formatTime = (date: Date) => {
+  const { hour, minute } = getWibTime(date)
+  return `${hour.toString().padStart(2, '0')}.${minute.toString().padStart(2, '0')} WIB`
+}
 
 // ─── MonitoringToast ──────────────────────────────────────────────────────────
 // Pop-up in-app (top bar) untuk notifikasi monitoring prioritas tertinggi

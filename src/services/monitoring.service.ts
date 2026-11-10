@@ -1,6 +1,7 @@
 import { childrenService, type ApiChild, type ApiLatestGrowth } from './children.service';
 import { healthLogService, type ApiHealthLog } from './healthLog.service';
 import { teleNutritionistService, type Consultation } from './teleNutritionist.service';
+import { getNextStreakMilestone } from './reward.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 // reminder  → interval normal terlewati      (Kondisi 1)
@@ -41,33 +42,52 @@ const MAX_CHILD_AGE_MONTHS     = 60;
 // Jadwal pengiriman: 08.00 dan 19.00 WIB
 export const DELIVERY_HOURS = [8, 19];
 
-// ─── Date helpers (semua dihitung per tanggal lokal, bukan per jam) ──────────
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+// Semua perhitungan hari memakai kalender WIB (Asia/Jakarta) dalam format "YYYY-MM-DD",
+// sama seperti validasi tanggal Health Log dan Growth Tracker, sehingga hasilnya tidak
+// bergantung pada zona waktu perangkat.
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** "2026-10-08" atau "2026-10-08T00:00:00.000Z" → Date lokal jam 00.00 */
-export const parseDateOnly = (value: string): Date => {
-  const [y, m, d] = value.slice(0, 10).split('-').map(Number);
-  return new Date(y, m - 1, d);
+const WIB_DATE_FORMAT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+const WIB_TIME_FORMAT = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+});
+
+/** Tanggal kalender WIB dari sebuah waktu, mis. "2026-11-06" */
+export const toWibDate = (date: Date): string => WIB_DATE_FORMAT.format(date);
+
+/** Jam dan menit WIB dari sebuah waktu */
+export const getWibTime = (date: Date): { hour: number; minute: number } => {
+  const [hour, minute] = WIB_TIME_FORMAT.format(date).split(':').map(Number);
+  return { hour, minute };
 };
 
-export const startOfToday = (now = new Date()): Date =>
-  new Date(now.getFullYear(), now.getMonth(), now.getDate());
+/** "2026-10-08" atau "2026-10-08T00:00:00.000Z" → "2026-10-08" */
+export const dateOnly = (value: string): string => value.slice(0, 10);
 
-export const daysBetween = (from: Date, to: Date): number =>
-  Math.round((startOfToday(to).getTime() - startOfToday(from).getTime()) / DAY_MS);
+const dayIndex = (date: string): number => {
+  const [y, m, d] = date.split('-').map(Number);
+  return Math.round(Date.UTC(y, m - 1, d) / DAY_MS);
+};
 
-const toKey = (date: Date): string =>
-  `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+/** Selisih hari kalender antara dua tanggal "YYYY-MM-DD" */
+export const daysBetween = (from: string, to: string): number => dayIndex(to) - dayIndex(from);
 
-export const ageInMonths = (birthDate: string, now = new Date()): number => {
-  const birth = parseDateOnly(birthDate);
-  let months = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
-  if (now.getDate() < birth.getDate()) months -= 1;
+export const shiftDate = (date: string, days: number): string =>
+  new Date((dayIndex(date) + days) * DAY_MS).toISOString().slice(0, 10);
+
+export const ageInMonths = (birthDate: string, today: string): number => {
+  const [by, bm, bd] = dateOnly(birthDate).split('-').map(Number);
+  const [ty, tm, td] = today.split('-').map(Number);
+  let months = (ty - by) * 12 + (tm - bm);
+  if (td < bd) months -= 1;
   return months;
 };
 
-export const getChildRole = (child: ApiChild, now = new Date()): MonitoringRole | null => {
-  const months = ageInMonths(child.tanggalLahir, now);
+export const getChildRole = (child: ApiChild, today: string): MonitoringRole | null => {
+  const months = ageInMonths(child.tanggalLahir, today);
   if (months < 0 || months > MAX_CHILD_AGE_MONTHS) return null;
   return months <= 12 ? MONITORING_ROLES.bayi : MONITORING_ROLES.balita;
 };
@@ -78,17 +98,17 @@ export const getHealthLogRole = (latestLog: ApiHealthLog): MonitoringRole =>
 /**
  * Jumlah hari berturut-turut user mengisi health log, dihitung mundur dari kemarin.
  * Dipakai untuk Kondisi 3: kalau hari ini belum mengisi, streak ini hilang besok.
+ * Cara hitungnya sama dengan streak di Gamification & Reward (backend calculateUserStreak).
  */
-export const getStreakEndingYesterday = (logs: ApiHealthLog[], now = new Date()): number => {
-  const loggedDays = new Set(logs.map((log) => toKey(parseDateOnly(log.date))));
-  const cursor = startOfToday(now);
-  if (loggedDays.has(toKey(cursor))) return 0;
+export const getStreakEndingYesterday = (logs: ApiHealthLog[], today: string): number => {
+  const loggedDays = new Set(logs.map((log) => dateOnly(log.date)));
+  if (loggedDays.has(today)) return 0;
 
   let streak = 0;
-  cursor.setDate(cursor.getDate() - 1);
-  while (loggedDays.has(toKey(cursor))) {
+  let cursor = shiftDate(today, -1);
+  while (loggedDays.has(cursor)) {
     streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
+    cursor = shiftDate(cursor, -1);
   }
   return streak;
 };
@@ -103,12 +123,16 @@ export interface MonitoringInput {
 
 const childName = (child: ApiChild) => child.namaDepan;
 
+// Setiap id menyertakan tanggal acuannya (tanggal catatan terakhir atau hari ini).
+// Status "sudah dibaca" hanya berlaku untuk siklus pengingat tersebut, sehingga
+// pengingat pada siklus atau hari berikutnya muncul lagi sebagai notifikasi baru.
+
 const buildChildNotification = (
   child: ApiChild,
   latestGrowth: ApiLatestGrowth | null,
-  now: Date,
+  today: string,
 ): MonitoringNotification | null => {
-  const role = getChildRole(child, now);
+  const role = getChildRole(child, today);
   if (!role) return null;
 
   const cta = { label: 'Catat Sekarang', href: '/growth-tracker' };
@@ -124,11 +148,12 @@ const buildChildNotification = (
     };
   }
 
-  const days = daysBetween(parseDateOnly(latestGrowth.tanggalCatat), now);
+  const lastDate = dateOnly(latestGrowth.tanggalCatat);
+  const days = daysBetween(lastDate, today);
 
   if (days >= role.criticalDays) {
     return {
-      id: `growth-critical-${child.id}`,
+      id: `growth-critical-${child.id}-${lastDate}`,
       kind: 'warning',
       title: `${childName(child)} belum dipantau ${days} hari`,
       message: 'Pemantauan rutin penting untuk deteksi dini stunting. Jangan sampai terlewat ya!',
@@ -139,7 +164,7 @@ const buildChildNotification = (
 
   if (days >= role.normalDays) {
     return {
-      id: `growth-normal-${child.id}`,
+      id: `growth-normal-${child.id}-${lastDate}`,
       kind: 'reminder',
       title: `Sudah ${days} hari sejak terakhir mencatat ${childName(child)}`,
       message: `Yuk pantau perkembangan ${childName(child)} sekarang.`,
@@ -153,18 +178,19 @@ const buildChildNotification = (
 
 const buildHealthLogNotification = (
   healthLogs: ApiHealthLog[],
-  now: Date,
+  today: string,
 ): MonitoringNotification | null => {
   if (healthLogs.length === 0) return null;
 
-  const latestLog = healthLogs.reduce((latest, log) => (log.date > latest.date ? log : latest));
+  const latestLog = healthLogs.reduce((latest, log) => (dateOnly(log.date) > dateOnly(latest.date) ? log : latest));
   const role = getHealthLogRole(latestLog);
-  const days = daysBetween(parseDateOnly(latestLog.date), now);
+  const lastDate = dateOnly(latestLog.date);
+  const days = daysBetween(lastDate, today);
   const cta = { label: 'Catat Sekarang', href: '/health-log' };
 
   if (days >= role.criticalDays) {
     return {
-      id: 'health-critical',
+      id: `health-critical-${lastDate}`,
       kind: 'warning',
       title: `Catatan kesehatan kosong ${days} hari`,
       message: 'Pencatatan rutin membantu tenaga kesehatan memantau kondisimu. Yuk isi lagi hari ini!',
@@ -175,7 +201,7 @@ const buildHealthLogNotification = (
 
   if (days >= role.normalDays) {
     return {
-      id: 'health-normal',
+      id: `health-normal-${lastDate}`,
       kind: 'reminder',
       title: `Sudah ${days} hari sejak catatan kesehatan terakhir`,
       message: 'Yuk catat hidrasi, tidur, dan suplemen hari ini.',
@@ -187,18 +213,28 @@ const buildHealthLogNotification = (
   return null;
 };
 
+/** Pesan streak yang menyebutkan bonus poin Gamification & Reward berikutnya */
+export const streakRewardMessage = (streak: number): string => {
+  const next = getNextStreakMilestone(streak);
+  if (!next) return 'Isi catatan kesehatan hari ini untuk mempertahankan streak-mu.';
+  const remaining = next.days - streak;
+  return remaining === 1
+    ? `Isi catatan kesehatan hari ini untuk mencapai streak ${next.days} hari dan dapatkan bonus +${next.bonus} poin!`
+    : `Isi catatan kesehatan hari ini. Tinggal ${remaining} hari lagi menuju bonus streak ${next.days} hari (+${next.bonus} poin).`;
+};
+
 const buildStreakNotification = (
   healthLogs: ApiHealthLog[],
-  now: Date,
+  today: string,
 ): MonitoringNotification | null => {
-  const streak = getStreakEndingYesterday(healthLogs, now);
+  const streak = getStreakEndingYesterday(healthLogs, today);
   if (streak < MIN_STREAK_TO_WARN) return null;
 
   return {
-    id: `streak-${toKey(startOfToday(now))}`,
+    id: `streak-${today}`,
     kind: 'streak',
     title: `Streak ${streak} hari kamu akan hilang besok!`,
-    message: 'Isi catatan kesehatan hari ini untuk mempertahankan streak-mu.',
+    message: streakRewardMessage(streak),
     meta: 'Streak catatan kesehatan',
     cta: { label: 'Catat Sekarang', href: '/health-log' },
   };
@@ -209,6 +245,7 @@ const SESSION_HELD_STATUSES: Consultation['status'][] = ['DONE', 'CONFIRMED', 'I
 const buildPostSessionNotification = (
   input: MonitoringInput,
   now: Date,
+  today: string,
 ): MonitoringNotification | null => {
   const pastSessions = input.consultations
     .filter((c) => SESSION_HELD_STATUSES.includes(c.status) && new Date(c.jadwalSesi) < now)
@@ -217,19 +254,18 @@ const buildPostSessionNotification = (
   const lastSession = pastSessions[0];
   if (!lastSession) return null;
 
-  const sessionDate = new Date(lastSession.jadwalSesi);
-  const days = daysBetween(sessionDate, now);
+  const sessionDay = toWibDate(new Date(lastSession.jadwalSesi));
+  const days = daysBetween(sessionDay, today);
   if (days < POST_SESSION_DELAY_DAYS || days > POST_SESSION_WINDOW_DAYS) return null;
 
   // Kalau sudah ada pencatatan setelah sesi, pengingat tidak perlu dikirim
-  const sessionDay = startOfToday(sessionDate);
   const loggedAfterSession =
-    input.children.some((c) => c.latestGrowth && parseDateOnly(c.latestGrowth.tanggalCatat) > sessionDay) ||
-    input.healthLogs.some((log) => parseDateOnly(log.date) > sessionDay);
+    input.children.some((c) => c.latestGrowth && dateOnly(c.latestGrowth.tanggalCatat) > sessionDay) ||
+    input.healthLogs.some((log) => dateOnly(log.date) > sessionDay);
   if (loggedAfterSession) return null;
 
   const nutritionist = lastSession.ahliGizi?.user?.nama ?? 'ahli gizi';
-  const hasChildren = input.children.some((c) => getChildRole(c.child, now));
+  const hasChildren = input.children.some((c) => getChildRole(c.child, today));
 
   return {
     id: `session-${lastSession.id}`,
@@ -256,11 +292,13 @@ const BACKEND_TITLES: Record<string, string> = {
 
 const buildBackendNotifications = (
   items: MonitoringInput['backendNotifications'],
+  today: string,
 ): MonitoringNotification[] =>
   items
     .filter((item) => !SKIPPED_BACKEND_TYPES.has(item.type))
     .map((item) => ({
-      id: `info-${item.type}`,
+      // Pengingat harian → id per hari, supaya besok muncul lagi sebagai belum dibaca
+      id: `info-${item.type}-${today}`,
       kind: 'info' as const,
       title: BACKEND_TITLES[item.type] ?? 'Pengingat sehat',
       message: item.message,
@@ -282,12 +320,13 @@ export const buildMonitoringNotifications = (
   input: MonitoringInput,
   now = new Date(),
 ): MonitoringNotification[] => {
+  const today = toWibDate(now);
   const notifications = [
-    ...input.children.map(({ child, latestGrowth }) => buildChildNotification(child, latestGrowth, now)),
-    buildHealthLogNotification(input.healthLogs, now),
-    buildStreakNotification(input.healthLogs, now),
-    buildPostSessionNotification(input, now),
-    ...buildBackendNotifications(input.backendNotifications),
+    ...input.children.map(({ child, latestGrowth }) => buildChildNotification(child, latestGrowth, today)),
+    buildHealthLogNotification(input.healthLogs, today),
+    buildStreakNotification(input.healthLogs, today),
+    buildPostSessionNotification(input, now, today),
+    ...buildBackendNotifications(input.backendNotifications, today),
   ].filter((n): n is MonitoringNotification => n !== null);
 
   return notifications.sort((a, b) => KIND_PRIORITY[a.kind] - KIND_PRIORITY[b.kind]);
