@@ -12,6 +12,9 @@ import {
   CATEGORY_TO_PROFILE,
   toISODate,
   getLocalISODate,
+  INSIGHT_DISCLAIMER,
+  BREASTFEEDING_FLUID_TARGET_DEFAULT,
+  getBreastfeedingFluidTarget,
   type ContextualInsight,
   type InsightActionType,
   type InsightCategory,
@@ -82,7 +85,8 @@ const ROLE_SUPPLEMENT_LABEL: Record<RoleType, string> = {
 const ROLE_FLUID_TARGET: Record<RoleType, number> = {
   teen: 8,
   pregnant: 10,
-  breastfeeding: 12,
+  // Ibu menyusui: target sebenarnya mengikuti usia bayi (lihat getFluidTargets, CHI-05)
+  breastfeeding: BREASTFEEDING_FLUID_TARGET_DEFAULT,
 }
 
 const ROLE_SLEEP_TARGET: Record<RoleType, number> = {
@@ -129,7 +133,150 @@ const periodText = (period: FieldPeriod, customStart?: string, customEnd?: strin
 
 // ─── Aksi & disclaimer bersama ────────────────────────────────────────────────
 const CONSULT_ACTION: { type: InsightActionType; label: string } = { type: 'consult', label: 'Konsultasi via Tele-Consultation' }
-const FIELD_DISCLAIMER = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
+const FIELD_DISCLAIMER = INSIGHT_DISCLAIMER
+
+// ─── Anjuran Buku KIA 2024 (aturan SELARAS) ───────────────────────────────────
+/** CHI-01: target 8 jam ibu hamil = tidur malam 6–7 jam + tidur siang 1–2 jam (hlm. PDF 6). */
+const KIA_SLEEP_PREGNANT = 'tidur malam 6–7 jam dan tidur siang 1–2 jam'
+/** CHI-04: target 10 gelas ibu hamil berada di dalam rentang KIA 8–12 gelas (hlm. PDF 5 dan 10). */
+const KIA_FLUID_PREGNANT = 'minum air putih 8–12 gelas per hari'
+/** CHI-07: batas ≥ 8 kali/hari sesuai anjuran menyusui 8–12 kali sehari atau lebih (hlm. PDF 19). */
+const KIA_BREASTFEEDING = 'menyusui sesering mungkin, 8–12 kali sehari atau lebih'
+
+// ─── Ambang hasil validasi Buku KIA 2024 (aturan PERLU DISESUAIKAN) ───────────
+/** Mood 1–2 (Sedih, Lelah) dihitung negatif. Status "Lelah" menunggu konfirmasi stakeholder (CHI-17d). */
+const NEGATIVE_MOOD_MAX = 2
+/** CHI-17(c), CHI-21: Segera Konsultasi bila mood negatif tercatat terus-menerus selama 14 hari terakhir. */
+const PERSISTENT_MOOD_DAYS = 14
+/** CHI-15: batas "cukup" cairan ibu hamil = batas bawah KIA 8 gelas (hlm. PDF 5). Target kartu tetap 10 gelas. */
+const PREGNANT_FLUID_MIN = 8
+/** CHI-16, CHI-23: batas tidur rendah ibu hamil = tidur malam paling sedikit 6 jam (hlm. PDF 6). */
+const PREGNANT_SLEEP_LOW = 6
+/** CHI-21: mood negatif berulang disertai tidur < 6 jam → Segera Konsultasi. */
+const SLEEP_URGENT_HOURS = 6
+/** CHI-11: TTD/MMS ibu hamil setiap hari; toleransi paling banyak 1 hari terlewat per 7 hari (≥ 85%). */
+const PREGNANT_SUPPLEMENT_GOOD_PCT = 85
+/** CHI-12: TTD remaja putri 1 tablet setiap minggu; semua minggu pada periode harus terpenuhi. */
+const TEEN_SUPPLEMENT_GOOD_PCT = 100
+/** Ibu menyusui: ambang lama dipertahankan sampai keputusan CHI-13. */
+const BREASTFEEDING_SUPPLEMENT_GOOD_PCT = 80
+const BREASTFEEDING_SUPPLEMENT_LOW_PCT = 50
+/** CHI-07, CHI-20: anjuran menyusui minimal 8 kali sehari. */
+const BREASTFEEDING_MIN_SESSIONS = 8
+/** CHI-20: perlakuan < 6 sesi (Segera Konsultasi, label "RENDAH") menunggu keputusan stakeholder. */
+const BREASTFEEDING_LOW_SESSIONS = 6
+/** CHI-11: tips minum TTD dari Buku KIA (hlm. PDF 4–5). */
+const KIA_TTD_TIPS = 'minum TTD setiap hari, sebaiknya malam hari sebelum tidur untuk mengurangi mual, bersama makanan atau minuman yang mengandung vitamin C, dan tidak bersamaan dengan teh, kopi, susu, atau obat maag'
+/** CHI-20: saran menyusui dari Buku KIA (hlm. PDF 19). */
+const KIA_BREASTFEEDING_TIPS = 'Susui bayi sesering mungkin, 8–12 kali sehari atau lebih. Bila bayi tidur lebih dari 3 jam, bangunkan lalu susui.'
+/** CHI-08: kebiasaan harian cukup sampai Perlu Diperhatikan, dengan saran bertanya ke bidan atau kader. */
+const ASK_MIDWIFE = 'Bila sulit dipenuhi, tanyakan ke bidan atau kader posyandu.'
+
+/** Target kartu dan batas "cukup" cairan per peran (CHI-04, CHI-05, CHI-15). */
+const getFluidTargets = (role: RoleType, babyAgeMonths: number | null): { target: number; min: number } => {
+  if (role === 'pregnant') return { target: ROLE_FLUID_TARGET.pregnant, min: PREGNANT_FLUID_MIN }
+  if (role === 'breastfeeding') {
+    const target = getBreastfeedingFluidTarget(babyAgeMonths)
+    return { target, min: target }
+  }
+  // Remaja putri: target menunggu keputusan stakeholder (CHI-06)
+  return { target: ROLE_FLUID_TARGET.teen, min: ROLE_FLUID_TARGET.teen }
+}
+
+/** Target tidur dan batas tidur rendah per peran (CHI-16, CHI-23). Peran selain ibu hamil memakai aturan lama (CHI-02, CHI-03). */
+const getSleepThresholds = (role: RoleType): { target: number; low: number } => {
+  const target = ROLE_SLEEP_TARGET[role]
+  return { target, low: role === 'pregnant' ? PREGNANT_SLEEP_LOW : target - 1 }
+}
+
+const WEEKDAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const historyLabel = (iso: string): string => {
+  const d = new Date(iso + 'T00:00:00Z')
+  return `${HARI_ID[WEEKDAYS_EN[d.getUTCDay()]]}, ${iso}`
+}
+
+/** Selisih hari kalender dari `fromIso` ke `toIso` (YYYY-MM-DD). */
+const dayDiff = (fromIso: string, toIso: string): number => {
+  const [fy, fm, fd] = fromIso.split('-').map(Number)
+  const [ty, tm, td] = toIso.split('-').map(Number)
+  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86400000)
+}
+
+/** Tanggal akhir periode: tanggal akhir rentang kustom, atau hari ini (WIB). */
+const periodEndISO = (period: FieldPeriod, customStart?: string, customEnd?: string): string =>
+  period === 'custom' && customStart && customEnd ? customEnd : getLocalISODate()
+
+/**
+ * CHI-17(c): true bila mood negatif tercatat setiap hari selama 14 hari berturut-turut,
+ * berakhir pada catatan terbaru (paling lambat kemarin). Tidak bergantung pada periode yang dipilih.
+ */
+const hasPersistentNegativeMood = (roleLogs: ApiHealthLog[]): boolean => {
+  if (roleLogs.length < PERSISTENT_MOOD_DAYS) return false
+  const latest = roleLogs.reduce((max, l) => (l.date > max ? l.date : max), roleLogs[0].date)
+  if (latest < shiftISODate(getLocalISODate(), -1)) return false
+  const start = shiftISODate(latest, -(PERSISTENT_MOOD_DAYS - 1))
+  const moodByDate = new Map<string, number>(roleLogs.map(l => [l.date, l.mood] as [string, number]))
+  for (let i = 0; i < PERSISTENT_MOOD_DAYS; i++) {
+    const mood = moodByDate.get(shiftISODate(start, i))
+    if (mood === undefined || mood > NEGATIVE_MOOD_MAX) return false
+  }
+  return true
+}
+
+type SupplementCompliance = {
+  /** Satuan hitung: harian (ibu hamil, ibu menyusui) atau mingguan (remaja putri, CHI-12) */
+  unit: 'hari' | 'minggu'
+  taken: number
+  total: number
+  pct: number
+  /** Ambang Perkembangan Baik */
+  goodPct: number
+  /** Ambang insight gabungan "Suplemen Tidak Rutin" (G-04, CHI-22) */
+  irregularPct: number
+  /** Kalimat anjuran yang dipakai di teks insight */
+  goalText: string
+}
+
+/**
+ * Kepatuhan suplemen per peran (CHI-11, CHI-12, CHI-22).
+ * Remaja putri dihitung per minggu: blok 7 hari mundur dari akhir periode; yang dihitung hanya
+ * minggu yang memiliki catatan, sehingga minggu tanpa catatan tidak dianggap terlewat.
+ */
+const getSupplementCompliance = (logs: ApiHealthLog[], role: RoleType, endIso: string): SupplementCompliance => {
+  if (role === 'teen') {
+    const weeks = new Map<number, boolean>()
+    logs.forEach(l => {
+      const idx = Math.floor(dayDiff(l.date, endIso) / 7)
+      weeks.set(idx, (weeks.get(idx) ?? false) || l.took_supplement)
+    })
+    const total = weeks.size
+    const taken = Array.from(weeks.values()).filter(Boolean).length
+    return {
+      unit: 'minggu', taken, total,
+      pct: total > 0 ? Math.round((taken / total) * 100) : 0,
+      goodPct: TEEN_SUPPLEMENT_GOOD_PCT,
+      irregularPct: TEEN_SUPPLEMENT_GOOD_PCT,
+      goalText: 'minimal 1 tablet TTD setiap minggu',
+    }
+  }
+  const total = logs.length
+  const taken = logs.filter(l => l.took_supplement).length
+  const pct = total > 0 ? Math.round((taken / total) * 100) : 0
+  if (role === 'pregnant') {
+    return {
+      unit: 'hari', taken, total, pct,
+      goodPct: PREGNANT_SUPPLEMENT_GOOD_PCT,
+      irregularPct: PREGNANT_SUPPLEMENT_GOOD_PCT,
+      goalText: `setiap hari (paling banyak 1 hari terlewat per 7 hari, ≥ ${PREGNANT_SUPPLEMENT_GOOD_PCT}%)`,
+    }
+  }
+  return {
+    unit: 'hari', taken, total, pct,
+    goodPct: BREASTFEEDING_SUPPLEMENT_GOOD_PCT,
+    irregularPct: BREASTFEEDING_SUPPLEMENT_LOW_PCT,
+    goalText: `minimal ${BREASTFEEDING_SUPPLEMENT_GOOD_PCT}% hari tercatat`,
+  }
+}
 
 /**
  * Insight kartu field ketika periode terpilih belum memiliki catatan.
@@ -179,61 +326,64 @@ const round1 = (v: number) => Math.round(v * 10) / 10
 
 function getSupplementInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPeriod, customStart?: string, customEnd?: string): ContextualInsight {
   const filtered = filterLogsByPeriod(logs, period, customStart, customEnd)
-  const total = filtered.length
-  const taken = filtered.filter(l => l.took_supplement).length
-  const pct = total > 0 ? Math.round((taken / total) * 100) : 0
+  if (filtered.length === 0) return emptyFieldInsight('supplement', 'supplement', 'Suplemen', period, customStart, customEnd)
   const periodLabel = periodText(period, customStart, customEnd)
   const label = ROLE_SUPPLEMENT_LABEL[role]
-  if (total === 0) return emptyFieldInsight('supplement', 'supplement', 'Suplemen', period, customStart, customEnd)
+  const { unit, taken, total, pct, goodPct, goalText } = getSupplementCompliance(filtered, role, periodEndISO(period, customStart, customEnd))
 
+  // CHI-12: rujukan TTD remaja = program Kemenkes 1 tablet/minggu. Anjuran TTD saat haid menunggu konfirmasi (CHI-18).
   const roleContext =
     role === 'teen'
-      ? 'TTD dianjurkan dikonsumsi rutin oleh remaja putri, terutama saat haid.'
+      ? 'Program TTD remaja putri Kemenkes menganjurkan 1 tablet setiap minggu.'
       : role === 'pregnant'
-        ? 'Suplemen kehamilan (seperti asam folat dan zat besi) dianjurkan dikonsumsi rutin sesuai arahan tenaga kesehatan.'
+        ? 'Buku KIA menganjurkan TTD atau MMS diminum setiap hari selama kehamilan.'
         : 'Suplemen menyusui dianjurkan dikonsumsi rutin sesuai arahan tenaga kesehatan.'
 
-  const disclaimer = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
+  const tips =
+    role === 'pregnant'
+      ? `Sesuai Buku KIA, ${KIA_TTD_TIPS}.`
+      : role === 'teen'
+        ? 'Pilih satu hari yang sama setiap minggu untuk minum TTD dan aktifkan pengingat di ponsel.'
+        : 'Minum bersama makanan atau sumber vitamin C untuk penyerapan optimal.'
 
-  let status: StatusLevel = 'danger'
-  let category: InsightCategory = 'Segera Konsultasi'
-  let title = `Konsumsi ${label} Jarang Tercatat`
-  let message = `Kepatuhan ${pct}% pada ${periodLabel}, di bawah 50%. Pola ini sebaiknya dikonsultasikan dengan tenaga kesehatan.`
-  let action: { type: InsightActionType; label: string } = CONSULT_ACTION
-  let reasonText = ''
-  let recommendation = ''
+  const disclaimer = INSIGHT_DISCLAIMER
+  const countText = `${taken} dari ${total} ${unit}`
 
-  if (pct >= 80) {
+  let status: StatusLevel
+  let category: InsightCategory
+  let title: string
+  let message: string
+  let action: { type: InsightActionType; label: string }
+  let reasonText: string
+  let recommendation: string
+
+  if (pct >= goodPct) {
     status = 'safe'
     category = 'Perkembangan Baik'
     title = `Konsumsi ${label} Baik`
-    message = `Luar biasa! Kepatuhan Anda mencapai ${pct}% pada ${periodLabel}. ${roleContext}`
+    message = `Kepatuhan Anda ${pct}% (${countText}) pada ${periodLabel}. ${roleContext}`
     action = { type: 'article', label: 'Baca Artikel' }
-    reasonText = `Tingkat kepatuhan konsumsi ${label} Anda mencapai ${pct}%, yang berada di atas ambang batas ideal 80%. Sistem mendeteksi pola konsumsi yang disiplin dan konsisten.`
-    recommendation = 'Pertahankan jadwal konsumsi suplemen pada waktu yang sama setiap hari. Minum bersama makanan atau sumber vitamin C untuk penyerapan optimal.'
-  } else if (pct >= 50) {
+    reasonText = `Konsumsi ${label} tercatat pada ${countText} (${pct}%). Angka ini memenuhi anjuran ${goalText}.`
+    recommendation = `Pertahankan kebiasaan ini. ${tips}`
+  } else {
+    // CHI-08, CHI-11, CHI-14: kepatuhan suplemen rendah cukup sampai Perlu Diperhatikan
     status = 'caution'
     category = 'Perlu Diperhatikan'
     title = `Konsumsi ${label} Perlu Ditingkatkan`
-    message = `Kepatuhan Anda ${pct}% pada ${periodLabel}, masih di bawah ambang ideal 80%. ${roleContext}`
+    message = `Kepatuhan Anda ${pct}% (${countText}) pada ${periodLabel}, belum memenuhi anjuran ${goalText}. ${roleContext}`
     action = { type: 'log', label: 'Catat' }
-    reasonText = `Tingkat kepatuhan konsumsi ${label} Anda hanya ${pct}%, yang berada di bawah ambang batas 80%. Sistem mendeteksi bahwa pola konsumsi belum konsisten dan perlu perbaikan.`
-    recommendation = 'Aktifkan pengingat harian di ponsel. Tempatkan suplemen di tempat yang mudah terlihat setiap pagi. Lanjutkan mencatat konsumsi harian agar pola Anda dapat dipantau.'
-  } else {
-    reasonText = `Tingkat kepatuhan konsumsi ${label} Anda hanya ${pct}%, yang berada di bawah ambang batas 50%. Pola konsumsi ini sebaiknya didiskusikan dengan tenaga kesehatan.`
-    recommendation = 'Konsultasikan ke bidan atau dokter untuk evaluasi lebih lanjut. Mulai kembali konsumsi suplemen hari ini dan catat secara konsisten.'
+    reasonText = role === 'breastfeeding' && pct < BREASTFEEDING_SUPPLEMENT_LOW_PCT
+      ? `Konsumsi ${label} hanya tercatat pada ${countText} (${pct}%), di bawah ${BREASTFEEDING_SUPPLEMENT_LOW_PCT}%. Pola konsumsi belum konsisten.`
+      : `Konsumsi ${label} tercatat pada ${countText} (${pct}%), belum memenuhi anjuran ${goalText}.`
+    recommendation = `${tips} Lanjutkan mencatat agar pola Anda dapat dipantau. ${ASK_MIDWIFE}`
   }
 
-  const historyEntries = filtered.slice(0, 7).map(l => {
-    const d = new Date(l.date + 'T00:00:00Z')
-    const day = HARI_ID[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getUTCDay()]]
-    return {
-      date: l.date,
-      label: `${day}, ${l.date}`,
-      value: l.took_supplement ? '✓ Tercatat' : '✕ Tidak tercatat',
-      state: (l.took_supplement ? 'ok' : 'flag') as 'ok' | 'flag' | 'missing',
-    }
-  })
+  const historyEntries = filtered.slice(0, 7).map(l => ({
+    date: l.date,
+    label: historyLabel(l.date),
+    value: l.took_supplement ? '✓ Tercatat' : '✕ Tidak tercatat',
+    state: (l.took_supplement ? 'ok' : 'flag') as 'ok' | 'flag' | 'missing',
+  }))
 
   return {
     id: `supplement-${period}`,
@@ -242,20 +392,21 @@ function getSupplementInsight(logs: ApiHealthLog[], role: RoleType, period: Fiel
     status,
     title,
     message,
-    based_on: total > 0 ? [`Kepatuhan ${pct}%`, `Tercatat ${taken}/${total} hari`] : [],
+    based_on: [`Kepatuhan ${pct}%`, `Tercatat ${taken}/${total} ${unit}`],
     action,
     disclaimer,
     detail: {
       title,
-      pattern_summary: `Selama ${periodLabel}, ${label} Anda tercatat dikonsumsi pada ${taken} dari total ${total} hari (tingkat kepatuhan ${pct}%). ${roleContext} ${total > 0 ? `Ini berarti ada ${total - taken} hari di mana konsumsi suplemen tidak tercatat.` : ''}`,
+      pattern_summary: `Selama ${periodLabel}, ${label} Anda tercatat dikonsumsi pada ${countText} (tingkat kepatuhan ${pct}%). ${roleContext}${unit === 'minggu' ? ' Kepatuhan dihitung per minggu: minggu dengan minimal 1 TTD dibagi jumlah minggu yang memiliki catatan.' : ''}`,
       period: periodLabel,
-      data_used: total > 0 ? [
+      data_used: [
         `Periode: ${periodLabel}`,
-        `Total catatan: ${total} hari`,
-        `Tercatat: ${taken} hari`,
-        `Tidak tercatat: ${total - taken} hari`,
+        `Total catatan: ${filtered.length} hari`,
+        `Cara hitung: per ${unit}`,
+        `Tercatat: ${taken}/${total} ${unit}`,
         `Kepatuhan: ${pct}%`,
-      ] : [],
+        `Anjuran: ${goalText}`,
+      ],
       history: historyEntries,
       reason: reasonText,
       action_text: recommendation,
@@ -264,62 +415,60 @@ function getSupplementInsight(logs: ApiHealthLog[], role: RoleType, period: Fiel
   }
 }
 
-function getFluidInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPeriod, customStart?: string, customEnd?: string): ContextualInsight {
+function getFluidInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPeriod, babyAgeMonths: number | null, customStart?: string, customEnd?: string): ContextualInsight {
   const filtered = filterLogsByPeriod(logs, period, customStart, customEnd)
-  const target = ROLE_FLUID_TARGET[role]
+  if (filtered.length === 0) return emptyFieldInsight('hydration', 'hydration', 'Asupan Cairan', period, customStart, customEnd)
+  const { target, min } = getFluidTargets(role, babyAgeMonths)
   const total = filtered.length
-  const values = filtered.map(l => l.water_glasses)
-  const avg = average(values)
-  const ratio = total > 0 ? avg / target : 0
-  const daysMet = filtered.filter(l => l.water_glasses >= target).length
+  const avg = average(filtered.map(l => l.water_glasses))
+  const daysMet = filtered.filter(l => l.water_glasses >= min).length
   const periodLabel = periodText(period, customStart, customEnd)
-  if (total === 0) return emptyFieldInsight('hydration', 'hydration', 'Asupan Cairan', period, customStart, customEnd)
 
   const roleContext =
     role === 'teen'
       ? 'Asupan cairan yang cukup membantu menjaga energi dan konsentrasi saat beraktivitas.'
       : role === 'pregnant'
-        ? 'Kebutuhan cairan ibu hamil lebih tinggi dibanding biasanya.'
-        : 'Kebutuhan cairan ibu menyusui lebih tinggi dibanding biasanya.'
+        ? `Kebutuhan cairan ibu hamil lebih tinggi dibanding biasanya. Buku KIA menganjurkan ibu hamil ${KIA_FLUID_PREGNANT}.`
+        : babyAgeMonths === null
+          ? `Buku KIA menganjurkan ibu menyusui minum 14 gelas per hari pada 6 bulan pertama dan 12 gelas per hari pada 6 bulan kedua. Usia bayi belum tersedia, sehingga dipakai target sementara ${target} gelas.`
+          : `Buku KIA menganjurkan ibu menyusui minum 14 gelas per hari pada 6 bulan pertama dan 12 gelas per hari pada 6 bulan kedua. Untuk usia bayi ${babyAgeMonths} bulan, target Anda ${target} gelas.`
 
-  const disclaimer = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
+  // Pada ibu hamil, batas cukup (8 gelas) berbeda dari target kartu (10 gelas)
+  const goalText = min < target ? `anjuran minimal ${min} gelas (target ${target} gelas)` : `target ${target} gelas`
+  const disclaimer = INSIGHT_DISCLAIMER
 
-  let status: StatusLevel = 'danger'
-  let category: InsightCategory = 'Segera Konsultasi'
-  let title = 'Asupan Cairan Jauh di Bawah Target'
-  let message = `Rata-rata ${round1(avg)} gelas/hari, jauh di bawah target ${target} gelas.`
-  let action: { type: InsightActionType; label: string } = CONSULT_ACTION
-  let reasonText = ''
-  let recommendation = ''
+  let status: StatusLevel
+  let category: InsightCategory
+  let title: string
+  let message: string
+  let action: { type: InsightActionType; label: string }
+  let reasonText: string
+  let recommendation: string
 
-  if (ratio >= 1) {
+  // CHI-15: Perkembangan Baik bila rata-rata ≥ batas bawah KIA; di bawahnya Perlu Diperhatikan (tanpa Segera Konsultasi)
+  if (avg >= min) {
     status = 'safe'
     category = 'Perkembangan Baik'
-    title = 'Hidrasi Optimal'
-    message = `Luar biasa! Rata-rata asupan cairan Anda mencapai ${round1(avg)} gelas/hari, memenuhi target ${target} gelas. ${roleContext}`
+    title = 'Asupan Cairan Cukup'
+    message = `Rata-rata asupan cairan Anda ${round1(avg)} gelas/hari, memenuhi ${goalText}. ${roleContext}`
     action = { type: 'article', label: 'Baca Artikel' }
-    reasonText = `Rata-rata asupan cairan Anda mencapai ${round1(avg)} gelas per hari, yang berada di atas target ${target} gelas. Sistem mendeteksi pola hidrasi yang sangat baik.`
-    recommendation = 'Lanjutkan kebiasaan minum 250ml per jam aktivitas. Hindari minuman tinggi gula dan prioritaskan air putih.'
-  } else if (ratio >= 0.6) {
+    reasonText = `Rata-rata asupan cairan Anda ${round1(avg)} gelas per hari, memenuhi ${goalText}.`
+    recommendation = 'Lanjutkan kebiasaan minum air putih secara teratur sepanjang hari. Hindari minuman tinggi gula.'
+  } else {
     status = 'caution'
     category = 'Perlu Diperhatikan'
-    title = 'Hidrasi Kurang Optimal'
-    message = `Rata-rata ${round1(avg)} gelas/hari, masih di bawah target ${target} gelas. ${roleContext}`
+    title = 'Asupan Cairan Perlu Ditingkatkan'
+    message = `Rata-rata ${round1(avg)} gelas/hari, masih di bawah ${goalText}. ${roleContext}`
     action = { type: 'log', label: 'Catat' }
-    reasonText = `Rata-rata asupan cairan Anda hanya ${round1(avg)} gelas per hari, yang berada di bawah target ${target} gelas. Sistem mendeteksi bahwa pola hidrasi belum optimal dan perlu ditingkatkan.`
-    recommendation = 'Minum segelas air setiap jam dan setelah setiap makan. Bawa tumbler sebagai pengingat visual asupan cairan harian Anda.'
-  } else {
-    reasonText = `Rata-rata asupan cairan Anda hanya ${round1(avg)} gelas per hari, yang jauh di bawah target ${target} gelas (kurang dari 60% target). Pola ini sebaiknya didiskusikan dengan tenaga kesehatan bila berlanjut.`
-    recommendation = 'Minum minimal 2 gelas air sekarang, kemudian satu gelas setiap 30 menit. Jika ada pusing berat atau urin sangat gelap, segera hubungi tenaga kesehatan.'
+    reasonText = `Rata-rata asupan cairan Anda ${round1(avg)} gelas per hari, di bawah ${goalText}.`
+    recommendation = `Minum segelas air putih setiap jam dan setelah makan. Bawa botol minum sebagai pengingat. ${ASK_MIDWIFE}`
   }
 
   const historyEntries = filtered.slice(0, 7).map(l => {
-    const d = new Date(l.date + 'T00:00:00Z')
-    const day = HARI_ID[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getUTCDay()]]
-    const met = l.water_glasses >= target
+    const met = l.water_glasses >= min
     return {
       date: l.date,
-      label: `${day}, ${l.date}`,
+      label: historyLabel(l.date),
       value: `${l.water_glasses} gelas ${met ? '✓' : ''}`,
       state: (met ? 'ok' : 'flag') as 'ok' | 'flag' | 'missing',
     }
@@ -332,20 +481,23 @@ function getFluidInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPeri
     status,
     title,
     message,
-    based_on: total > 0 ? [`Rata-rata ${round1(avg)} gelas`, `Target ${target} gelas/hari`] : [],
+    based_on: [`Rata-rata ${round1(avg)} gelas`, `Target ${target} gelas/hari`],
     action,
     disclaimer,
     detail: {
       title,
-      pattern_summary: `Selama ${periodLabel}, rata-rata asupan cairan Anda adalah ${round1(avg)} gelas per hari dari ${total} catatan. ${roleContext} ${total > 0 ? `Target harian untuk peran Anda adalah ${target} gelas, dan Anda mencapai target pada ${daysMet} dari ${total} hari.` : ''}`,
+      pattern_summary: `Selama ${periodLabel}, rata-rata asupan cairan Anda adalah ${round1(avg)} gelas per hari dari ${total} catatan. ${roleContext} Anda memenuhi batas cukup (${min} gelas) pada ${daysMet} dari ${total} hari.`,
       period: periodLabel,
-      data_used: total > 0 ? [
+      data_used: [
         `Periode: ${periodLabel}`,
         `Total catatan: ${total} hari`,
         `Rata-rata: ${round1(avg)} gelas/hari`,
         `Target: ${target} gelas/hari`,
+        ...(min < target ? [`Batas cukup (Buku KIA): ${min} gelas/hari`] : []),
+        ...(role === 'pregnant' ? ['Anjuran Buku KIA: 8–12 gelas/hari'] : []),
+        ...(role === 'breastfeeding' ? [`Usia bayi: ${babyAgeMonths === null ? 'belum tersedia' : `${babyAgeMonths} bulan`}`] : []),
         `Hari tercapai: ${daysMet}/${total}`,
-      ] : [],
+      ],
       history: historyEntries,
       reason: reasonText,
       action_text: recommendation,
@@ -356,61 +508,73 @@ function getFluidInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPeri
 
 function getRestInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPeriod, customStart?: string, customEnd?: string): ContextualInsight {
   const filtered = filterLogsByPeriod(logs, period, customStart, customEnd)
-  const minOk = ROLE_SLEEP_TARGET[role]
-  const values = filtered.map(l => l.sleep_hours)
-  const avg = average(values)
+  if (filtered.length === 0) return emptyFieldInsight('sleep', 'sleep', 'Tidur', period, customStart, customEnd)
+  const { target: minOk, low } = getSleepThresholds(role)
+  const avg = average(filtered.map(l => l.sleep_hours))
   const total = filtered.length
   const daysMet = filtered.filter(l => l.sleep_hours >= minOk).length
   const periodLabel = periodText(period, customStart, customEnd)
-  if (total === 0) return emptyFieldInsight('sleep', 'sleep', 'Tidur', period, customStart, customEnd)
 
   const roleContext =
     role === 'teen'
       ? 'Tidur cukup mendukung pertumbuhan, konsentrasi belajar, dan kestabilan mood remaja.'
       : role === 'pregnant'
-        ? 'Tidur cukup membantu pertumbuhan janin dan menjaga kesehatan ibu hamil.'
+        ? `Tidur cukup membantu pertumbuhan janin dan menjaga kesehatan ibu hamil. Buku KIA menganjurkan ibu hamil ${KIA_SLEEP_PREGNANT}.`
         : 'Tidur cukup sangat penting untuk produksi ASI dan pemulihan pasca melahirkan.'
 
-  const disclaimer = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
+  const disclaimer = INSIGHT_DISCLAIMER
 
-  let status: StatusLevel = 'danger'
-  let category: InsightCategory = 'Segera Konsultasi'
-  let title = 'Durasi Tidur Jauh di Bawah Target'
-  let message = `Rata-rata ${round1(avg)} jam/hari, lebih dari 1 jam di bawah target ${minOk} jam.`
-  let action: { type: InsightActionType; label: string } = CONSULT_ACTION
-  let reasonText = ''
-  let recommendation = ''
+  let status: StatusLevel
+  let category: InsightCategory
+  let title: string
+  let message: string
+  let action: { type: InsightActionType; label: string }
+  let reasonText: string
+  let recommendation: string
 
+  // CHI-16: tidur per indikator paling tinggi Perlu Diperhatikan.
+  // Segera Konsultasi hanya lewat insight gabungan bila kurang tidur disertai mood negatif (CHI-21).
   if (avg >= minOk) {
     status = 'safe'
     category = 'Perkembangan Baik'
     title = 'Kualitas Tidur Baik'
-    message = `Luar biasa! Rata-rata tidur Anda ${round1(avg)} jam/hari, dalam rentang ideal. ${roleContext}`
+    message = `Rata-rata tidur Anda ${round1(avg)} jam/hari, memenuhi anjuran minimal ${minOk} jam. ${roleContext}`
     action = { type: 'article', label: 'Baca Artikel' }
-    reasonText = `Rata-rata durasi tidur Anda mencapai ${round1(avg)} jam per hari, yang berada dalam rentang ideal (minimal ${minOk} jam). Sistem mendeteksi pola tidur yang sehat dan berkualitas.`
-    recommendation = 'Usahakan jadwal tidur dan bangun di jam yang sama setiap hari. Hindari layar minimal 30 menit sebelum tidur untuk kualitas tidur yang lebih baik.'
-  } else if (avg >= minOk - 1) {
+    reasonText = `Rata-rata durasi tidur Anda ${round1(avg)} jam per hari, memenuhi anjuran minimal ${minOk} jam.`
+    recommendation = role === 'pregnant'
+      ? `Pertahankan pola ${KIA_SLEEP_PREGNANT} sesuai anjuran Buku KIA. Usahakan jadwal tidur dan bangun di jam yang sama setiap hari.`
+      : 'Usahakan jadwal tidur dan bangun di jam yang sama setiap hari. Hindari layar minimal 30 menit sebelum tidur untuk kualitas tidur yang lebih baik.'
+  } else if (avg >= low) {
     status = 'caution'
     category = 'Perlu Diperhatikan'
-    title = 'Tidur di Bawah Ideal'
+    title = 'Tidur di Bawah Anjuran'
     message = `Rata-rata ${round1(avg)} jam/hari, disarankan minimal ${minOk} jam. ${roleContext}`
     action = CONSULT_ACTION
-    reasonText = `Rata-rata durasi tidur Anda hanya ${round1(avg)} jam per hari, yang berada di bawah rekomendasi minimal ${minOk} jam. Sistem mendeteksi pola tidur yang kurang optimal dan dapat memengaruhi energi Anda.`
+    reasonText = `Rata-rata durasi tidur Anda ${round1(avg)} jam per hari, di bawah anjuran minimal ${minOk} jam.`
     recommendation = role === 'breastfeeding'
-      ? 'Coba tidur 30 menit lebih awal malam ini. Minta bantuan pasangan atau keluarga untuk giliran jaga bayi agar Anda bisa beristirahat cukup.'
-      : 'Coba tidur 30 menit lebih awal malam ini dan batasi penggunaan layar sebelum tidur.'
+      ? 'Ikut beristirahat saat bayi tidur. Minta bantuan pasangan atau keluarga untuk giliran jaga bayi agar Anda bisa beristirahat cukup.'
+      : role === 'pregnant'
+        ? `Usahakan ${KIA_SLEEP_PREGNANT} sesuai anjuran Buku KIA. Coba tidur 30 menit lebih awal malam ini.`
+        : 'Coba tidur 30 menit lebih awal malam ini dan batasi penggunaan layar sebelum tidur.'
   } else {
-    reasonText = `Rata-rata durasi tidur Anda hanya ${round1(avg)} jam per hari, lebih dari 1 jam di bawah target ${minOk} jam. Pola tidur ini sebaiknya didiskusikan dengan tenaga kesehatan bila berlanjut.`
-    recommendation = 'Prioritaskan tidur siang minimal 20-30 menit jika malam kurang. Bicarakan dengan dokter atau bidan jika Anda sering kurang tidur dalam seminggu.'
+    status = 'caution'
+    category = 'Perlu Diperhatikan'
+    title = 'Durasi Tidur Jauh di Bawah Anjuran'
+    message = `Rata-rata ${round1(avg)} jam/hari, kurang dari ${low} jam. Sebaiknya tanyakan ke bidan atau tenaga kesehatan. ${roleContext}`
+    action = CONSULT_ACTION
+    reasonText = role === 'pregnant'
+      ? `Rata-rata durasi tidur Anda ${round1(avg)} jam per hari, kurang dari ${low} jam, batas bawah tidur malam yang dianjurkan Buku KIA.`
+      : `Rata-rata durasi tidur Anda ${round1(avg)} jam per hari, lebih dari 1 jam di bawah anjuran ${minOk} jam.`
+    recommendation = role === 'pregnant'
+      ? `Usahakan ${KIA_SLEEP_PREGNANT} sesuai anjuran Buku KIA. Tanyakan ke bidan bila Anda sering sulit tidur.`
+      : 'Prioritaskan tidur siang singkat bila tidur malam kurang. Tanyakan ke bidan atau dokter bila Anda sering kurang tidur.'
   }
 
   const historyEntries = filtered.slice(0, 7).map(l => {
-    const d = new Date(l.date + 'T00:00:00Z')
-    const day = HARI_ID[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getUTCDay()]]
     const met = l.sleep_hours >= minOk
     return {
       date: l.date,
-      label: `${day}, ${l.date}`,
+      label: historyLabel(l.date),
       value: `${l.sleep_hours} jam ${met ? '✓' : ''}`,
       state: (met ? 'ok' : 'flag') as 'ok' | 'flag' | 'missing',
     }
@@ -423,20 +587,22 @@ function getRestInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPerio
     status,
     title,
     message,
-    based_on: total > 0 ? [`Rata-rata ${round1(avg)} jam`, `Ideal ${minOk} jam/hari`] : [],
+    based_on: [`Rata-rata ${round1(avg)} jam`, `Anjuran ${minOk} jam/hari`],
     action,
     disclaimer,
     detail: {
       title,
-      pattern_summary: `Selama ${periodLabel}, rata-rata durasi tidur Anda adalah ${round1(avg)} jam per hari dari ${total} catatan. ${roleContext} ${total > 0 ? `Target harian untuk peran Anda adalah ${minOk} jam, dan Anda mencapai target pada ${daysMet} dari ${total} hari.` : ''}`,
+      pattern_summary: `Selama ${periodLabel}, rata-rata durasi tidur Anda adalah ${round1(avg)} jam per hari dari ${total} catatan. ${roleContext} Target harian untuk peran Anda adalah ${minOk} jam, dan Anda mencapai target pada ${daysMet} dari ${total} hari.`,
       period: periodLabel,
-      data_used: total > 0 ? [
+      data_used: [
         `Periode: ${periodLabel}`,
         `Total catatan: ${total} hari`,
         `Rata-rata: ${round1(avg)} jam/hari`,
-        `Ideal: ${minOk} jam/hari`,
+        `Anjuran: ${minOk} jam/hari`,
+        `Batas tidur rendah: < ${low} jam/hari`,
+        ...(role === 'pregnant' ? ['Anjuran Buku KIA: tidur malam 6–7 jam + tidur siang 1–2 jam'] : []),
         `Hari tercapai: ${daysMet}/${total}`,
-      ] : [],
+      ],
       history: historyEntries,
       reason: reasonText,
       action_text: recommendation,
@@ -447,13 +613,15 @@ function getRestInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPerio
 
 function getMoodInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPeriod, customStart?: string, customEnd?: string): ContextualInsight {
   const filtered = filterLogsByPeriod(logs, period, customStart, customEnd)
+  if (filtered.length === 0) return emptyFieldInsight('mood', 'mood', 'Mood', period, customStart, customEnd)
   const total = filtered.length
-  const negativeDays = filtered.filter(l => l.mood <= 2).length
+  const negativeDays = filtered.filter(l => l.mood <= NEGATIVE_MOOD_MAX).length
   const neutralDays = filtered.filter(l => l.mood === 3).length
   const positiveDays = filtered.filter(l => l.mood >= 4).length
   const avg = average(filtered.map(l => l.mood))
   const periodLabel = periodText(period, customStart, customEnd)
-  if (total === 0) return emptyFieldInsight('mood', 'mood', 'Mood', period, customStart, customEnd)
+  // CHI-17(c): dihitung dari seluruh catatan peran ini, tidak bergantung pada periode yang dipilih
+  const persistentNegative = hasPersistentNegativeMood(logs)
   const dominant =
     negativeDays >= neutralDays && negativeDays >= positiveDays
       ? 'Negatif'
@@ -465,51 +633,54 @@ function getMoodInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPerio
     role === 'teen'
       ? 'Mood remaja dipengaruhi oleh siklus haid, kualitas tidur, dan tekanan akademik.'
       : role === 'pregnant'
-        ? 'Mood ibu hamil dipengaruhi oleh perubahan hormon dan kecemasan menjelang persalinan.'
-        : 'Mood ibu menyusui dipengaruhi oleh kelelahan, hormon, dan tantangan menyusui.'
+        ? 'Selama hamil, ibu dapat mengalami gejolak emosi. Buku KIA menganjurkan tidur cukup, makan bergizi, dan periksa ke Puskesmas.'
+        : 'Setelah melahirkan, rasa sedih yang ringan dapat muncul hingga sekitar 2 minggu. Buku KIA menganjurkan periksa bila murung atau sedih berlangsung 2 minggu atau lebih.'
 
-  const disclaimer = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
+  const disclaimer = INSIGHT_DISCLAIMER
 
-  let status: StatusLevel = 'safe'
-  let category: InsightCategory = 'Perkembangan Baik'
-  let title = 'Mood Positif - Pertahankan!'
-  let message = `Mood positif tercatat ${positiveDays} dari ${total} hari pada ${periodLabel}. ${roleContext}`
-  let action: { type: InsightActionType; label: string } = { type: 'article', label: 'Baca Artikel' }
-  let reasonText = ''
-  let recommendation = ''
+  let status: StatusLevel
+  let category: InsightCategory
+  let title: string
+  let message: string
+  let action: { type: InsightActionType; label: string }
+  let reasonText: string
+  let recommendation: string
 
-  if (negativeDays > total / 2) {
+  if (persistentNegative) {
+    // CHI-17(c): menyerupai tanda bahaya KIA (murung/sedih 2 minggu atau lebih)
     status = 'danger'
     category = 'Segera Konsultasi'
-    title = 'Mood Cenderung Negatif'
-    message = `Mood negatif tercatat ${negativeDays} dari ${total} hari pada ${periodLabel}. ${roleContext}`
+    title = 'Mood Negatif Berlangsung 2 Minggu'
+    message = `Mood negatif tercatat setiap hari selama ${PERSISTENT_MOOD_DAYS} hari terakhir. Sebaiknya segera bicarakan dengan bidan, dokter, atau Puskesmas.`
     action = CONSULT_ACTION
-    reasonText = `Mood negatif (lelah atau sedih) tercatat pada ${negativeDays} dari ${total} hari, yang berada di atas setengah periode pemantauan. Pola ini sebaiknya dibicarakan dengan tenaga kesehatan agar Anda mendapat dukungan yang tepat.`
-    recommendation = 'Bicarakan perasaanmu ke orang yang kamu percaya. Pertimbangkan konsultasi ke tenaga kesehatan mental untuk mendapatkan dukungan yang tepat.'
-  } else if (negativeDays > 0 || neutralDays > total / 2) {
+    reasonText = `Mood negatif (lelah atau sedih) tercatat setiap hari selama ${PERSISTENT_MOOD_DAYS} hari berturut-turut. Buku KIA menganjurkan pemeriksaan bila rasa murung atau sedih berlangsung 2 minggu atau lebih.`
+    recommendation = 'Segera bicarakan perasaan Anda dengan bidan, dokter, atau Puskesmas. Ceritakan juga kepada orang yang Anda percaya agar mendapat dukungan.'
+  } else if (negativeDays > total / 2) {
+    // CHI-17(b)
     status = 'caution'
     category = 'Perlu Diperhatikan'
-    title = 'Mood Perlu Diperhatikan'
-    message = `Mood negatif ${negativeDays} hari, netral ${neutralDays} hari pada ${periodLabel}. ${roleContext}`
+    title = 'Mood Cenderung Negatif'
+    message = `Mood negatif tercatat ${negativeDays} dari ${total} hari pada ${periodLabel}. ${roleContext}`
     action = { type: 'log', label: 'Catat' }
-    reasonText = `Mood negatif tercatat pada ${negativeDays} hari dan mood netral pada ${neutralDays} hari dari total ${total} hari. Sistem mendeteksi fluktuasi mood yang wajar, namun tetap perlu diperhatikan agar tidak berlanjut.`
-    recommendation = 'Lakukan aktivitas ringan yang menyenangkan. Ceritakan perasaanmu ke orang yang dipercaya. Pastikan tidur dan asupan nutrisi tetap terjaga.'
+    reasonText = `Mood negatif (lelah atau sedih) tercatat pada ${negativeDays} dari ${total} hari, lebih dari setengah periode pemantauan.`
+    recommendation = 'Ceritakan perasaan Anda kepada orang yang dipercaya. Pastikan tidur dan makan bergizi tetap terjaga. Bila perasaan ini menetap, bicarakan dengan bidan atau tenaga kesehatan.'
   } else {
-    reasonText = `Mood positif (nyaman atau bahagia) tercatat pada ${positiveDays} dari ${total} hari. Sistem mendeteksi pola mood yang sehat dan stabil.`
-    recommendation = 'Luangkan waktu untuk aktivitas yang kamu nikmati setiap harinya. Terhubung dengan komunitas untuk berbagi pengalaman dan saling mendukung.'
+    // CHI-17(a): satu hari mood negatif dan mood netral tidak memicu Perlu Diperhatikan
+    status = 'safe'
+    category = 'Perkembangan Baik'
+    title = positiveDays > total / 2 ? 'Mood Positif - Pertahankan!' : 'Mood Cenderung Stabil'
+    message = `Mood positif ${positiveDays} hari, netral ${neutralDays} hari, negatif ${negativeDays} hari pada ${periodLabel}. ${roleContext}`
+    action = { type: 'article', label: 'Baca Artikel' }
+    reasonText = `Mood negatif tercatat pada ${negativeDays} dari ${total} hari, tidak lebih dari setengah periode pemantauan.`
+    recommendation = 'Luangkan waktu untuk aktivitas yang Anda nikmati setiap hari. Tetap ceritakan perasaan Anda kepada orang yang dipercaya.'
   }
 
-  const historyEntries = filtered.slice(0, 7).map(l => {
-    const d = new Date(l.date + 'T00:00:00Z')
-    const day = HARI_ID[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getUTCDay()]]
-    const moodLabel = ['😢 Sedih', '😴 Lelah', '😐 Biasa', '😊 Nyaman', '😄 Bahagia'][l.mood - 1] ?? '-'
-    return {
-      date: l.date,
-      label: `${day}, ${l.date}`,
-      value: moodLabel,
-      state: (l.mood >= 4 ? 'ok' : l.mood === 3 ? 'missing' : 'flag') as 'ok' | 'flag' | 'missing',
-    }
-  })
+  const historyEntries = filtered.slice(0, 7).map(l => ({
+    date: l.date,
+    label: historyLabel(l.date),
+    value: ['😢 Sedih', '😴 Lelah', '😐 Biasa', '😊 Nyaman', '😄 Bahagia'][l.mood - 1] ?? '-',
+    state: (l.mood >= 4 ? 'ok' : l.mood === 3 ? 'missing' : 'flag') as 'ok' | 'flag' | 'missing',
+  }))
 
   return {
     id: `mood-${period}`,
@@ -518,21 +689,22 @@ function getMoodInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPerio
     status,
     title,
     message,
-    based_on: total > 0 ? [`Rata-rata mood ${round1(avg)}/5`, `Dominan ${dominant}`] : [],
+    based_on: [`Rata-rata mood ${round1(avg)}/5`, `Dominan ${dominant}`],
     action,
     disclaimer,
     detail: {
       title,
       pattern_summary: `Selama ${periodLabel}, mood Anda tercatat dari ${total} catatan. Mood positif ${positiveDays} hari, netral ${neutralDays} hari, dan negatif ${negativeDays} hari. ${roleContext}`,
       period: periodLabel,
-      data_used: total > 0 ? [
+      data_used: [
         `Periode: ${periodLabel}`,
         `Total catatan: ${total} hari`,
         `Rata-rata mood: ${round1(avg)}/5`,
         `Dominan: ${dominant}`,
         `Positif: ${positiveDays} hari`,
         `Negatif: ${negativeDays} hari`,
-      ] : [],
+        `Mood negatif ${PERSISTENT_MOOD_DAYS} hari berturut-turut: ${persistentNegative ? 'Ya' : 'Tidak'}`,
+      ],
       history: historyEntries,
       reason: reasonText,
       action_text: recommendation,
@@ -543,39 +715,37 @@ function getMoodInsight(logs: ApiHealthLog[], role: RoleType, period: FieldPerio
 
 function getCycleInsight(logs: ApiHealthLog[], period: FieldPeriod, customStart?: string, customEnd?: string): ContextualInsight {
   const filtered = filterLogsByPeriod(logs, period, customStart, customEnd)
+  if (filtered.length === 0) return emptyFieldInsight('cycle', 'cycle', 'Siklus Haid', period, customStart, customEnd)
   const total = filtered.length
   const menstruasiDays = filtered.filter(l => l.is_menstruating).length
   const periodLabel = periodText(period, customStart, customEnd)
-  if (total === 0) return emptyFieldInsight('cycle', 'cycle', 'Siklus Haid', period, customStart, customEnd)
   const isMenstruating = menstruasiDays > 0
-  const disclaimer = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
+  const disclaimer = INSIGHT_DISCLAIMER
 
-  const status: StatusLevel = isMenstruating ? 'caution' : 'safe'
-  const category = isMenstruating ? 'Perlu Diperhatikan' : 'Perkembangan Baik'
-  const title = isMenstruating ? 'Sedang Haid' : 'Tidak Haid'
+  // CHI-18: haid adalah kondisi normal, ditampilkan sebagai informasi (Perkembangan Baik).
+  // Anjuran TTD khusus saat haid menunggu konfirmasi stakeholder; teks pengingat lama dipertahankan.
+  const status: StatusLevel = 'safe'
+  const category: InsightCategory = 'Perkembangan Baik'
+  const title = isMenstruating ? 'Sedang Haid' : 'Tidak Ada Catatan Haid'
   const message = isMenstruating
     ? `Tercatat haid ${menstruasiDays} dari ${total} hari pada ${periodLabel}. Kebutuhan zat besi meningkat saat haid, pastikan asupan TTD tercukupi.`
-    : `Tidak ada catatan haid pada ${periodLabel}. Lanjutkan pencatatan untuk memantau siklus Anda.`
+    : `Tidak ada catatan haid pada ${periodLabel}. Lanjutkan pencatatan harian.`
   const action: { type: InsightActionType; label: string } = isMenstruating
     ? { type: 'log', label: 'Catat' }
     : { type: 'article', label: 'Baca Artikel' }
   const reasonText = isMenstruating
-    ? `Tercatat haid pada ${menstruasiDays} dari ${total} hari. Kebutuhan zat besi meningkat saat haid, sehingga konsumsi TTD perlu dijaga.`
+    ? `Tercatat haid pada ${menstruasiDays} dari ${total} hari. Haid adalah kondisi normal; insight ini berisi pengingat TTD.`
     : `Tidak ada catatan haid pada ${periodLabel}. Insight ini hanya mencatat ada atau tidaknya haid, bukan menilai keteraturan siklus.`
   const recommendation = isMenstruating
     ? 'Pastikan TTD tidak terlewat. Konsumsi makanan kaya zat besi seperti hati ayam, daging merah, bayam, dan tempe. Istirahat cukup dan jaga hidrasi.'
-    : 'Tetap konsumsi TTD setiap minggu di luar masa haid sesuai anjuran Kemenkes. Catat tanggal mulai haid tiap bulan untuk memantau keteraturan siklus.'
+    : 'Tetap konsumsi TTD 1 tablet setiap minggu sesuai program Kemenkes. Catat tanggal mulai haid tiap bulan.'
 
-  const historyEntries = filtered.slice(0, 7).map(l => {
-    const d = new Date(l.date + 'T00:00:00Z')
-    const day = HARI_ID[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getUTCDay()]]
-    return {
-      date: l.date,
-      label: `${day}, ${l.date}`,
-      value: l.is_menstruating ? 'Sedang haid' : 'Tidak haid',
-      state: (l.is_menstruating ? 'flag' : 'ok') as 'ok' | 'flag' | 'missing',
-    }
-  })
+  const historyEntries = filtered.slice(0, 7).map(l => ({
+    date: l.date,
+    label: historyLabel(l.date),
+    value: l.is_menstruating ? 'Sedang haid' : 'Tidak haid',
+    state: 'ok' as 'ok' | 'flag' | 'missing',
+  }))
 
   return {
     id: `cycle-${period}`,
@@ -584,18 +754,18 @@ function getCycleInsight(logs: ApiHealthLog[], period: FieldPeriod, customStart?
     status,
     title,
     message,
-    based_on: total > 0 ? [`Hari haid: ${menstruasiDays}`, `Total log: ${total} hari`] : [],
+    based_on: [`Hari haid: ${menstruasiDays}`, `Total log: ${total} hari`],
     action,
     disclaimer,
     detail: {
       title,
-      pattern_summary: `Selama ${periodLabel}, tercatat haid pada ${menstruasiDays} dari total ${total} hari. Kebutuhan zat besi meningkat saat haid, sehingga TTD perlu dipastikan tidak terlewat.`,
+      pattern_summary: `Selama ${periodLabel}, tercatat haid pada ${menstruasiDays} dari total ${total} hari.`,
       period: periodLabel,
-      data_used: total > 0 ? [
+      data_used: [
         `Periode: ${periodLabel}`,
         `Total catatan: ${total} hari`,
         `Hari haid: ${menstruasiDays}`,
-      ] : [],
+      ],
       history: historyEntries,
       reason: reasonText,
       action_text: recommendation,
@@ -606,38 +776,41 @@ function getCycleInsight(logs: ApiHealthLog[], period: FieldPeriod, customStart?
 
 function getMomWeightInsight(logs: ApiHealthLog[], period: FieldPeriod, customStart?: string, customEnd?: string): ContextualInsight {
   const filtered = filterLogsByPeriod(logs, period, customStart, customEnd).filter(l => l.weight_kg != null)
+  if (filtered.length === 0) return emptyFieldInsight('weight', 'weight', 'Berat Badan', period, customStart, customEnd)
   const total = filtered.length
   const values = filtered.map(l => l.weight_kg as number)
   const avg = average(values)
-  const min = values.length > 0 ? Math.min(...values) : 0
-  const max = values.length > 0 ? Math.max(...values) : 0
-  const latest = values.length > 0 ? values[0] : 0
+  const min = Math.min(...values)
+  const max = Math.max(...values)
   const periodLabel = periodText(period, customStart, customEnd)
-  if (total === 0) return emptyFieldInsight('weight', 'weight', 'Berat Badan', period, customStart, customEnd)
-  const disclaimer = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
 
-  const status: StatusLevel = 'safe'
-  const category = 'Perkembangan Baik'
-  const title = 'Berat Badan Terpantau'
-  const message = total > 0
-    ? `Rata-rata ${round1(avg)} kg dari ${total} catatan pada ${periodLabel}. Diskusikan target kenaikan berat badan dengan bidan atau dokter.`
-    : `Belum ada catatan berat badan pada ${periodLabel}. Mulai catat untuk memantau perkembangan.`
+  // CHI-19(a): kenaikan dihitung dari catatan berat pertama (seluruh riwayat) ke catatan terbaru
+  const allWeights = logs.filter(l => l.weight_kg != null).sort((a, b) => a.date.localeCompare(b.date))
+  const first = allWeights[0]
+  const newest = allWeights[allWeights.length - 1]
+  const change = round1((newest.weight_kg as number) - (first.weight_kg as number))
+  const changeText = `${change >= 0 ? '+' : ''}${change} kg`
+  const hasChange = allWeights.length > 1
+  const disclaimer = INSIGHT_DISCLAIMER
+
+  // CHI-19: ditampilkan sebagai informasi, bukan Perkembangan Baik.
+  // Penilaian dengan tabel IMT Buku KIA menunggu keputusan stakeholder (CHI-19b).
+  const status: StatusLevel = 'info'
+  const category: InsightCategory = 'Informasi'
+  const title = 'Catatan Berat Badan'
+  const message = hasChange
+    ? `Berat terbaru ${newest.weight_kg} kg, berubah ${changeText} sejak catatan pertama (${first.date}). Kenaikan berat badan dinilai oleh bidan atau dokter sesuai status gizi sebelum hamil.`
+    : `Berat terbaru ${newest.weight_kg} kg. Perubahan berat akan tampil setelah ada lebih dari satu catatan.`
   const action: { type: InsightActionType; label: string } = { type: 'article', label: 'Baca Artikel' }
-  const reasonText = total > 0
-    ? `Tercatat ${total} kali pengukuran berat badan dengan rata-rata ${round1(avg)} kg. Sistem hanya merangkum catatan berat badan dan belum menilai kenaikan berat badan selama kehamilan.`
-    : `Belum ada catatan berat badan pada ${periodLabel}. Sistem belum dapat menganalisis tren kenaikan berat badan Anda.`
-  const recommendation = 'Lanjutkan pola makan bergizi seimbang dengan porsi kecil tapi sering. Timbang BB minimal seminggu sekali di waktu yang sama. Diskusikan target kenaikan dengan bidan/dokter.'
+  const reasonText = 'Aplikasi hanya merangkum catatan berat badan Anda. Menurut Buku KIA, kenaikan berat badan yang dianjurkan selama hamil bergantung pada status gizi sebelum hamil, dan grafiknya diisi oleh tenaga kesehatan.'
+  const recommendation = 'Timbang berat badan minimal seminggu sekali di waktu yang sama. Bawa catatan ini saat periksa kehamilan agar bidan atau dokter dapat menilai kenaikan berat badan Anda.'
 
-  const historyEntries = filtered.slice(0, 7).map(l => {
-    const d = new Date(l.date + 'T00:00:00Z')
-    const day = HARI_ID[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getUTCDay()]]
-    return {
-      date: l.date,
-      label: `${day}, ${l.date}`,
-      value: `${l.weight_kg} kg`,
-      state: 'ok' as 'ok' | 'flag' | 'missing',
-    }
-  })
+  const historyEntries = filtered.slice(0, 7).map(l => ({
+    date: l.date,
+    label: historyLabel(l.date),
+    value: `${l.weight_kg} kg`,
+    state: 'ok' as 'ok' | 'flag' | 'missing',
+  }))
 
   return {
     id: `weight-${period}`,
@@ -646,22 +819,22 @@ function getMomWeightInsight(logs: ApiHealthLog[], period: FieldPeriod, customSt
     status,
     title,
     message,
-    based_on: total > 0 ? [`Rata-rata ${round1(avg)} kg`, `Rentang ${min} - ${max} kg`] : [],
+    based_on: hasChange ? [`Terbaru ${newest.weight_kg} kg`, `Perubahan ${changeText}`] : [`Terbaru ${newest.weight_kg} kg`],
     action,
     disclaimer,
     detail: {
       title,
-      pattern_summary: total > 0
-        ? `Selama ${periodLabel}, tercatat ${total} kali pengukuran berat badan. Rata-rata ${round1(avg)} kg, dengan rentang ${min} - ${max} kg. Pengukuran terbaru menunjukkan ${latest} kg.`
-        : `Belum ada catatan berat badan pada ${periodLabel}.`,
+      pattern_summary: `Selama ${periodLabel}, tercatat ${total} kali pengukuran berat badan dengan rata-rata ${round1(avg)} kg (rentang ${min} - ${max} kg). ${hasChange ? `Sejak catatan pertama pada ${first.date} (${first.weight_kg} kg), berat Anda berubah ${changeText}.` : ''}`,
       period: periodLabel,
-      data_used: total > 0 ? [
+      data_used: [
         `Periode: ${periodLabel}`,
         `Total catatan: ${total} kali`,
         `Rata-rata: ${round1(avg)} kg`,
-        `Terbaru: ${latest} kg`,
         `Rentang: ${min} - ${max} kg`,
-      ] : [],
+        `Catatan pertama: ${first.weight_kg} kg (${first.date})`,
+        `Terbaru: ${newest.weight_kg} kg (${newest.date})`,
+        ...(hasChange ? [`Perubahan sejak catatan pertama: ${changeText}`] : []),
+      ],
       history: historyEntries,
       reason: reasonText,
       action_text: recommendation,
@@ -672,50 +845,55 @@ function getMomWeightInsight(logs: ApiHealthLog[], period: FieldPeriod, customSt
 
 function getPumpingInsight(logs: ApiHealthLog[], period: FieldPeriod, customStart?: string, customEnd?: string): ContextualInsight {
   const filtered = filterLogsByPeriod(logs, period, customStart, customEnd).filter(l => l.breastfeeding_count != null)
+  if (filtered.length === 0) return emptyFieldInsight('breastfeeding', 'breastfeeding', 'Menyusui/Pumping', period, customStart, customEnd)
   const total = filtered.length
   const values = filtered.map(l => l.breastfeeding_count as number)
   const avg = average(values)
-  const daysMet = values.filter(v => v >= 8).length
+  const daysMet = values.filter(v => v >= BREASTFEEDING_MIN_SESSIONS).length
   const periodLabel = periodText(period, customStart, customEnd)
-  if (total === 0) return emptyFieldInsight('breastfeeding', 'breastfeeding', 'Menyusui/Pumping', period, customStart, customEnd)
-  const disclaimer = 'Informasi berdasarkan catatan Anda, bukan diagnosis medis.'
+  const disclaimer = INSIGHT_DISCLAIMER
 
-  let status: StatusLevel = 'danger'
-  let category: InsightCategory = 'Segera Konsultasi'
-  let title = 'Frekuensi Menyusui/Pumping Jauh di Bawah Rekomendasi'
-  let message = `Rata-rata ${round1(avg)} sesi/hari, di bawah 6 sesi. Sebaiknya dikonsultasikan dengan tenaga kesehatan atau konselor laktasi.`
-  let action: { type: InsightActionType; label: string } = CONSULT_ACTION
-  let reasonText = ''
-  let recommendation = ''
+  let status: StatusLevel
+  let category: InsightCategory
+  let title: string
+  let message: string
+  let action: { type: InsightActionType; label: string }
+  let reasonText: string
+  let recommendation: string
 
-  if (avg >= 8) {
+  if (avg >= BREASTFEEDING_MIN_SESSIONS) {
     status = 'safe'
     category = 'Perkembangan Baik'
-    title = 'Frekuensi Menyusui/Pumping Sesuai Rekomendasi'
-    message = `Luar biasa! Rata-rata ${round1(avg)} sesi/hari, memenuhi rekomendasi minimal 8 sesi.`
+    title = 'Frekuensi Menyusui/Pumping Sesuai Anjuran'
+    message = `Rata-rata ${round1(avg)} sesi/hari, memenuhi anjuran minimal ${BREASTFEEDING_MIN_SESSIONS} kali sehari.`
     action = { type: 'article', label: 'Baca Artikel' }
-    reasonText = `Rata-rata frekuensi menyusui/pumping Anda mencapai ${round1(avg)} sesi per hari, yang memenuhi rekomendasi minimal 8 sesi. Pola menyusui Anda sudah konsisten.`
-    recommendation = 'Jaga interval antar sesi tidak lebih dari 3-4 jam di siang hari. Pijat payudara ringan sebelum pumping untuk meningkatkan aliran ASI.'
-  } else if (avg >= 6) {
+    reasonText = `Rata-rata frekuensi menyusui/pumping Anda ${round1(avg)} sesi per hari, memenuhi anjuran minimal ${BREASTFEEDING_MIN_SESSIONS} kali. Buku KIA menganjurkan ${KIA_BREASTFEEDING}.`
+    recommendation = 'Lanjutkan menyusui sesuai keinginan bayi. Jaga jarak antar sesi tidak terlalu lama.'
+  } else if (avg >= BREASTFEEDING_LOW_SESSIONS) {
+    // CHI-20: < 8 kali → Perlu Diperhatikan dengan saran dari Buku KIA
     status = 'caution'
     category = 'Perlu Diperhatikan'
     title = 'Frekuensi Menyusui/Pumping Perlu Ditingkatkan'
-    message = `Rata-rata ${round1(avg)} sesi/hari, di bawah rekomendasi 8 sesi.`
-    action = CONSULT_ACTION
-    reasonText = `Rata-rata frekuensi menyusui/pumping Anda hanya ${round1(avg)} sesi per hari, yang berada di bawah rekomendasi 8 sesi. Frekuensi ini perlu ditingkatkan.`
-    recommendation = 'Tambah 1-2 sesi pumping di pagi hari. Gunakan power pumping selama 1 jam 1x sehari untuk menstimulasi produksi ASI.'
+    message = `Rata-rata ${round1(avg)} sesi/hari, di bawah anjuran minimal ${BREASTFEEDING_MIN_SESSIONS} kali sehari.`
+    action = { type: 'log', label: 'Catat' }
+    reasonText = `Rata-rata frekuensi menyusui/pumping Anda ${round1(avg)} sesi per hari, di bawah anjuran minimal ${BREASTFEEDING_MIN_SESSIONS} kali. Buku KIA menganjurkan ${KIA_BREASTFEEDING}.`
+    recommendation = `${KIA_BREASTFEEDING_TIPS} ${ASK_MIDWIFE}`
   } else {
-    reasonText = `Rata-rata frekuensi menyusui/pumping Anda hanya ${round1(avg)} sesi per hari, yang berada di bawah 6 sesi. Pola ini sebaiknya dikonsultasikan dengan tenaga kesehatan atau konselor laktasi.`
-    recommendation = 'Mulai tambah sesi pumping hari ini - setiap 2-3 jam selama payudara terasa penuh. Konsultasikan dengan konselor laktasi bersertifikat (IBCLC).'
+    // CHI-20: perlakuan < 6 sesi menunggu keputusan stakeholder (Segera Konsultasi tetap dipakai sementara)
+    status = 'danger'
+    category = 'Segera Konsultasi'
+    title = 'Frekuensi Menyusui/Pumping Jauh di Bawah Anjuran'
+    message = `Rata-rata ${round1(avg)} sesi/hari, di bawah ${BREASTFEEDING_LOW_SESSIONS} sesi. Sebaiknya dikonsultasikan dengan tenaga kesehatan atau konselor laktasi.`
+    action = CONSULT_ACTION
+    reasonText = `Rata-rata frekuensi menyusui/pumping Anda ${round1(avg)} sesi per hari, di bawah ${BREASTFEEDING_LOW_SESSIONS} sesi. Buku KIA menganjurkan ${KIA_BREASTFEEDING}.`
+    recommendation = `${KIA_BREASTFEEDING_TIPS} Konsultasikan dengan bidan atau konselor laktasi.`
   }
 
   const historyEntries = filtered.slice(0, 7).map(l => {
-    const d = new Date(l.date + 'T00:00:00Z')
-    const day = HARI_ID[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getUTCDay()]]
-    const met = (l.breastfeeding_count as number) >= 8
+    const met = (l.breastfeeding_count as number) >= BREASTFEEDING_MIN_SESSIONS
     return {
       date: l.date,
-      label: `${day}, ${l.date}`,
+      label: historyLabel(l.date),
       value: `${l.breastfeeding_count} sesi ${met ? '✓' : ''}`,
       state: (met ? 'ok' : 'flag') as 'ok' | 'flag' | 'missing',
     }
@@ -728,20 +906,21 @@ function getPumpingInsight(logs: ApiHealthLog[], period: FieldPeriod, customStar
     status,
     title,
     message,
-    based_on: total > 0 ? [`Rata-rata ${round1(avg)} sesi`, `Ideal 8 sesi/hari`] : [],
+    based_on: [`Rata-rata ${round1(avg)} sesi`, `Anjuran ${BREASTFEEDING_MIN_SESSIONS} kali/hari`],
     action,
     disclaimer,
     detail: {
       title,
-      pattern_summary: `Selama ${periodLabel}, rata-rata frekuensi menyusui/pumping Anda adalah ${round1(avg)} sesi per hari dari ${total} catatan. Rekomendasi minimal adalah 8 sesi per hari, dan Anda mencapai target pada ${daysMet} dari ${total} hari.`,
+      pattern_summary: `Selama ${periodLabel}, rata-rata frekuensi menyusui/pumping Anda adalah ${round1(avg)} sesi per hari dari ${total} catatan. Anjuran minimal adalah ${BREASTFEEDING_MIN_SESSIONS} kali per hari, dan Anda mencapainya pada ${daysMet} dari ${total} hari.`,
       period: periodLabel,
-      data_used: total > 0 ? [
+      data_used: [
         `Periode: ${periodLabel}`,
         `Total catatan: ${total} hari`,
         `Rata-rata: ${round1(avg)} sesi/hari`,
-        `Ideal: 8 sesi/hari`,
+        `Anjuran: ${BREASTFEEDING_MIN_SESSIONS} sesi/hari`,
+        'Anjuran Buku KIA: 8–12 kali/hari atau lebih',
         `Hari tercapai: ${daysMet}/${total}`,
-      ] : [],
+      ],
       history: historyEntries,
       reason: reasonText,
       action_text: recommendation,
@@ -756,6 +935,7 @@ function getPumpingInsight(logs: ApiHealthLog[], period: FieldPeriod, customStar
 function generateContextualInsight(
   logs: ApiHealthLog[],
   period: FieldPeriod,
+  babyAgeMonths: number | null,
   customStart?: string,
   customEnd?: string,
 ): ContextualInsight | null {
@@ -765,32 +945,29 @@ function generateContextualInsight(
 
   const role = sorted[0].profile_type as RoleType
   const sameProfile = sorted.filter(l => l.profile_type === role)
+  const roleLogs = logs.filter(l => l.profile_type === role)
   const total = sameProfile.length
   const periodLabel = periodText(period, customStart, customEnd)
   const roleLabel = ROLE_LABELS[role]
 
   const avgSleep = average(sameProfile.map(l => l.sleep_hours))
   const avgWater = average(sameProfile.map(l => l.water_glasses))
-  const tiredDays = sameProfile.filter(l => l.mood <= 2).length
-  const supplementTaken = sameProfile.filter(l => l.took_supplement).length
-  const supplementPct = total > 0 ? Math.round((supplementTaken / total) * 100) : 0
-  const minSleep = ROLE_SLEEP_TARGET[role]
-  const minWater = ROLE_FLUID_TARGET[role]
+  const tiredDays = sameProfile.filter(l => l.mood <= NEGATIVE_MOOD_MAX).length
+  const { target: minSleep, low: lowSleepLimit } = getSleepThresholds(role)
+  const { target: fluidTarget, min: fluidMin } = getFluidTargets(role, babyAgeMonths)
+  // CHI-23: ambang cairan G-05 mengikuti KIA; remaja putri memakai aturan lama sampai keputusan CHI-06
+  const lowWaterLimit = role === 'teen' ? fluidTarget - 2 : fluidMin
+  const supplement = getSupplementCompliance(sameProfile, role, periodEndISO(period, customStart, customEnd))
   const supplementLabel = ROLE_SUPPLEMENT_LABEL[role]
 
-  const disclaimer =
-    'Informasi berdasarkan catatan Anda, bukan diagnosis medis. Konsultasikan dengan tenaga kesehatan.'
+  const disclaimer = INSIGHT_DISCLAIMER
 
-  const historyEntries = sameProfile.slice(0, 7).map(l => {
-    const d = new Date(l.date + 'T00:00:00Z')
-    const day = HARI_ID[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getUTCDay()]]
-    return {
-      date: l.date,
-      label: `${day}, ${l.date}`,
-      value: `Mood ${l.mood}/5 · Tidur ${l.sleep_hours} jam · Air ${l.water_glasses} gelas`,
-      state: (l.mood >= 4 ? 'ok' : l.mood === 3 ? 'missing' : 'flag') as 'ok' | 'flag' | 'missing',
-    }
-  })
+  const historyEntries = sameProfile.slice(0, 7).map(l => ({
+    date: l.date,
+    label: historyLabel(l.date),
+    value: `Mood ${l.mood}/5 · Tidur ${l.sleep_hours} jam · Air ${l.water_glasses} gelas`,
+    state: (l.mood >= 4 ? 'ok' : l.mood === 3 ? 'missing' : 'flag') as 'ok' | 'flag' | 'missing',
+  }))
 
   // Kondisi 1: Data belum cukup
   if (total < 3) {
@@ -823,16 +1000,25 @@ function generateContextualInsight(
     }
   }
 
-  // Kondisi 2: Kelelahan berulang + tidur/cairan rendah
-  if (tiredDays >= 3 && (avgSleep < minSleep - 1 || avgWater < minWater - 2)) {
-    const isUrgent = tiredDays >= 4 || avgSleep < minSleep - 2
-    const category = isUrgent ? 'Segera Konsultasi' : 'Perlu Diperhatikan'
+  // Kondisi 2: Kelelahan berulang (CHI-21)
+  // Perlu Diperhatikan: mood negatif ≥ 3 hari disertai kurang tidur (rata-rata di bawah anjuran tidur peran).
+  // Segera Konsultasi: mood negatif terus-menerus 14 hari terakhir, atau mood negatif berulang disertai tidur < 6 jam.
+  // Cairan tidak lagi menjadi pemicu.
+  const persistentNegative = hasPersistentNegativeMood(roleLogs)
+  const recurringNegative = tiredDays >= 3
+  const shortSleep = avgSleep < minSleep
+  if (persistentNegative || (recurringNegative && shortSleep)) {
+    const isUrgent = persistentNegative || (recurringNegative && avgSleep < SLEEP_URGENT_HOURS)
+    const category: InsightCategory = isUrgent ? 'Segera Konsultasi' : 'Perlu Diperhatikan'
     const status: StatusLevel = isUrgent ? 'danger' : 'caution'
     const title = `Kelelahan Berulang pada ${roleLabel}`
-    const message = `Mood negatif tercatat pada ${tiredDays} dari ${total} hari (${periodLabel}), disertai rata-rata tidur ${round1(avgSleep)} jam dan cairan ${round1(avgWater)} gelas. Pola ini ${isUrgent ? 'sebaiknya segera dikonsultasikan' : 'perlu diperhatikan'}.`
+    const trigger = persistentNegative
+      ? `mood negatif tercatat setiap hari selama ${PERSISTENT_MOOD_DAYS} hari terakhir`
+      : `mood negatif tercatat ${tiredDays} hari disertai rata-rata tidur ${round1(avgSleep)} jam${avgSleep < SLEEP_URGENT_HOURS ? `, kurang dari ${SLEEP_URGENT_HOURS} jam` : ''}`
+    const message = `Pada ${periodLabel}, mood negatif tercatat pada ${tiredDays} dari ${total} hari dengan rata-rata tidur ${round1(avgSleep)} jam. Pola ini ${isUrgent ? 'sebaiknya segera dikonsultasikan ke bidan, dokter, atau Puskesmas' : 'perlu diperhatikan'}.`
     return {
       id: 'recurring-fatigue',
-      fields: ['mood', 'sleep', 'hydration'],
+      fields: ['mood', 'sleep'],
       category,
       status,
       title,
@@ -840,39 +1026,38 @@ function generateContextualInsight(
       based_on: [
         `Mood negatif ${tiredDays}/${total} hari`,
         `Rata-rata tidur ${round1(avgSleep)} jam`,
-        `Rata-rata cairan ${round1(avgWater)} gelas`,
       ],
       action: CONSULT_ACTION,
       disclaimer,
       detail: {
         title,
-        pattern_summary: `Selama ${periodLabel}, Anda (${roleLabel}) tercatat mengalami mood negatif (lelah atau sedih) sebanyak ${tiredDays} hari dari total ${total} hari. Pada periode yang sama, rata-rata durasi tidur Anda adalah ${round1(avgSleep)} jam per hari dan rata-rata asupan cairan Anda adalah ${round1(avgWater)} gelas per hari. Kombinasi antara mood negatif yang berulang dan kurangnya tidur atau cairan menunjukkan bahwa tubuh Anda mungkin sedang membutuhkan perhatian lebih.`,
+        pattern_summary: `Selama ${periodLabel}, Anda (${roleLabel}) tercatat mengalami mood negatif (lelah atau sedih) sebanyak ${tiredDays} dari ${total} hari, dengan rata-rata tidur ${round1(avgSleep)} jam per hari.${persistentNegative ? ` Mood negatif juga tercatat setiap hari selama ${PERSISTENT_MOOD_DAYS} hari terakhir.` : ''}`,
         period: periodLabel,
         data_used: [
           `Peran: ${roleLabel}`,
           `Periode: ${periodLabel}`,
           `Total catatan: ${total} hari`,
           `Mood negatif: ${tiredDays} hari`,
-          `Rata-rata tidur: ${round1(avgSleep)} jam`,
-          `Rata-rata cairan: ${round1(avgWater)} gelas`,
-          `Ambang tidur: <${minSleep - 1} jam/hari`,
-          `Ambang cairan: <${minWater - 2} gelas/hari`,
+          `Rata-rata tidur: ${round1(avgSleep)} jam (anjuran ${minSleep} jam)`,
+          `Mood negatif ${PERSISTENT_MOOD_DAYS} hari berturut-turut: ${persistentNegative ? 'Ya' : 'Tidak'}`,
+          `Ambang Segera Konsultasi: tidur < ${SLEEP_URGENT_HOURS} jam disertai mood negatif berulang`,
         ],
         history: historyEntries,
-        reason: `Insight ini muncul karena dua kondisi terpenuhi secara bersamaan: (1) mood negatif tercatat ≥3 hari, dan (2) rata-rata tidur atau cairan di bawah ambang yang disarankan untuk peran ${roleLabel}. Kombinasi ini menunjukkan pola kelelahan yang perlu ditangani.`,
+        reason: `Insight ini muncul karena ${trigger}. Buku KIA menyebut sulit tidur dan cemas berlebihan sebagai tanda bahaya, dan menganjurkan pemeriksaan bila rasa murung atau sedih berlangsung 2 minggu atau lebih.`,
         action_text:
           role === 'breastfeeding'
-            ? `Pertimbangkan untuk berkonsultasi dengan konselor laktasi atau dokter. Sementara itu, coba tidur minimal ${minSleep} jam, minum ${minWater} gelas air per hari, dan minta bantuan pasangan untuk giliran jaga bayi.`
+            ? `${isUrgent ? 'Segera bicarakan kondisi Anda dengan bidan, dokter, atau Puskesmas.' : 'Bila berlanjut, bicarakan dengan bidan atau dokter.'} Ikut beristirahat saat bayi tidur dan minta bantuan pasangan atau keluarga untuk giliran jaga bayi.`
             : role === 'pregnant'
-              ? `Pertimbangkan untuk berkonsultasi dengan bidan atau dokter kandungan. Sementara itu, coba tidur minimal ${minSleep} jam dan minum ${minWater} gelas air per hari.`
-              : `Pertimbangkan untuk berkonsultasi dengan tenaga kesehatan. Sementara itu, coba tidur minimal ${minSleep} jam dan minum ${minWater} gelas air per hari.`,
+              ? `${isUrgent ? 'Segera bicarakan kondisi Anda dengan bidan, dokter, atau Puskesmas.' : 'Bila berlanjut, bicarakan dengan bidan atau dokter.'} Usahakan ${KIA_SLEEP_PREGNANT}.`
+              : `${isUrgent ? 'Segera bicarakan kondisi Anda dengan tenaga kesehatan.' : 'Bila berlanjut, bicarakan dengan tenaga kesehatan.'} Coba tidur minimal ${minSleep} jam dan ceritakan perasaan Anda kepada orang yang dipercaya.`,
         disclaimer,
       },
     }
   }
 
-  // Kondisi 3: Suplemen tidak rutin
-  if (supplementPct < 50) {
+  // Kondisi 3: Suplemen tidak rutin (CHI-22)
+  if (supplement.pct < supplement.irregularPct) {
+    const { unit, taken, total: supplementTotal, pct, goalText } = supplement
     const title = `Konsumsi ${supplementLabel} Belum Rutin`
     return {
       id: 'supplement-irregular',
@@ -880,59 +1065,62 @@ function generateContextualInsight(
       category: 'Perlu Diperhatikan',
       status: 'caution',
       title,
-      message: `${supplementLabel} hanya tercatat pada ${supplementTaken} dari ${total} hari (${supplementPct}%) pada ${periodLabel} untuk peran ${roleLabel}.`,
+      message: `${supplementLabel} tercatat pada ${taken} dari ${supplementTotal} ${unit} (${pct}%) pada ${periodLabel} untuk peran ${roleLabel}, belum memenuhi anjuran ${goalText}.`,
       based_on: [
-        `${supplementLabel} ${supplementTaken}/${total} hari`,
-        `Kepatuhan ${supplementPct}%`,
+        `${supplementLabel} ${taken}/${supplementTotal} ${unit}`,
+        `Kepatuhan ${pct}%`,
       ],
       action: { type: 'log', label: 'Catat' },
       disclaimer,
       detail: {
         title,
-        pattern_summary: `Selama ${periodLabel}, ${supplementLabel} Anda (${roleLabel}) tercatat dikonsumsi pada ${supplementTaken} dari total ${total} hari (tingkat kepatuhan ${supplementPct}%). Ini berarti ada ${total - supplementTaken} hari di mana konsumsi suplemen tidak tercatat. Kepatuhan di bawah 50% menunjukkan bahwa pola konsumsi suplemen Anda masih belum konsisten.`,
+        pattern_summary: `Selama ${periodLabel}, ${supplementLabel} Anda (${roleLabel}) tercatat dikonsumsi pada ${taken} dari ${supplementTotal} ${unit} (tingkat kepatuhan ${pct}%).`,
         period: periodLabel,
         data_used: [
           `Peran: ${roleLabel}`,
           `Periode: ${periodLabel}`,
           `Total catatan: ${total} hari`,
-          `Tercatat: ${supplementTaken} hari`,
-          `Tidak tercatat: ${total - supplementTaken} hari`,
-          `Kepatuhan: ${supplementPct}%`,
+          `Cara hitung: per ${unit}`,
+          `Tercatat: ${taken}/${supplementTotal} ${unit}`,
+          `Kepatuhan: ${pct}%`,
+          `Anjuran: ${goalText}`,
         ],
-        history: sameProfile.slice(0, 7).map(l => {
-          const d = new Date(l.date + 'T00:00:00Z')
-          const day = HARI_ID[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getUTCDay()]]
-          return {
-            date: l.date,
-            label: `${day}, ${l.date}`,
-            value: l.took_supplement ? '✓ Tercatat' : '✕ Tidak tercatat',
-            state: (l.took_supplement ? 'ok' : 'flag') as 'ok' | 'flag' | 'missing',
-          }
-        }),
-        reason: `Insight ini muncul karena tingkat kepatuhan konsumsi ${supplementLabel} Anda hanya ${supplementPct}%, yang berada di bawah ambang 50%. Sistem mendeteksi bahwa pola konsumsi belum konsisten, sehingga perlu perhatian agar tidak memengaruhi kondisi kesehatan Anda secara jangka panjang.`,
+        history: sameProfile.slice(0, 7).map(l => ({
+          date: l.date,
+          label: historyLabel(l.date),
+          value: l.took_supplement ? '✓ Tercatat' : '✕ Tidak tercatat',
+          state: (l.took_supplement ? 'ok' : 'flag') as 'ok' | 'flag' | 'missing',
+        })),
+        reason: `Insight ini muncul karena kepatuhan konsumsi ${supplementLabel} Anda ${pct}%, belum memenuhi anjuran ${goalText}.`,
         action_text:
-          'Coba buat kebiasaan mengonsumsi suplemen pada waktu yang sama setiap hari (misalnya setelah sarapan). Aktifkan pengingat di ponsel atau letakkan suplemen di tempat yang mudah terlihat. Lanjutkan mencatat konsumsi harian agar pola Anda dapat dipantau dengan lebih baik.',
+          role === 'pregnant'
+            ? `Sesuai Buku KIA, ${KIA_TTD_TIPS}. ${ASK_MIDWIFE}`
+            : role === 'teen'
+              ? `Pilih satu hari yang sama setiap minggu untuk minum TTD dan aktifkan pengingat di ponsel. ${ASK_MIDWIFE}`
+              : `Coba konsumsi suplemen pada waktu yang sama setiap hari dan aktifkan pengingat di ponsel. ${ASK_MIDWIFE}`,
         disclaimer,
       },
     }
   }
 
-  // Kondisi 4: Tidur atau cairan rendah
-  if (avgSleep < minSleep - 1 || avgWater < minWater - 2) {
-    const lowSleep = avgSleep < minSleep - 1
-    const lowWater = avgWater < minWater - 2
+  // Kondisi 4: Tidur atau cairan rendah (CHI-23)
+  const lowSleep = avgSleep < lowSleepLimit
+  const lowWater = avgWater < lowWaterLimit
+  if (lowSleep || lowWater) {
     const title = lowSleep && lowWater
       ? `Tidur dan Asupan Cairan Tercatat Rendah pada ${roleLabel}`
       : lowSleep
         ? `Durasi Tidur Tercatat Rendah pada ${roleLabel}`
         : `Asupan Cairan Tercatat Rendah pada ${roleLabel}`
+    const sleepNote = `tidur kurang dari ${lowSleepLimit} jam`
+    const waterNote = `cairan kurang dari ${lowWaterLimit} gelas`
     return {
       id: 'low-sleep-or-water',
       fields: [...(lowSleep ? ['sleep'] : []), ...(lowWater ? ['hydration'] : [])],
       category: 'Perlu Diperhatikan',
       status: 'caution',
       title,
-      message: `Pada ${periodLabel}, rata-rata tidur Anda ${round1(avgSleep)} jam dan rata-rata cairan ${round1(avgWater)} gelas. ${lowSleep && lowWater ? 'Keduanya' : lowSleep ? 'Durasi tidur' : 'Asupan cairan'} berada di bawah ambang yang disarankan untuk peran ${roleLabel}.`,
+      message: `Pada ${periodLabel}, rata-rata tidur Anda ${round1(avgSleep)} jam dan rata-rata cairan ${round1(avgWater)} gelas. ${lowSleep && lowWater ? 'Keduanya' : lowSleep ? 'Durasi tidur' : 'Asupan cairan'} berada di bawah ambang untuk peran ${roleLabel}.`,
       based_on: [
         `Rata-rata tidur ${round1(avgSleep)} jam`,
         `Rata-rata cairan ${round1(avgWater)} gelas`,
@@ -941,7 +1129,7 @@ function generateContextualInsight(
       disclaimer,
       detail: {
         title,
-        pattern_summary: `Selama ${periodLabel}, rata-rata durasi tidur Anda adalah ${round1(avgSleep)} jam per hari dan rata-rata asupan cairan Anda adalah ${round1(avgWater)} gelas per hari. ${lowSleep && lowWater ? `Keduanya berada di bawah ambang untuk peran ${roleLabel} (tidur kurang dari ${minSleep - 1} jam dan cairan kurang dari ${minWater - 2} gelas; target ${minSleep} jam dan ${minWater} gelas).` : lowSleep ? `Durasi tidur Anda kurang dari ${minSleep - 1} jam, lebih dari 1 jam di bawah target ${minSleep} jam untuk peran ${roleLabel}.` : `Asupan cairan Anda kurang dari ${minWater - 2} gelas, lebih dari 2 gelas di bawah target ${minWater} gelas untuk peran ${roleLabel}.`}`,
+        pattern_summary: `Selama ${periodLabel}, rata-rata durasi tidur Anda adalah ${round1(avgSleep)} jam per hari dan rata-rata asupan cairan Anda adalah ${round1(avgWater)} gelas per hari. Tercatat ${[lowSleep ? sleepNote : '', lowWater ? waterNote : ''].filter(Boolean).join(' dan ')}.`,
         period: periodLabel,
         data_used: [
           `Peran: ${roleLabel}`,
@@ -949,17 +1137,18 @@ function generateContextualInsight(
           `Total catatan: ${total} hari`,
           `Rata-rata tidur: ${round1(avgSleep)} jam`,
           `Rata-rata cairan: ${round1(avgWater)} gelas`,
-          `Ambang tidur: <${minSleep - 1} jam/hari (target ${minSleep} jam)`,
-          `Ambang cairan: <${minWater - 2} gelas/hari (target ${minWater} gelas)`,
+          `Ambang tidur: < ${lowSleepLimit} jam/hari (anjuran ${minSleep} jam)`,
+          `Ambang cairan: < ${lowWaterLimit} gelas/hari (target ${fluidTarget} gelas)`,
+          ...(role === 'breastfeeding' ? [`Usia bayi: ${babyAgeMonths === null ? 'belum tersedia' : `${babyAgeMonths} bulan`}`] : []),
         ],
         history: historyEntries,
-        reason: `Insight ini muncul karena rata-rata ${lowSleep && lowWater ? 'tidur dan cairan' : lowSleep ? 'tidur' : 'cairan'} Anda berada di bawah ambang batas yang disarankan untuk peran ${roleLabel}. Meskipun tidak disertai kelelahan berulang, pola ini tetap perlu diperhatikan karena dapat memengaruhi energi, konsentrasi, dan kesehatan Anda secara keseluruhan.`,
+        reason: `Insight ini muncul karena rata-rata ${lowSleep && lowWater ? 'tidur dan cairan' : lowSleep ? 'tidur' : 'cairan'} Anda berada di bawah ambang untuk peran ${roleLabel}. Meskipun tidak disertai kelelahan berulang, pola ini tetap perlu diperhatikan.`,
         action_text:
           role === 'breastfeeding'
-            ? `Coba tidur 30 menit lebih awal dan minum segelas air setiap jam. Untuk ibu menyusui, target cairan adalah ${minWater} gelas per hari. Jika kondisi ini berlanjut, konsultasikan dengan konselor laktasi.`
+            ? `Ikut beristirahat saat bayi tidur dan minum segelas air setiap kali menyusui. Untuk ibu menyusui, target cairan Anda ${fluidTarget} gelas per hari. ${ASK_MIDWIFE}`
             : role === 'pregnant'
-              ? `Coba tidur 30 menit lebih awal dan minum segelas air setiap jam. Untuk ibu hamil, target cairan adalah ${minWater} gelas per hari. Jika kondisi ini berlanjut, konsultasikan dengan bidan.`
-              : `Coba tidur 30 menit lebih awal dan minum segelas air setiap jam. Target cairan untuk remaja adalah ${minWater} gelas per hari.`,
+              ? `Usahakan ${KIA_SLEEP_PREGNANT}, dan ${KIA_FLUID_PREGNANT}. ${ASK_MIDWIFE}`
+              : `Coba tidur 30 menit lebih awal dan minum segelas air setiap jam. Target cairan untuk remaja adalah ${fluidTarget} gelas per hari.`,
         disclaimer,
       },
     }
@@ -979,7 +1168,7 @@ function generateContextualInsight(
     disclaimer,
     detail: {
       title,
-      pattern_summary: `Selama ${periodLabel}, Anda (${roleLabel}) tercatat melakukan Health Log pada ${total} hari. Pencatatan yang konsisten ini memungkinkan sistem untuk memantau pola kesehatan Anda secara berkelanjutan dan memberikan insight yang lebih akurat. Rata-rata tidur Anda ${round1(avgSleep)} jam, rata-rata cairan ${round1(avgWater)} gelas, dan kepatuhan suplemen ${supplementPct}%.`,
+      pattern_summary: `Selama ${periodLabel}, Anda (${roleLabel}) tercatat melakukan Health Log pada ${total} hari. Rata-rata tidur Anda ${round1(avgSleep)} jam, rata-rata cairan ${round1(avgWater)} gelas, dan kepatuhan suplemen ${supplement.pct}% (dihitung per ${supplement.unit}).`,
       period: periodLabel,
       data_used: [
         `Peran: ${roleLabel}`,
@@ -987,7 +1176,7 @@ function generateContextualInsight(
         `Total catatan: ${total} hari`,
         `Rata-rata tidur: ${round1(avgSleep)} jam`,
         `Rata-rata cairan: ${round1(avgWater)} gelas`,
-        `Kepatuhan suplemen: ${supplementPct}%`,
+        `Kepatuhan suplemen: ${supplement.pct}%`,
       ],
       history: historyEntries,
       reason: `Insight ini muncul karena Anda secara konsisten melakukan pencatatan selama ${periodLabel}. Tidak ditemukan pola yang memerlukan perhatian khusus pada periode ini.`,
@@ -1144,7 +1333,7 @@ const SaveNotification = ({ saveStatus, errorMessage, onClose }: { saveStatus: S
 }
 
 // ─── Contextual Insight Detail Modal ─────────────────────────────────────────
-const INSIGHT_DISCLAIMER_FALLBACK = 'Informasi berdasarkan catatan pengguna dan bukan diagnosis medis.'
+const INSIGHT_DISCLAIMER_FALLBACK = INSIGHT_DISCLAIMER
 
 const buildFallbackInsight = (label: string): ContextualInsight => ({
   id: 'no-pattern',
@@ -1296,7 +1485,7 @@ const SupplementCard = ({ label = 'ASUPAN SUPLEMEN', category, value, fieldInsig
     ? 'Target: 1 Tablet TTD/hari'
     : category === 'breastfeeding'
     ? 'Target: ASI Booster/hari'
-    : 'Target: 1 tab/hari'
+    : 'Target: 1 TTD/minggu'
   return (
     <StatCardBase icon={<PillIconSvg />} iconBg="#fef2f2" label={label} fieldInsight={fieldInsight} sub={<>{targetLabel}</>}>
       {value === null ? <span style={{ fontFamily: 'Inter,sans-serif', fontSize: 16, color: '#cbd5e1', fontWeight: 700 }}>Belum ada data</span> : (
@@ -1311,8 +1500,7 @@ const SupplementCard = ({ label = 'ASUPAN SUPLEMEN', category, value, fieldInsig
   )
 }
 
-const FluidStatCard = ({ category, value, fieldInsight }: { category: CategoryType; value: number | null } & FieldInsightProps) => {
-  const target = category === 'breastfeeding' ? 12 : category === 'pregnant' ? 10 : 8
+const FluidStatCard = ({ target, value, fieldInsight }: { target: number; value: number | null } & FieldInsightProps) => {
   return (
     <StatCardBase icon={<FluidIconSvg />} iconBg="#eff6ff" label="CAIRAN" fieldInsight={fieldInsight}
       sub={value !== null ? <>{target - value > 0 ? `${target - value} gelas lagi!` : 'Target tercapai!'}</> : <>Catatan hari ini</>}
@@ -1410,12 +1598,13 @@ const PumpingStatCard = ({ value, fieldInsight }: { value: number | null } & Fie
 type FieldInsights = Partial<Record<InsightFieldKey, ContextualInsight>>
 
 const StatsGrid = ({
-  category, bp, todayLog, fieldInsights,
+  category, bp, todayLog, fieldInsights, fluidTarget,
 }: {
   category: CategoryType
   bp: 'mobile' | 'tablet' | 'desktop'
   todayLog: ApiHealthLog | null
   fieldInsights: FieldInsights
+  fluidTarget: number
 }) => {
   const suppLabel = category === 'breastfeeding' ? 'ASUPAN ZAT BESI' : 'ASUPAN SUPLEMEN'
   const hasData = todayLog !== null && todayLog.profile_type === CATEGORY_TO_PROFILE[category]
@@ -1436,7 +1625,7 @@ const StatsGrid = ({
   if (bp === 'mobile') return (
     <div className="flex flex-col gap-3 w-full">
       <SupplementCard label={suppLabel} category={category} value={todaySuppPct} fieldInsight={fieldInsights.supplement} />
-      <FluidStatCard category={category} value={todayGlasses} fieldInsight={fieldInsights.hydration} />
+      <FluidStatCard target={fluidTarget} value={todayGlasses} fieldInsight={fieldInsights.hydration} />
       <RestStatCard category={category} value={todaySleep} fieldInsight={fieldInsights.sleep} />
       <MoodStatCard category={category} value={todayMood} fieldInsight={fieldInsights.mood} />
       {card5}
@@ -1446,7 +1635,7 @@ const StatsGrid = ({
     <div className="flex flex-col gap-3 w-full">
       <div className="grid grid-cols-3 gap-3">
         <SupplementCard label={suppLabel} category={category} value={todaySuppPct} fieldInsight={fieldInsights.supplement} />
-        <FluidStatCard category={category} value={todayGlasses} fieldInsight={fieldInsights.hydration} />
+        <FluidStatCard target={fluidTarget} value={todayGlasses} fieldInsight={fieldInsights.hydration} />
         <RestStatCard category={category} value={todaySleep} fieldInsight={fieldInsights.sleep} />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -1458,7 +1647,7 @@ const StatsGrid = ({
   return (
     <div className="flex gap-4 w-full">
       <SupplementCard label={suppLabel} category={category} value={todaySuppPct} fieldInsight={fieldInsights.supplement} />
-      <FluidStatCard category={category} value={todayGlasses} fieldInsight={fieldInsights.hydration} />
+      <FluidStatCard target={fluidTarget} value={todayGlasses} fieldInsight={fieldInsights.hydration} />
       <RestStatCard category={category} value={todaySleep} fieldInsight={fieldInsights.sleep} />
       <MoodStatCard category={category} value={todayMood} fieldInsight={fieldInsights.mood} />
       {card5}
@@ -1774,14 +1963,6 @@ type LogEntryModalProps = {
   errorMessage?: string
 }
 
-const getWeightWarning = (weightStr: string): { text: string; level: 'ok' | 'caution' | 'danger' } | null => {
-  const w = parseFloat(weightStr)
-  if (isNaN(w) || w <= 0) return null
-  if (w < 45) return { text: 'Berat badan terlalu rendah untuk kehamilan yang sehat. Konsultasikan ke bidan/dokter.', level: 'danger' }
-  if (w > 110) return { text: 'Berat badan di atas batas ideal. Diskusikan dengan dokter kandunganmu.', level: 'caution' }
-  return null
-}
-
 const LogEntryModal = (props: LogEntryModalProps) => {
   const {
     open, onClose, category, saveStatus, onSave,
@@ -1801,9 +1982,6 @@ const LogEntryModal = (props: LogEntryModalProps) => {
   const suppOnChange = category === 'teenage' ? setTtdTaken : category === 'pregnant' ? setSupplementTaken : setSupplementBfTaken
   const leftTitle = category === 'teenage' ? 'Tablet Tambah Darah (TTD)' : 'Asupan Suplemen'
   const leftSubtitle = category === 'teenage' ? 'Sudah minum TTD hari ini?' : 'Sudah minum vitamin hari ini?'
-  const weightWarning = category === 'pregnant' ? getWeightWarning(momWeight) : null
-  const weightBg = weightWarning?.level === 'danger' ? '#FFEBEE' : weightWarning?.level === 'caution' ? '#FFFDE7' : '#e6e9e4'
-  const weightBorder = weightWarning?.level === 'danger' ? '#FFCDD2' : weightWarning?.level === 'caution' ? '#FFF176' : 'transparent'
   const pumpingNum = parseInt(nursingCount)
   const pumpingLow = !isNaN(pumpingNum) && pumpingNum > 0 && pumpingNum < 6
   return (
@@ -1898,17 +2076,12 @@ const LogEntryModal = (props: LogEntryModalProps) => {
                     </div>
                     <div
                       className="relative h-[52px] rounded-[40px] flex items-center px-4 overflow-hidden transition-colors"
-                      style={{ background: weightBg, border: `1.5px solid ${weightBorder}` }}
+                      style={{ background: '#e6e9e4', border: '1.5px solid transparent' }}
                     >
                       <input type="number" value={momWeight} onChange={e => setMomWeight(e.target.value)} placeholder="0" min={0} max={200}
                         className="no-spinner flex-1 bg-transparent outline-none font-['Lexend',sans-serif] font-bold text-[20px] text-[#6b7280] leading-none w-full" />
                       <span className="absolute right-5 font-bold text-sm text-[#42493b] font-[Montserrat,sans-serif]">kg</span>
                     </div>
-                    {weightWarning && (
-                      <p className={`text-[11px] font-semibold font-[Montserrat,sans-serif] pl-1 ${weightWarning.level === 'danger' ? 'text-red-600' : 'text-amber-600'}`}>
-                        ⚠ {weightWarning.text}
-                      </p>
-                    )}
                   </>
                 )}
                 {category === 'breastfeeding' && (
@@ -2190,6 +2363,12 @@ export default function HealthLog() {
   }
 
   const activeRole: RoleType = CATEGORY_TO_PROFILE[activeCategory] as RoleType
+
+  // CHI-05: usia bayi (bulan) untuk target cairan ibu menyusui.
+  // TODO: isi dari data anak di Growth Tracker, mis. getBabyAgeMonths(child.birth_date).
+  // Selama null, target memakai BREASTFEEDING_FLUID_TARGET_DEFAULT (menunggu keputusan stakeholder).
+  const babyAgeMonths: number | null = null
+  const activeFluidTarget = getFluidTargets(activeRole, babyAgeMonths).target
   
   const activeCategoryLogs = useMemo(
     () => allLogs.filter(l => l.profile_type === CATEGORY_TO_PROFILE[activeCategory]),
@@ -2211,20 +2390,20 @@ export default function HealthLog() {
     if (activeCategoryLogs.length === 0) return {}
     return {
       supplement: getSupplementInsight(activeCategoryLogs, activeRole, fieldPeriod, customStart, customEnd),
-      hydration: getFluidInsight(activeCategoryLogs, activeRole, fieldPeriod, customStart, customEnd),
+      hydration: getFluidInsight(activeCategoryLogs, activeRole, fieldPeriod, babyAgeMonths, customStart, customEnd),
       sleep: getRestInsight(activeCategoryLogs, activeRole, fieldPeriod, customStart, customEnd),
       mood: getMoodInsight(activeCategoryLogs, activeRole, fieldPeriod, customStart, customEnd),
       ...(activeRole === 'teen' ? { cycle: getCycleInsight(activeCategoryLogs, fieldPeriod, customStart, customEnd) } : {}),
       ...(activeRole === 'pregnant' ? { weight: getMomWeightInsight(activeCategoryLogs, fieldPeriod, customStart, customEnd) } : {}),
       ...(activeRole === 'breastfeeding' ? { breastfeeding: getPumpingInsight(activeCategoryLogs, fieldPeriod, customStart, customEnd) } : {}),
     }
-  }, [activeCategoryLogs, activeRole, fieldPeriod, customStart, customEnd])
+  }, [activeCategoryLogs, activeRole, fieldPeriod, babyAgeMonths, customStart, customEnd])
 
   // Contextual insight (gabungan) — memakai periode global
   const contextualInsight = useMemo(() => {
     if (allLogs.length === 0) return null
-    return generateContextualInsight(allLogs, fieldPeriod, customStart, customEnd)
-  }, [allLogs, fieldPeriod, customStart, customEnd])
+    return generateContextualInsight(allLogs, fieldPeriod, babyAgeMonths, customStart, customEnd)
+  }, [allLogs, fieldPeriod, babyAgeMonths, customStart, customEnd])
 
   const contextualInsights = contextualInsight ? [contextualInsight] : []
 
@@ -2532,7 +2711,7 @@ export default function HealthLog() {
         </div>
 
         {/* ── Stats Grid ── */}
-        <div className="mb-5"><StatsGrid category={activeCategory} bp={bp} todayLog={todayLog} fieldInsights={fieldInsights} /></div>
+        <div className="mb-5"><StatsGrid category={activeCategory} bp={bp} todayLog={todayLog} fieldInsights={fieldInsights} fluidTarget={activeFluidTarget} /></div>
 
         {/* ── Contextual Health Insight ── */}
         {contextualInsights.length > 0 && (

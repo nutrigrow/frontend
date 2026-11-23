@@ -24,6 +24,8 @@ export type InsightCategory =
   | 'Cek Data'
   | 'Pengingat'
   | 'Perkembangan Baik'
+  /** Ringkasan data tanpa penilaian, mis. berat badan ibu hamil (CHI-19). */
+  | 'Informasi'
 
 export type InsightStatus = 'safe' | 'caution' | 'danger' | 'info'
 export type InsightActionType = 'consult' | 'article' | 'log' | 'history'
@@ -89,6 +91,14 @@ export interface InsightResponse {
 export type FieldPeriod = 'week' | '15days' | 'month' | 'all' | 'custom'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+/**
+ * Disclaimer untuk setiap insight (CHI-09, U-06).
+ * Kalimat kedua mengikuti Buku KIA 2024 (hlm. PDF 4): pemeriksaan status gizi
+ * dan skrining kesehatan dilakukan oleh tenaga kesehatan.
+ */
+export const INSIGHT_DISCLAIMER =
+  'Informasi berdasarkan catatan Anda, bukan diagnosis medis. Periksakan ke bidan, dokter, atau Puskesmas untuk penilaian lebih lanjut.'
+
 const MOOD_INT_TO_STR: Record<number, string> = {
   5: 'Bahagia',
   4: 'Nyaman',
@@ -156,6 +166,33 @@ export const getLocalISODate = (date: Date = new Date()): string =>
 export const isoToDDMMYYYY = (iso: string): string => {
   const [yyyy, mm, dd] = iso.split('-')
   return `${dd}/${mm}/${yyyy}`
+}
+
+// ─── Target cairan ibu menyusui (CHI-05) ──────────────────────────────────────
+/**
+ * Buku KIA 2024 (hlm. PDF 20 dan 60): ibu menyusui minum 14 gelas/hari pada
+ * 6 bulan pertama dan 12 gelas/hari pada 6 bulan kedua.
+ */
+export const BREASTFEEDING_FLUID_TARGET_0_6 = 14
+export const BREASTFEEDING_FLUID_TARGET_6_12 = 12
+/**
+ * Target bawaan bila usia bayi belum tersedia. Nilai lama (12 gelas) dipertahankan
+ * sementara, menunggu keputusan stakeholder (CHI-05, pertanyaan no. 4).
+ */
+export const BREASTFEEDING_FLUID_TARGET_DEFAULT = 12
+
+/** Usia bayi dalam bulan penuh, dari tanggal lahir (YYYY-MM-DD). */
+export const getBabyAgeMonths = (birthDateIso: string, todayIso: string = getLocalISODate()): number => {
+  const [by, bm, bd] = birthDateIso.split('-').map(Number)
+  const [ty, tm, td] = todayIso.split('-').map(Number)
+  const months = (ty - by) * 12 + (tm - bm) - (td < bd ? 1 : 0)
+  return Math.max(0, months)
+}
+
+/** Target cairan ibu menyusui menurut usia bayi (bulan). `null` = usia bayi belum diketahui. */
+export const getBreastfeedingFluidTarget = (babyAgeMonths: number | null): number => {
+  if (babyAgeMonths === null) return BREASTFEEDING_FLUID_TARGET_DEFAULT
+  return babyAgeMonths < 6 ? BREASTFEEDING_FLUID_TARGET_0_6 : BREASTFEEDING_FLUID_TARGET_6_12
 }
 
 // ─── Form validation ──────────────────────────────────────────────────────────
