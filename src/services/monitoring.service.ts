@@ -26,9 +26,9 @@ export interface MonitoringRole {
   criticalDays: number;
 }
 
-// ─── Interval monitoring per role (dokumen "Monitoring Notification") ────────
+// ─── Interval monitoring per role (dokumen "Spesifikasi Aturan Monitoring Notification") ─
 export const MONITORING_ROLES = {
-  penggunaBiasa: { label: 'Pengguna biasa',   normalDays: 7,  criticalDays: 14 },
+  penggunaUmum:  { label: 'Pengguna umum',    normalDays: 7,  criticalDays: 14 },
   ibuHamil:      { label: 'Ibu hamil',        normalDays: 3,  criticalDays: 7  },
   bayi:          { label: 'Bayi 0-12 bulan',  normalDays: 7,  criticalDays: 14 },
   balita:        { label: 'Balita 1-5 tahun', normalDays: 14, criticalDays: 30 },
@@ -93,7 +93,7 @@ export const getChildRole = (child: ApiChild, today: string): MonitoringRole | n
 };
 
 export const getHealthLogRole = (latestLog: ApiHealthLog): MonitoringRole =>
-  latestLog.profile_type === 'pregnant' ? MONITORING_ROLES.ibuHamil : MONITORING_ROLES.penggunaBiasa;
+  latestLog.profile_type === 'pregnant' ? MONITORING_ROLES.ibuHamil : MONITORING_ROLES.penggunaUmum;
 
 /**
  * Jumlah hari berturut-turut user mengisi health log, dihitung mundur dari kemarin.
@@ -290,6 +290,12 @@ const BACKEND_TITLES: Record<string, string> = {
   anc_reminder:    'Persiapan kontrol besok',
 };
 
+// M-16: pesan dari backend menyebut "dokter/bidan", padahal pemicunya adalah jadwal
+// konsultasi dengan ahli gizi di NutriGrow. Pesan diganti agar sesuai dokumen spesifikasi.
+const BACKEND_MESSAGES: Record<string, string> = {
+  anc_reminder: 'Besok ada jadwal konsultasi dengan ahli gizi. Siapkan catatan kesehatan terbarumu ya!',
+};
+
 const buildBackendNotifications = (
   items: MonitoringInput['backendNotifications'],
   today: string,
@@ -301,7 +307,7 @@ const buildBackendNotifications = (
       id: `info-${item.type}-${today}`,
       kind: 'info' as const,
       title: BACKEND_TITLES[item.type] ?? 'Pengingat sehat',
-      message: item.message,
+      message: BACKEND_MESSAGES[item.type] ?? item.message,
       meta: 'Pengingat harian',
       cta: item.type === 'anc_reminder'
         ? { label: 'Lihat Jadwal', href: '/konsultasi-saya' }
